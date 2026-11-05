@@ -11,7 +11,7 @@ Robô hospitalar autônomo que leva medicamentos e insumos da farmácia (e do ba
 
 **Objetivo:** uma **demo integrada em simulação (Gazebo)** na ExpoTech, mostrando que um pedido feito no sistema hospitalar vira uma entrega autônoma, e que o estoque muda por causa do robô.
 
-**Prazo:** 3 semanas a partir de 05/11/2026 (a data real da ExpoTech deve ser registrada aqui pelo líder).
+**Prazo:** ExpoTech no **sábado, 28/11/2026**. O desenvolvimento ocupa 3 semanas (05–25/11), com o congelamento (M3) na quarta 25/11 e quinta e sexta (26 e 27/11) reservadas a ensaio e imprevistos.
 
 **Dentro do escopo**
 - Robô diferencial no Gazebo, navegando com Nav2 por um hospital inventado.
@@ -178,6 +178,8 @@ Semana 1 = 05–11/11 · Semana 2 = 12–18/11 · Semana 3 = 19–25/11.
 | M1 — fatia vertical | qua 11/11 | Pedido na API vira meta no Nav2 e o robô anda até um ponto no Gazebo |
 | M2 — entrega completa | qua 18/11 | Pedido → reserva → robô entrega desviando obstáculo → estoque credita, visível no painel |
 | M3 — demo congelada | qua 25/11 | Segurança integrada, demo ensaiada, vídeo de reserva gravado; só correção de bug depois |
+| Ensaio e folga | qui 26 e sex 27/11 | Ensaio completo na máquina da demo, ajustes de roteiro, nenhuma funcionalidade nova |
+| ExpoTech | sáb 28/11 | Apresentação |
 
 | | Semana 1: fundação | Semana 2: profundidade | Semana 3: segurança e demo |
 |---|---|---|---|
@@ -223,7 +225,6 @@ Terá spec própria. Segue a estrutura do `DESIGN_SYSTEM.md` do barberschedule (
 | Altura do robô | Imagens de referência dão 0,47 m; o texto de requisitos pede 0,90–1,00 m. Foi seguido o modelo das imagens; variante alta só se o líder pedir | Samuel |
 | Versão ROS 2/Gazebo | Confirmar com a disciplina | Samuel e Erik |
 | Gazebo com GUI em Windows/Mac | Mitigado com headless e demo no Linux do líder | Samuel |
-| Data real da ExpoTech | Registrar na seção 1 | Samuel |
 | LiDAR no topo | Presente no modelo por sugestão da especificação; pode sair com `LIDAR = False` em `build_geraldo2.py` | Samuel |
 | Pedro depende da API | Mitigado: painel contra API mock nas semanas 1–2 | Pedro e Vieira |
 | Erik é o caminho crítico do IMR | Samuel absorve URDF, mundo e geradores para aliviar | Samuel |
