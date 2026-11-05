@@ -223,7 +223,7 @@ Terá spec própria. Segue a estrutura do `DESIGN_SYSTEM.md` do barberschedule (
 | Item | Decisão ou risco | Dono |
 |---|---|---|
 | Altura do robô | Imagens de referência dão 0,47 m; o texto de requisitos pede 0,90–1,00 m. Foi seguido o modelo das imagens; variante alta só se o líder pedir | Samuel |
-| Versão ROS 2/Gazebo | Confirmar com a disciplina | Samuel e Erik |
+| Versão ROS 2/Gazebo | Confirmar com a disciplina | Samuel |
 | Gazebo com GUI em Windows/Mac | Mitigado com headless e demo no Linux do líder | Samuel |
 | LiDAR no topo | Presente no modelo por sugestão da especificação; pode sair com `LIDAR = False` em `build_geraldo2.py` | Samuel |
 | Pentest depende da API pronta | Pedro prepara os scripts contra API mock nas semanas 1–2 e ataca a API real na semana 3 | Pedro e Erik |
