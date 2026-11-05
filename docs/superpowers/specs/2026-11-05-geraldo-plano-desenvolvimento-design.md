@@ -30,10 +30,10 @@ Robô hospitalar autônomo que leva medicamentos e insumos da farmácia (e do ba
 
 | Pessoa | Frente | Entrega principal |
 |---|---|---|
-| Samuel (líder) | Integração, ambiente, 3D, guia das IAs, design system, Unity (extra) | Docker, `geraldo_description`, `hospital.yaml` e geradores, contratos, demo final |
-| Erik | IMR (ROS 2, Gazebo, Nav2) | Controle, sensores, navegação, desvio, máquina de estados |
-| Vieira | Backend (Paradigms) | API, domínio, estoque, fila, JWT, auditoria |
-| Pedro | Painel web, depois Pentest e qualidade | Painel (semanas 1–2), ataques, relatório e testes (semana 3) |
+| Samuel (líder) | Robô e simulação (IMR), hospital, 3D, ambiente, contratos, guia das IAs, tokens do design system, Unity (extra) | Docker, `geraldo_description` (URDF), mundo Gazebo, `hospital.yaml` e geradores, sensores, Nav2, máquina de estados, `geraldo_dispatcher`, demo final |
+| Erik | Backend e gestão hospitalar (Paradigms) | API, domínio, estoque, fila, JWT, auditoria, endpoints do robô, WebSocket |
+| Vieira | Painel web | Painel (3 telas), dados de demo, componentes do design system |
+| Pedro | Qualidade e segurança (Pentest) | Robô de mentira (mock do dispatcher), CI, testes de contrato, 5 ataques, mitigação e relatório |
 
 ## 3. O hospital (mundo da simulação)
 
@@ -99,21 +99,21 @@ Prescrição (API) → Auth JWT → Command → Fila de prioridade → Reserva d
 | Média | Antibióticos, fluidos IV | Enfermarias 214/215 | Navegação padrão; aguarda liberação de corredor estreito | JWT do setor requisitante |
 | Rotina | Inventário obsoleto, lençóis | Rouparia, farmácia | Só em horário de baixo pico; cede passagem a humanos | Log; permissões de baixo nível |
 
-### 4.1 IMR — robô e navegação (Erik; Samuel no URDF e no mundo)
+### 4.1 IMR — robô e navegação (Samuel)
 - Controle diferencial: `/cmd_vel` → rodas, com saturação proporcional (já feita na Aula 05).
 - Sensores simulados: `/scan` (LiDAR 2D), 5 sensores de alcance (0°, ±45° frontais; ±135° traseiros; nenhum a 180°), câmera RGB-D.
 - Nav2: rota global, costmap local, desvio reativo; footprint 0,70 × 0,50 m mais 10 cm de inflação.
 - Máquina de estados: `IDLE → A_CAMINHO → CHEGOU → AGUARDANDO_RETIRADA → VOLTANDO`, mais `PARADA_EMERGENCIA` e `CARREGANDO`.
 - Nó `geraldo_dispatcher`: consome a fila do backend e envia metas ao Nav2 usando `waypoints.yaml`.
 
-### 4.2 Backend e gestão hospitalar (Vieira)
+### 4.2 Backend e gestão hospitalar (Erik)
 - Papéis: `medico`, `enfermeiro`, `farmaceutico`, `admin`, `robo`.
 - Comandos (padrão Command): `CriarEntrega`, `CancelarEntrega`, `AprovarCritica`.
 - Fila com 3 prioridades, FIFO dentro de cada uma.
 - Estoque por local, alterado **somente** por `Movimentacao` (imutável, auditável).
 - Cada entrega tem `origem` e `destino` (o banco de sangue é origem alternativa à farmácia).
 
-### 4.3 Painel web (Pedro)
+### 4.3 Painel web (Vieira)
 Três telas: (1) estoque por local, atualizado ao vivo; (2) fila e entregas em andamento, com prioridade e estado do robô; (3) histórico de movimentações. Consome só a API.
 
 ### 4.4 Pentest (Pedro)
@@ -183,10 +183,10 @@ Semana 1 = 05–11/11 · Semana 2 = 12–18/11 · Semana 3 = 19–25/11.
 
 | | Semana 1: fundação | Semana 2: profundidade | Semana 3: segurança e demo |
 |---|---|---|---|
-| Samuel | Repo, Docker, modelo e URDF v0, `hospital.yaml` e geradores, contratos, design system v0, guia das IAs | Mundo hospitalar completo, `geraldo_dispatcher` (com Erik), componentes do design system | Integração, congelamento, ensaio; Unity só se o M2 foi atingido |
-| Erik | Robô no Gazebo, `/cmd_vel`, `/scan`, Nav2 básico | 5 sensores, desvio, máquina de estados, prioridades, parada de emergência | Ajuste fino, robustez, vídeo de reserva |
-| Vieira | FastAPI, modelo de dados, JWT, criar entrega e fila (robô de mentira) | Movimentações, prescrições, assinatura dupla, auditoria, WebSocket | Endurecimento, correções do pentest |
-| Pedro | Painel (esqueleto, API mock) | Painel com 3 telas ao vivo; scripts de ataque | 5 ataques, mitigação, relatório, testes, roteiro da demo |
+| Samuel | Repo, Docker, modelo e URDF v0, `hospital.yaml` e geradores, robô no Gazebo com `/cmd_vel` e `/scan`, Nav2 básico, contratos, guia das IAs, tokens do design system | Mundo hospitalar completo, 5 sensores, desvio, máquina de estados, prioridades, parada de emergência, `geraldo_dispatcher` | Integração, ajuste fino do robô, vídeo de reserva, congelamento, ensaio; Unity só se o M2 foi atingido |
+| Erik | FastAPI, modelo de dados, JWT, criar entrega e fila | Movimentações de estoque, prescrições, assinatura dupla, auditoria, endpoints do robô, WebSocket | Endurecimento, correções do pentest |
+| Vieira | Painel (esqueleto sobre API mock), componentes do design system | Painel com 3 telas ao vivo, dados de demo | Polimento do painel, apoio ao roteiro da demo |
+| Pedro | Robô de mentira (mock do dispatcher), CI, coleção de requests da API | Scripts de ataque, testes de contrato | 5 ataques, mitigação, relatório, testes, roteiro da demo |
 
 **Ordem de corte:** (1) Unity no celular, (2) cockpit Unity, (3) câmera RGB-D e marcador, (4) assinatura dupla, (5) tela 3 do painel, (6) "rotina só em baixo pico", (7) pronto-socorro e Enf. 215.
 **Não corta:** Gazebo + Nav2 + API + estoque mudando por causa do robô + pentest básico.
@@ -226,5 +226,5 @@ Terá spec própria. Segue a estrutura do `DESIGN_SYSTEM.md` do barberschedule (
 | Versão ROS 2/Gazebo | Confirmar com a disciplina | Samuel e Erik |
 | Gazebo com GUI em Windows/Mac | Mitigado com headless e demo no Linux do líder | Samuel |
 | LiDAR no topo | Presente no modelo por sugestão da especificação; pode sair com `LIDAR = False` em `build_geraldo2.py` | Samuel |
-| Pedro depende da API | Mitigado: painel contra API mock nas semanas 1–2 | Pedro e Vieira |
-| Erik é o caminho crítico do IMR | Samuel absorve URDF, mundo e geradores para aliviar | Samuel |
+| Pentest depende da API pronta | Pedro prepara os scripts contra API mock nas semanas 1–2 e ataca a API real na semana 3 | Pedro e Erik |
+| Samuel acumula liderança e robô (caminho crítico) | Backend e painel não dependem do robô (robô de mentira do Pedro); contratos travados cedo; o Unity é o primeiro corte | Samuel |
