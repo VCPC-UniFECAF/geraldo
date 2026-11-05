@@ -167,7 +167,7 @@ Locais com estoque: Farmácia central, Banco de sangue, UTI, Centro cirúrgico, 
 | `POST /deliveries/{id}/approve` | farmacêutico | assinatura dupla (crítica) |
 | `POST /deliveries/{id}/confirm-receipt` | solicitante da entrega | confirma o recebimento; libera a tampa |
 | `GET /me` | autenticado | usuário, papel e `local_id` (destino padrão dos pedidos) |
-| `GET /stock?location_id=` | autenticado | saldos |
+| `GET /stock?location_id=` | autenticado | saldos (com `item_name`, para a web listar os itens) |
 | `GET /movements` | autenticado | histórico |
 | `GET /locations` | autenticado | locais |
 | `POST /robot/next-task` | robô | dispatcher pede a próxima entrega |
