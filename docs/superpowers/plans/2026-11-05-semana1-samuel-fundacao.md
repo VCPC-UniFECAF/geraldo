@@ -25,14 +25,16 @@
 
 ### Task 1: Estrutura do repositório e modelo 3D
 
+> **Já feito em 05/11/2026 (direto na `main`):** a pasta `modelos-3d/` com `geraldoV1.blend`, `geraldoV1.glb`, `build_geraldoV1.py` e `renders/`, o `README.md` da raiz e a imagem `docs/img/planta-hospital.png`. Os passos de copiar o modelo e de escrever os READMEs abaixo **não precisam ser repetidos**; falta criar as pastas vazias e o `.gitignore`. O teste de estrutura continua valendo.
+
 **Files:**
-- Create: `.gitignore`, `README.md` (substitui o atual), `assets/blender/README.md`
-- Create (copiados): `assets/blender/geraldo2.blend`, `assets/blender/geraldo2.glb`, `assets/blender/build_geraldo2.py`, `assets/blender/renders/*.png`
+- Create: `.gitignore`, `README.md` (substitui o atual), `modelos-3d/README.md`
+- Create (copiados): `modelos-3d/geraldoV1.blend`, `modelos-3d/geraldoV1.glb`, `modelos-3d/build_geraldoV1.py`, `modelos-3d/renders/*.png`
 - Create (vazios): `backend/.gitkeep`, `web/.gitkeep`, `security/.gitkeep`, `unity/.gitkeep`, `ros2_ws/src/.gitkeep`, `design-system/.gitkeep`, `hospital/.gitkeep`, `tools/.gitkeep`
 
 **Interfaces:**
-- Consumes: arquivos do modelo em `/home/samuel/projects/fecaf/AR-VR/geraldo/` (`geraldo2.blend`, `geraldo2.glb`, `build_geraldo2.py`, `geraldo2_*.png`).
-- Produces: a estrutura de pastas da spec §12 e do `AGENTS.md`; o modelo em `assets/blender/` (usado na Tarefa 3 do plano do robô).
+- Consumes: o modelo já em `modelos-3d/` (`geraldoV1.blend`, `geraldoV1.glb`, `build_geraldoV1.py`, `renders/geraldoV1_<vista>.png`).
+- Produces: a estrutura de pastas da spec §12 e do `AGENTS.md`; o modelo em `modelos-3d/` (usado na Tarefa 3 do plano do robô).
 
 - [ ] **Step 1: Criar a branch a partir da branch das specs**
 
@@ -52,7 +54,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 REQUIRED_DIRS = [
-    "assets/blender",
+    "modelos-3d",
     "backend",
     "web",
     "security",
@@ -68,9 +70,9 @@ REQUIRED_DIRS = [
 REQUIRED_FILES = [
     "README.md",
     ".gitignore",
-    "assets/blender/geraldo2.blend",
-    "assets/blender/geraldo2.glb",
-    "assets/blender/build_geraldo2.py",
+    "modelos-3d/geraldoV1.blend",
+    "modelos-3d/geraldoV1.glb",
+    "modelos-3d/build_geraldoV1.py",
 ]
 
 
@@ -85,12 +87,12 @@ def test_required_files_exist():
 
 
 def test_model_files_are_not_empty():
-    for name in ("geraldo2.blend", "geraldo2.glb"):
-        assert (ROOT / "assets/blender" / name).stat().st_size > 100_000, name
+    for name in ("geraldoV1.blend", "geraldoV1.glb"):
+        assert (ROOT / "modelos-3d" / name).stat().st_size > 100_000, name
 
 
 def test_renders_were_copied():
-    renders = list((ROOT / "assets/blender/renders").glob("*.png"))
+    renders = list((ROOT / "modelos-3d/renders").glob("*.png"))
     assert len(renders) >= 6
 ```
 
@@ -101,17 +103,13 @@ Create `tools/__init__.py` (arquivo vazio) e `tools/tests/__init__.py` (arquivo 
 Run: `python -m pytest tools/tests/test_repo_layout.py -q`
 Expected: FAIL (pastas e arquivos faltando).
 
-- [ ] **Step 4: Criar pastas, copiar o modelo e escrever `.gitignore`**
+- [ ] **Step 4: Criar as pastas vazias e escrever `.gitignore`**
 
 ```bash
 cd /home/samuel/projects/fecaf/geraldo
-for d in backend web security unity ros2_ws/src design-system hospital tools docs/contracts docs/prompts assets/blender/renders; do mkdir -p "$d"; done
+for d in backend web security unity ros2_ws/src design-system hospital tools docs/contracts docs/prompts modelos-3d/renders; do mkdir -p "$d"; done
 for d in backend web security unity ros2_ws/src design-system hospital; do touch "$d/.gitkeep"; done
-SRC=/home/samuel/projects/fecaf/AR-VR/geraldo
-cp "$SRC/geraldo2.blend" "$SRC/geraldo2.glb" "$SRC/build_geraldo2.py" assets/blender/
-cp "$SRC"/geraldo2_*.png assets/blender/renders/
-mv assets/blender/renders/geraldo2_render.png assets/blender/renders/geraldo2_hero.png 2>/dev/null || true
-ls assets/blender assets/blender/renders
+ls modelos-3d modelos-3d/renders   # o modelo já está aqui
 ```
 
 Create `.gitignore`:
@@ -132,18 +130,18 @@ log/
 
 (`design-system/dist/` **não** é ignorado: os arquivos gerados são versionados.)
 
-- [ ] **Step 5: Escrever `assets/blender/README.md` e o `README.md` da raiz**
+- [ ] **Step 5: Escrever `modelos-3d/README.md` e o `README.md` da raiz**
 
-Create `assets/blender/README.md`:
+Create `modelos-3d/README.md`:
 
 ```markdown
 # Modelo 3D do G.E.R.A.L.D.O.
 
 | Arquivo | Para quê |
 |---|---|
-| `geraldo2.blend` | Cena editável do Blender (robô, cenário, 6 câmeras) |
-| `geraldo2.glb` | Só o robô, para o Unity e para a web |
-| `build_geraldo2.py` | Script que gera tudo. Rode com `blender -b --python build_geraldo2.py` |
+| `geraldoV1.blend` | Cena editável do Blender (robô, cenário, 6 câmeras) |
+| `geraldoV1.glb` | Só o robô, para o Unity e para a web |
+| `build_geraldoV1.py` | Script que gera tudo. Rode com `blender -b --python build_geraldoV1.py` |
 | `renders/` | Imagens de referência (vistas hero, frente, traseira, lateral, aérea, topo) |
 
 Dimensões: chassi 0,70 × 0,50 m; rodas de tração de 0,20 m de diâmetro (eixo em x = +0,10 m, separação de 0,45 m); rodízio traseiro de 0,08 m; baú de 0,48 × 0,40 m; altura total de 0,47 m. Frente do robô = +X; eixo das rodas = Y; `base_link` no chão.
@@ -170,7 +168,7 @@ Robô hospitalar autônomo, simulado no Gazebo, que leva medicamentos e insumos 
 
 | Pasta | Conteúdo |
 |---|---|
-| `assets/blender/` | Modelo 3D do robô |
+| `modelos-3d/` | Modelo 3D do robô |
 | `hospital/` | `hospital.yaml`: a planta do hospital (fonte única) |
 | `ros2_ws/` | Robô, simulação, Nav2 e `geraldo_dispatcher` |
 | `backend/` | API FastAPI, estoque e gestão hospitalar |
@@ -861,7 +859,7 @@ Prioridades: `critica` (sangue, drogas de emergência; exige assinatura do farma
 
 | Pasta | Dono | Conteúdo | Guia |
 |---|---|---|---|
-| `assets/blender/` | Samuel | Modelo 3D | — |
+| `modelos-3d/` | Samuel | Modelo 3D | — |
 | `hospital/`, `tools/` | Samuel | `hospital.yaml` e geradores | — |
 | `ros2_ws/`, `docker/` | Samuel | Robô, simulação, Nav2, dispatcher | `ros2_ws/AGENTS.md` |
 | `backend/` | Erik | API, estoque, fila, JWT | `backend/AGENTS.md` |
@@ -1045,7 +1043,7 @@ CI em `.github/workflows/`, teste de contrato em `backend/tests/test_contract.py
 
 É o **primeiro corte** se o prazo apertar; só começa depois do M2 (18/11).
 
-- Modelo do robô: `assets/blender/geraldo2.glb`.
+- Modelo do robô: `modelos-3d/geraldoV1.glb`.
 - Cores: `design-system/dist/GeraldoTokens.cs` (não edite à mão).
 - Dados: `GET /telemetry` e `WS /ws/telemetry` (contrato em `docs/contracts/openapi.yaml`).
 - Alvo: desktop e celular.

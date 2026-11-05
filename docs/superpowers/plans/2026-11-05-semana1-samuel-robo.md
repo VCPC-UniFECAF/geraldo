@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-05-geraldo-plano-desenvolvimento-design.md` (seções 4.1 e 8)
 
-**Pré-requisito:** Tarefas 1 e 4 do plano `2026-11-05-semana1-samuel-fundacao.md` (repo, modelo em `assets/blender/` e `tools/gen_hospital.py` com o hospital gerado).
+**Pré-requisito:** Tarefas 1 e 4 do plano `2026-11-05-semana1-samuel-fundacao.md` (repo, modelo em `modelos-3d/` e `tools/gen_hospital.py` com o hospital gerado).
 
 ## Global Constraints
 
@@ -139,7 +139,7 @@ Avise Erik, Vieira e Pedro: "imagem pronta; só quem mexe no robô precisa dela"
 - Test: `tools/tests/test_export_mesh.py`
 
 **Interfaces:**
-- Consumes: `assets/blender/geraldo2.blend` (coleção `GERALDO`; objetos de roda começam com `roda_`, `disco_`, `tampa_`, rodízio com `rodizio_`).
+- Consumes: `modelos-3d/geraldoV1.blend` (coleção `GERALDO`; objetos de roda começam com `roda_`, `disco_`, `tampa_`, rodízio com `rodizio_`).
 - Produces: `meshes/geraldo_body.obj` — chassi, baú, sensores e LiDAR em metros, frente = +X, Z para cima, origem em `base_link` (as rodas e o rodízio **não** entram: viram primitivas no URDF).
 
 - [ ] **Step 1: Escrever o teste (falha primeiro)**
@@ -160,7 +160,7 @@ OBJ = ROOT / "ros2_ws/src/geraldo_description/meshes/geraldo_body.obj"
 @pytest.mark.skipif(shutil.which("blender") is None, reason="Blender não instalado")
 def test_export_creates_the_body_mesh_in_the_right_frame():
     subprocess.run(
-        ["blender", "-b", str(ROOT / "assets/blender/geraldo2.blend"), "--python", str(ROOT / "tools/export_blender_mesh.py")],
+        ["blender", "-b", str(ROOT / "modelos-3d/geraldoV1.blend"), "--python", str(ROOT / "tools/export_blender_mesh.py")],
         check=True, capture_output=True, text=True, timeout=300,
     )
     verts = [l.split() for l in OBJ.read_text().splitlines() if l.startswith("v ")]
@@ -185,7 +185,7 @@ Create `tools/export_blender_mesh.py`:
 ```python
 """Exporta a malha do corpo do G.E.R.A.L.D.O. para o Gazebo (OBJ).
 
-Uso: blender -b assets/blender/geraldo2.blend --python tools/export_blender_mesh.py
+Uso: blender -b modelos-3d/geraldoV1.blend --python tools/export_blender_mesh.py
 Rodas e rodízio ficam de fora: o URDF as descreve com primitivas para poderem girar.
 """
 import os

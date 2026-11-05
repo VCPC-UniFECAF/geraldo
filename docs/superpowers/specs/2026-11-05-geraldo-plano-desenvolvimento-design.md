@@ -204,7 +204,7 @@ Semana 1 = 05–11/11 · Semana 2 = 12–18/11 · Semana 3 = 19–25/11.
 
 ## 8. Modelo 3D e simulação
 
-- Arquivos em `assets/blender/`: `geraldo2.blend`, `geraldo2.glb`, renders e `build_geraldo2.py` (o script gera tudo; cerca de 4 MB, sem Git LFS).
+- Arquivos em `modelos-3d/`: `geraldoV1.blend`, `geraldoV1.glb`, renders e `build_geraldoV1.py` (o script gera tudo; cerca de 4 MB, sem Git LFS).
 - Dimensões: chassi 0,70 × 0,50 m; rodas de tração 0,20 m (eixo em x = +0,10 m, mais à frente para estabilidade, com separação de 0,45 m); rodízio traseiro 0,08 m; baú 0,48 × 0,40 m; altura total 0,47 m.
 - O Gazebo **não usa o `.blend`**: usa uma malha visual exportada (`.dae` ou `.stl`) e uma colisão simples de 0,70 × 0,50 m, com URDF escrito à mão em `ros2_ws/src/geraldo_description/`.
 - O LiDAR do modelo é um disco opcional no topo; no URDF o sensor existe independentemente do visual.
@@ -238,7 +238,7 @@ Tem spec própria: [2026-11-05-geraldo-design-system-design.md](2026-11-05-geral
 | Altura do robô | Imagens de referência dão 0,47 m; o texto de requisitos pede 0,90–1,00 m. Foi seguido o modelo das imagens; variante alta só se o líder pedir | Samuel |
 | Versão ROS 2/Gazebo | Confirmar com a disciplina | Samuel |
 | Gazebo com GUI em Windows/Mac | Mitigado com headless e demo no Linux do líder | Samuel |
-| LiDAR no topo | Presente no modelo por sugestão da especificação; pode sair com `LIDAR = False` em `build_geraldo2.py` | Samuel |
+| LiDAR no topo | Presente no modelo por sugestão da especificação; pode sair com `LIDAR = False` em `build_geraldoV1.py` | Samuel |
 | Frontend (Vieira) ganhou escopo: solicitar e confirmar recebimento | Prioridade do sistema web; corta-se primeiro a tela de histórico e depois a de fila | Vieira e Samuel |
 | Stack do app web | Vieira decide até 07/11 (recomendação: React + Vite + TypeScript + Tailwind v3); os tokens do design system valem em qualquer stack | Vieira |
 | Pentest depende da API pronta | Pedro prepara os scripts contra API mock nas semanas 1–2 e ataca a API real na semana 3 | Pedro e Erik |
