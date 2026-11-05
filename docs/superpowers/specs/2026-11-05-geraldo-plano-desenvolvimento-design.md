@@ -16,7 +16,7 @@ Robô hospitalar autônomo que leva medicamentos e insumos da farmácia (e do ba
 **Dentro do escopo**
 - Robô diferencial no Gazebo, navegando com Nav2 por um hospital inventado.
 - Backend FastAPI com gestão hospitalar/estoque (padrão Command), JWT e papéis.
-- Painel web simples (estoque por local, fila de entregas, histórico de movimentações).
+- Sistema web (prioridade) usado pelos profissionais: solicitar medicamentos do próprio consultório, acompanhar a entrega e confirmar o recebimento; mais painel de estoque, fila e histórico. Responsivo: usável no computador e no navegador do celular (sem app nativo).
 - Pentest da API de despacho, com mitigação e relatório.
 - Modelo 3D (Blender) e design system no repositório.
 
@@ -32,7 +32,7 @@ Robô hospitalar autônomo que leva medicamentos e insumos da farmácia (e do ba
 |---|---|---|
 | Samuel (líder) | Robô e simulação (IMR), hospital, 3D, ambiente, contratos, guia das IAs, tokens do design system, Unity (extra) | Docker, `geraldo_description` (URDF), mundo Gazebo, `hospital.yaml` e geradores, sensores, Nav2, máquina de estados, `geraldo_dispatcher`, demo final |
 | Erik | Backend e gestão hospitalar (Paradigms) | API, domínio, estoque, fila, JWT, auditoria, endpoints do robô, WebSocket |
-| Vieira | Painel web | Painel (3 telas), dados de demo, componentes do design system |
+| Vieira | Sistema web responsivo | Telas de solicitar e acompanhar entrega, painel (estoque, fila, histórico), dados de demo, componentes do design system |
 | Pedro | Qualidade e segurança (Pentest) | Robô de mentira (mock do dispatcher), CI, testes de contrato, 5 ataques, mitigação e relatório |
 
 ## 3. O hospital (mundo da simulação)
@@ -76,6 +76,8 @@ Waypoints iniciais (estimativas, a ajustar quando o mundo existir):
 | `enf214_entrega` | Enf. 214 (posto) | 29 · 12 |
 | `enf215_entrega` | Enf. 215 (posto) | 39 · 12 |
 | `rouparia_coleta` | Apoio (rouparia) | 17 · 18,5 |
+| `cons1_entrega` | Consultório 1 | 14,5 · 4 |
+| `cons2_entrega` | Consultório 2 | 19,5 · 4 |
 
 **Testes automáticos obrigatórios:** (1) todo waypoint cai em célula livre do mapa; (2) todo par de waypoints tem caminho entre si, e continua tendo com o corredor norte bloqueado.
 
@@ -114,10 +116,16 @@ Prescrição (API) → Auth JWT → Command → Fila de prioridade → Reserva d
 - Cada entrega tem `origem` e `destino` (o banco de sangue é origem alternativa à farmácia).
 
 ### 4.3 Painel web (Vieira)
-Três telas: (1) estoque por local, atualizado ao vivo; (2) fila e entregas em andamento, com prioridade e estado do robô; (3) histórico de movimentações. Consome só a API.
+Usado pelos profissionais no computador (prioridade) e no navegador do celular (mesma base, layout responsivo; a tela de solicitar é pensada mobile-first). Consome só a API.
+
+1. **Solicitar medicamento:** itens e quantidade, prioridade, destino padrão = local do usuário (o consultório ou posto onde ele trabalha), com o saldo da origem visível.
+2. **Minhas entregas:** acompanhamento em tempo real e **confirmação de recebimento**, que libera a tampa do robô.
+3. **Estoque por local**, atualizado ao vivo.
+4. **Fila e entregas em andamento** (visão da farmácia e do admin), com prioridade e estado do robô.
+5. **Histórico de movimentações.**
 
 ### 4.4 Pentest (Pedro)
-Cinco ataques demonstráveis, com relatório antes/depois da mitigação e testes que travam regressão: requisição falsificada, JWT adulterado ou expirado, escalada de papel (enfermaria pedindo "crítica"), injeção nos campos, injeção de obstáculo falso na telemetria.
+Cinco ataques demonstráveis, com relatório antes/depois da mitigação e testes que travam regressão: requisição falsificada, JWT adulterado ou expirado, escalada de papel (enfermaria pedindo "crítica"; outro usuário confirmando o recebimento de uma entrega alheia), injeção nos campos, injeção de obstáculo falso na telemetria.
 
 ### 4.5 Cockpit Unity (extra, Samuel)
 Lê a telemetria, desenha o robô (`.glb`), a rota e os obstáculos; desktop e celular.
@@ -126,7 +134,7 @@ Lê a telemetria, desenha o robô (`.glb`), a rota e os obstáculos; desktop e c
 
 | Entidade | Para quê |
 |---|---|
-| `Usuario` | login e papel |
+| `Usuario` | login, papel e `local_id` (consultório ou posto onde trabalha) |
 | `Local` | sala/ponto do hospital; vem do `hospital.yaml` |
 | `Paciente` | ligado a um leito |
 | `Medicamento`, `Lote` | item, validade, quantidade |
@@ -139,10 +147,11 @@ Lê a telemetria, desenha o robô (`.glb`), a rota e os obstáculos; desktop e c
 |---|---|
 | Pedido aceito | Reserva na origem |
 | Carga trancada no robô | Baixa na origem |
-| Robô chega e entrega | Crédito no destino; prescrição vira `entregue` |
+| Robô chega ao destino | Entrega fica `AGUARDANDO_RECEBIMENTO` |
+| Solicitante confirma o recebimento no sistema | Tampa é liberada; crédito no destino; prescrição vira `entregue` |
 | Cancelamento ou falha | Estorno para a origem |
 
-Locais com estoque: Farmácia central, Banco de sangue, UTI, Centro cirúrgico, Pronto-socorro, posto da Enf. 214, posto da Enf. 215.
+Locais com estoque: Farmácia central, Banco de sangue, UTI, Centro cirúrgico, Pronto-socorro, posto da Enf. 214, posto da Enf. 215, Consultório 1 e Consultório 2 (consumíveis).
 
 ## 6. Contratos entre as frentes
 
@@ -156,6 +165,8 @@ Locais com estoque: Farmácia central, Banco de sangue, UTI, Centro cirúrgico, 
 | `GET /deliveries`, `GET /deliveries/{id}` | autenticado | consulta |
 | `POST /deliveries/{id}/cancel` | solicitante, admin | cancela e estorna |
 | `POST /deliveries/{id}/approve` | farmacêutico | assinatura dupla (crítica) |
+| `POST /deliveries/{id}/confirm-receipt` | solicitante da entrega | confirma o recebimento; libera a tampa |
+| `GET /me` | autenticado | usuário, papel e `local_id` (destino padrão dos pedidos) |
 | `GET /stock?location_id=` | autenticado | saldos |
 | `GET /movements` | autenticado | histórico |
 | `GET /locations` | autenticado | locais |
@@ -185,10 +196,10 @@ Semana 1 = 05–11/11 · Semana 2 = 12–18/11 · Semana 3 = 19–25/11.
 |---|---|---|---|
 | Samuel | Repo, Docker, modelo e URDF v0, `hospital.yaml` e geradores, robô no Gazebo com `/cmd_vel` e `/scan`, Nav2 básico, contratos, guia das IAs, tokens do design system | Mundo hospitalar completo, 5 sensores, desvio, máquina de estados, prioridades, parada de emergência, `geraldo_dispatcher` | Integração, ajuste fino do robô, vídeo de reserva, congelamento, ensaio; Unity só se o M2 foi atingido |
 | Erik | FastAPI, modelo de dados, JWT, criar entrega e fila | Movimentações de estoque, prescrições, assinatura dupla, auditoria, endpoints do robô, WebSocket | Endurecimento, correções do pentest |
-| Vieira | Painel (esqueleto sobre API mock), componentes do design system | Painel com 3 telas ao vivo, dados de demo | Polimento do painel, apoio ao roteiro da demo |
+| Vieira | Telas de solicitar e minhas entregas (mobile-first, sobre API mock), componentes do design system | Confirmar recebimento, painel de estoque, fila e histórico ao vivo, dados de demo | Polimento, teste no celular, apoio ao roteiro da demo |
 | Pedro | Robô de mentira (mock do dispatcher), CI, coleção de requests da API | Scripts de ataque, testes de contrato | 5 ataques, mitigação, relatório, testes, roteiro da demo |
 
-**Ordem de corte:** (1) Unity no celular, (2) cockpit Unity, (3) câmera RGB-D e marcador, (4) assinatura dupla, (5) tela 3 do painel, (6) "rotina só em baixo pico", (7) pronto-socorro e Enf. 215.
+**Ordem de corte:** (1) Unity no celular, (2) cockpit Unity, (3) câmera RGB-D e marcador, (4) assinatura dupla, (5) tela de histórico de movimentações, (6) "rotina só em baixo pico", (7) pronto-socorro e Enf. 215.
 **Não corta:** Gazebo + Nav2 + API + estoque mudando por causa do robô + pentest básico.
 
 ## 8. Modelo 3D e simulação
@@ -216,7 +227,9 @@ Documentos em português; comandos, pastas e código em inglês.
 
 ## 10. Design system (subprojeto separado)
 
-Terá spec própria. Segue a estrutura do `DESIGN_SYSTEM.md` do barberschedule (marca, regras de ouro, paleta, tipografia, espaçamento, componentes base e de domínio) com tokens em `tokens.json` que geram CSS variables, preset Tailwind e cores para o Unity. Componentes de domínio previstos: `PriorityBadge`, `RobotStatusCard`, `StockLevelBar`, `DeliveryQueueRow`, `MovementLogRow`, `AlertBanner`, `TelemetryPanel`. A direção visual depende das referências hospitalares que o líder vai fornecer; a v0 sai na semana 1.
+Terá spec própria. Segue a estrutura do `DESIGN_SYSTEM.md` do barberschedule (marca, regras de ouro, paleta, tipografia, espaçamento, componentes base e de domínio) com tokens em `tokens.json` que geram CSS variables, preset Tailwind e cores para o Unity. Componentes de domínio previstos: `PriorityBadge`, `StatusBadge`, `StatCard`, `RobotStatusCard`, `DeliveryQueueRow`, `StockLevelBar`, `MovementLogRow`, `AlertBanner`, `TelemetryPanel`, `RequestForm`.
+
+**Direção visual proposta (aguarda OK do líder):** base branca, azul e vermelha. Azul primário `#3A66E8`; vermelho `#D92D3A` só para prioridade crítica, perigo, parada de emergência e estoque abaixo do mínimo; verde e âmbar só como feedback. Prioridades: crítica = vermelho, média = azul, rotina = cinza. Cards brancos de 16 px sobre fundo `#F4F6FB`, borda fina e sombra suave; fontes Plus Jakarta Sans (títulos e números grandes) e Inter (corpo e tabelas), números tabulares; sem modo escuro na v1. Web responsivo (computador e celular), alvos de toque de 44 px. As referências fornecidas pelo líder são só inspiração visual (sem chat nem perfil de paciente). A v0 sai na semana 1.
 
 ## 11. Riscos e decisões abertas
 
@@ -226,5 +239,6 @@ Terá spec própria. Segue a estrutura do `DESIGN_SYSTEM.md` do barberschedule (
 | Versão ROS 2/Gazebo | Confirmar com a disciplina | Samuel |
 | Gazebo com GUI em Windows/Mac | Mitigado com headless e demo no Linux do líder | Samuel |
 | LiDAR no topo | Presente no modelo por sugestão da especificação; pode sair com `LIDAR = False` em `build_geraldo2.py` | Samuel |
+| Frontend (Vieira) ganhou escopo: solicitar e confirmar recebimento | Prioridade do sistema web; corta-se primeiro a tela de histórico e depois a de fila | Vieira e Samuel |
 | Pentest depende da API pronta | Pedro prepara os scripts contra API mock nas semanas 1–2 e ataca a API real na semana 3 | Pedro e Erik |
 | Samuel acumula liderança e robô (caminho crítico) | Backend e painel não dependem do robô (robô de mentira do Pedro); contratos travados cedo; o Unity é o primeiro corte | Samuel |
