@@ -240,5 +240,6 @@ Tem spec própria: [2026-11-05-geraldo-design-system-design.md](2026-11-05-geral
 | Gazebo com GUI em Windows/Mac | Mitigado com headless e demo no Linux do líder | Samuel |
 | LiDAR no topo | Presente no modelo por sugestão da especificação; pode sair com `LIDAR = False` em `build_geraldo2.py` | Samuel |
 | Frontend (Vieira) ganhou escopo: solicitar e confirmar recebimento | Prioridade do sistema web; corta-se primeiro a tela de histórico e depois a de fila | Vieira e Samuel |
+| Stack do app web | Vieira decide até 07/11 (recomendação: React + Vite + TypeScript + Tailwind v3); os tokens do design system valem em qualquer stack | Vieira |
 | Pentest depende da API pronta | Pedro prepara os scripts contra API mock nas semanas 1–2 e ataca a API real na semana 3 | Pedro e Erik |
 | Samuel acumula liderança e robô (caminho crítico) | Backend e painel não dependem do robô (robô de mentira do Pedro); contratos travados cedo; o Unity é o primeiro corte | Samuel |
