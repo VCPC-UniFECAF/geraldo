@@ -1,0 +1,391 @@
+openapi: 3.0.3
+info:
+  title: G.E.R.A.L.D.O. API
+  version: 0.1.0
+  description: >
+    Contrato entre backend (Erik), sistema web (Vieira), robô (geraldo_dispatcher, Samuel),
+    Pentest (Pedro) e Unity. Mudança só por PR com aviso ao dono da frente afetada.
+    A telemetria em tempo real também existe como WebSocket em /ws/telemetry (mesmo corpo de Telemetry).
+servers:
+  - url: http://localhost:8000
+security:
+  - bearerAuth: []
+paths:
+  /auth/login:
+    post:
+      summary: Emite o JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Token emitido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me:
+    get:
+      summary: Usuário logado, papel e local padrão (destino padrão dos pedidos)
+      responses:
+        '200':
+          description: Usuário
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /locations:
+    get:
+      summary: Locais do hospital (vêm do hospital.yaml)
+      responses:
+        '200':
+          description: Lista de locais
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Location' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /stock:
+    get:
+      summary: Saldos de estoque
+      parameters:
+        - name: location_id
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Saldos
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StockEntry' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /deliveries:
+    post:
+      summary: Cria uma entrega (reserva o estoque na origem)
+      description: Papéis medico, enfermeiro, farmaceutico e admin. Se dest_id for omitido, usa o local_id do usuário. Prioridade critica fica em PENDENTE_APROVACAO.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeliveryCreate' }
+      responses:
+        '201':
+          description: Entrega criada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Invalid' }
+    get:
+      summary: Lista entregas (admin e farmacêutico veem todas; os demais, só as suas)
+      responses:
+        '200':
+          description: Entregas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Delivery' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /deliveries/{id}:
+    get:
+      summary: Consulta uma entrega
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Entrega
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /deliveries/{id}/cancel:
+    post:
+      summary: Cancela e estorna a reserva (solicitante ou admin)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Entrega cancelada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /deliveries/{id}/approve:
+    post:
+      summary: Assinatura dupla da prioridade crítica (farmacêutico)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Entrega aprovada e na fila
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /deliveries/{id}/confirm-receipt:
+    post:
+      summary: Solicitante confirma o recebimento; libera a tampa e credita o destino
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Entrega concluída
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /movements:
+    get:
+      summary: Histórico de movimentações de estoque
+      parameters:
+        - { name: delivery_id, in: query, required: false, schema: { type: integer } }
+        - { name: location_id, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: Movimentações
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Movement' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /robot/next-task:
+    post:
+      summary: O dispatcher pede a próxima entrega (maior prioridade, depois FIFO) e ela vira EM_ROTA
+      description: Papel robo. Responde 204 se a fila estiver vazia.
+      responses:
+        '200':
+          description: Tarefa
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RobotTask' }
+        '204': { description: Fila vazia }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /robot/events:
+    post:
+      summary: Evento do robô (carga trancada, chegada, tampa liberada, falha)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RobotEvent' }
+      responses:
+        '200':
+          description: Entrega atualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /telemetry:
+    get:
+      summary: Último estado do robô (o mesmo corpo sai no WebSocket /ws/telemetry)
+      responses:
+        '200':
+          description: Telemetria
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Telemetry' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Unauthorized:
+      description: Sem login ou token inválido/expirado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Papel sem permissão
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Não encontrado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Estado ou estoque incompatível com a operação
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Invalid:
+      description: Corpo inválido
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail: { type: string }
+    Role:
+      type: string
+      enum: [medico, enfermeiro, farmaceutico, admin, robo]
+    Priority:
+      type: string
+      enum: [critica, media, rotina]
+    DeliveryStatus:
+      type: string
+      enum: [PENDENTE_APROVACAO, NA_FILA, EM_ROTA, AGUARDANDO_RECEBIMENTO, ENTREGUE, CANCELADA, FALHOU]
+    MovementType:
+      type: string
+      description: A direção do efeito vem do tipo; quantity é sempre positiva.
+      enum: [RESERVA, BAIXA, CREDITO, ESTORNO]
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string }
+    TokenResponse:
+      type: object
+      required: [access_token, token_type]
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, enum: [bearer] }
+    Me:
+      type: object
+      required: [id, username, role]
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        role: { $ref: '#/components/schemas/Role' }
+        local_id: { type: string, nullable: true }
+    Location:
+      type: object
+      required: [id, name, kind, has_stock]
+      properties:
+        id: { type: string, example: farmacia }
+        name: { type: string, example: Farmácia central }
+        kind: { type: string, example: pharmacy }
+        has_stock: { type: boolean }
+        waypoint: { type: string, nullable: true, description: Ponto de parada do robô neste local (id em waypoints.yaml) }
+    StockEntry:
+      type: object
+      required: [location_id, item_id, item_name, quantity, reserved, minimum]
+      properties:
+        location_id: { type: string }
+        item_id: { type: string }
+        item_name: { type: string, example: Dipirona 500 mg }
+        quantity: { type: integer, minimum: 0 }
+        reserved: { type: integer, minimum: 0 }
+        minimum: { type: integer, minimum: 0 }
+    DeliveryItem:
+      type: object
+      required: [item_id, quantity]
+      properties:
+        item_id: { type: string, example: dipirona-500mg }
+        quantity: { type: integer, minimum: 1 }
+    DeliveryCreate:
+      type: object
+      required: [origin_id, items, priority]
+      properties:
+        origin_id: { type: string }
+        dest_id: { type: string, nullable: true, description: "Se omitido, usa o local_id do usuário" }
+        items:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/DeliveryItem' }
+        priority: { $ref: '#/components/schemas/Priority' }
+    Delivery:
+      type: object
+      required: [id, origin_id, dest_id, items, priority, status, requested_by, created_at]
+      properties:
+        id: { type: integer }
+        origin_id: { type: string }
+        dest_id: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DeliveryItem' }
+        priority: { $ref: '#/components/schemas/Priority' }
+        status: { $ref: '#/components/schemas/DeliveryStatus' }
+        requested_by: { type: integer }
+        created_at: { type: string, format: date-time }
+    RobotTask:
+      allOf:
+        - $ref: '#/components/schemas/Delivery'
+        - type: object
+          required: [origin_waypoint, dest_waypoint]
+          properties:
+            origin_waypoint: { type: string, example: farmacia_balcao }
+            dest_waypoint: { type: string, example: cons1_entrega }
+    RobotEvent:
+      type: object
+      required: [delivery_id, event]
+      properties:
+        delivery_id: { type: integer }
+        event: { type: string, enum: [LOADED, ARRIVED, UNLOCKED, FAILED] }
+        reason: { type: string, nullable: true }
+    Movement:
+      type: object
+      required: [id, type, item_id, location_id, quantity, created_at]
+      properties:
+        id: { type: integer }
+        delivery_id: { type: integer, nullable: true }
+        type: { $ref: '#/components/schemas/MovementType' }
+        item_id: { type: string }
+        location_id: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+    Telemetry:
+      type: object
+      required: [robot_state, pose, battery, updated_at]
+      properties:
+        robot_state:
+          type: string
+          enum: [IDLE, CARREGANDO, A_CAMINHO, CHEGOU, AGUARDANDO_RETIRADA, VOLTANDO, PARADA_EMERGENCIA]
+        pose:
+          type: object
+          required: [x, y, yaw]
+          properties:
+            x: { type: number }
+            y: { type: number }
+            yaw: { type: number, description: radianos }
+        battery: { type: number, minimum: 0, maximum: 100 }
+        delivery_id: { type: integer, nullable: true }
+        route:
+          type: array
+          items:
+            type: object
+            properties:
+              x: { type: number }
+              y: { type: number }
+        obstacles:
+          type: array
+          items:
+            type: object
+            properties:
+              x: { type: number }
+              y: { type: number }
+              radius: { type: number }
+        updated_at: { type: string, format: date-time }

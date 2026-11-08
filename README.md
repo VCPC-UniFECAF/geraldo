@@ -111,7 +111,7 @@ O estoque nunca é editado diretamente: cada reserva, baixa, crédito e estorno 
 
 ## Tecnologias
 
-Python · FastAPI · ROS 2 (Jazzy) · Gazebo (Harmonic) · Nav2 · SQLite · JWT · React + Vite + TypeScript + Tailwind · Blender · Unity (extra) · Docker · GitHub Actions
+Python · FastAPI · ROS 2 (Jazzy) · Gazebo (Harmonic) · Nav2 · SQLite · JWT · React + Vite + TypeScript + Tailwind · Blender · Unity (extra) · GitHub Actions
 
 > A stack acima é a **planejada**. Versões do ROS 2 e do Gazebo serão confirmadas com a disciplina, e a stack web será confirmada pelo grupo.
 
