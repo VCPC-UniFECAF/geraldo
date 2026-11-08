@@ -194,7 +194,7 @@ Semana 1 = 05–11/11 · Semana 2 = 12–18/11 · Semana 3 = 19–25/11.
 
 | | Semana 1: fundação | Semana 2: profundidade | Semana 3: segurança e demo |
 |---|---|---|---|
-| Samuel | Repo, Docker, modelo e URDF v0, `hospital.yaml` e geradores, robô no Gazebo com `/cmd_vel` e `/scan`, Nav2 básico, contratos, guia das IAs, tokens do design system | Mundo hospitalar completo, 5 sensores, desvio, máquina de estados, prioridades, parada de emergência, `geraldo_dispatcher` | Integração, ajuste fino do robô, vídeo de reserva, congelamento, ensaio; Unity só se o M2 foi atingido |
+| Samuel | Repo, ambiente ROS nativo, modelo e URDF v0, `hospital.yaml` e geradores, robô no Gazebo com `/cmd_vel` e `/scan`, Nav2 básico, `geraldo_dispatcher` mínimo, contratos, guia das IAs, tokens do design system | Mundo hospitalar completo, 5 sensores, desvio, máquina de estados, prioridades, parada de emergência, `geraldo_dispatcher` completo (eventos e estados) | Integração, ajuste fino do robô, vídeo de reserva, congelamento, ensaio; Unity só se o M2 foi atingido |
 | Erik | FastAPI, modelo de dados, JWT, criar entrega e fila | Movimentações de estoque, prescrições, assinatura dupla, auditoria, endpoints do robô, WebSocket | Endurecimento, correções do pentest |
 | Vieira | Telas de solicitar e minhas entregas (mobile-first, sobre API mock), componentes do design system | Confirmar recebimento, painel de estoque, fila e histórico ao vivo, dados de demo | Polimento, teste no celular, apoio ao roteiro da demo |
 | Pedro | Robô de mentira (mock do dispatcher), CI, coleção de requests da API | Scripts de ataque, testes de contrato | 5 ataques, mitigação, relatório, testes, roteiro da demo |
@@ -207,8 +207,8 @@ Semana 1 = 05–11/11 · Semana 2 = 12–18/11 · Semana 3 = 19–25/11.
 - Arquivos em `modelos-3d/`: `geraldoV1.blend`, `geraldoV1.glb`, renders e `build_geraldoV1.py` (o script gera tudo; cerca de 4 MB, sem Git LFS).
 - Dimensões: chassi 0,70 × 0,50 m; rodas de tração 0,20 m (eixo em x = +0,10 m, mais à frente para estabilidade, com separação de 0,45 m); rodízio traseiro 0,08 m; baú 0,48 × 0,40 m; altura total 0,47 m.
 - O Gazebo **não usa o `.blend`**: usa uma malha visual exportada (`.dae` ou `.stl`) e uma colisão simples de 0,70 × 0,50 m, com URDF escrito à mão em `ros2_ws/src/geraldo_description/`.
-- O LiDAR do modelo é um disco opcional no topo; no URDF o sensor existe independentemente do visual.
-- **Ambiente:** o grupo mistura Windows, Mac e Linux. Imagem Docker única com ROS 2 + Gazebo + Nav2. Gazebo **headless** para desenvolver; a demo roda na máquina Linux do líder.
+- O LiDAR do modelo é um disco opcional no topo; no URDF o sensor existe independentemente do visual. No Gazebo o campo de visão é de cerca de 172° (o baú bloqueia a traseira); a traseira passa a ser coberta pelos 2 sensores de proximidade a ±135° na semana 2.
+- **Ambiente:** o robô roda **nativo** na máquina Linux do líder (Pop!_OS 24.04 com ROS 2 Jazzy e Gazebo Harmonic), que também é a máquina da demo. Os outros três não precisam de ROS: o backend e a web não dependem do Gazebo e o Pedro usa o robô de mentira. Gazebo **headless** para desenvolver. Uma imagem Docker (ROS 2 + Gazebo + Nav2) fica como tarefa opcional da semana 2, para rodar o robô em outra máquina ou no CI.
 - Versão do ROS 2 e do Gazebo a confirmar com o que a disciplina usa (recomendação: Jazzy + Gazebo Harmonic).
 
 ## 9. Guia para as IAs do grupo
