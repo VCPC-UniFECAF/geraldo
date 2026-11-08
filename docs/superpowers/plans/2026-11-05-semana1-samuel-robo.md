@@ -783,6 +783,20 @@ def test_amcl_starts_at_the_robot_base_and_uses_base_link():
     assert p["base_frame_id"] == "base_link"
 
 
+def test_amcl_trusts_the_simulated_odometry_and_the_lidar_range():
+    p = patch_params(fake_defaults())["amcl"]["ros__parameters"]
+    assert all(p[f"alpha{i}"] == 0.05 for i in range(1, 6))
+    assert p["laser_max_range"] == 12.0 and p["z_hit"] > p["z_rand"]
+
+
+def test_no_node_keeps_looking_for_base_footprint():
+    defaults = fake_defaults()
+    defaults["collision_monitor"] = {"ros__parameters": {"base_frame_id": "base_footprint", "nested": [{"frame": "base_footprint"}]}}
+    out = patch_params(defaults)
+    assert "base_footprint" not in str(out)
+    assert out["collision_monitor"]["ros__parameters"]["base_frame_id"] == "base_link"
+
+
 def test_other_parameters_are_preserved():
     out = patch_params(fake_defaults())
     assert out["local_costmap"]["local_costmap"]["ros__parameters"]["plugins"] == ["voxel_layer"]
@@ -814,6 +828,14 @@ OUT = ROOT / "robot/ros2_ws/src/geraldo_nav/config/nav2_params.yaml"
 
 FOOTPRINT = "[[0.35, 0.25], [0.35, -0.25], [-0.35, -0.25], [-0.35, 0.25]]"
 INITIAL_POSE = {"x": 6.5, "y": 26.5, "z": 0.0, "yaw": -1.5708}
+# Corredores retos e paredes lisas confundem o AMCL: a odometria simulada é boa (alphas baixos), o LiDAR vai até 12 m
+# e o modelo de feixe confia mais no acerto (z_hit) do que no ruído (z_rand).
+AMCL_TUNING = {
+    "alpha1": 0.05, "alpha2": 0.05, "alpha3": 0.05, "alpha4": 0.05, "alpha5": 0.05,
+    "laser_max_range": 12.0, "laser_min_range": 0.12, "max_beams": 120,
+    "sigma_hit": 0.1, "z_hit": 0.9, "z_rand": 0.1,
+    "update_min_d": 0.1, "update_min_a": 0.1,
+}
 
 
 def patch_params(params: dict) -> dict:
@@ -825,7 +847,16 @@ def patch_params(params: dict) -> dict:
     amcl["set_initial_pose"] = True
     amcl["initial_pose"] = dict(INITIAL_POSE)
     amcl["base_frame_id"] = "base_link"
-    return params
+    amcl.update(AMCL_TUNING)
+    return _rename_frame(params, "base_footprint", "base_link")  # o robô só tem base_link (collision_monitor, docking...)
+
+
+def _rename_frame(node, old: str, new: str):
+    if isinstance(node, dict):
+        return {k: _rename_frame(v, old, new) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_rename_frame(v, old, new) for v in node]
+    return new if node == old else node
 
 
 def main() -> None:
@@ -843,7 +874,7 @@ if __name__ == "__main__":
 - [ ] **Step 3b: Rodar e ver passar**
 
 Run: `python -m pytest robot/scripts/tests/test_make_nav2_params.py -q`
-Expected: `3 passed`.
+Expected: `5 passed`.
 
 - [ ] **Step 4: Criar o pacote `geraldo_nav` e o launch**
 
@@ -931,6 +962,7 @@ ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
 ```
 
 Expected: o terminal 3 termina com `Goal finished with status: SUCCEEDED`. Em seguida, uma meta longa: `x: 29.0, y: 25.0` (centro cirúrgico) deve ser `SUCCEEDED` pelo corredor norte.
+O `make_nav2_params.py` já ajusta o AMCL para a simulação (alphas baixos, `laser_max_range` 12 m, `z_hit` alto): com os padrões do Nav2 ele se perdia nos corredores retos e as metas das alas leste falhavam. Para ver a pose real contra a do AMCL: `gz topic -e -n 1 -t /world/hospital/dynamic_pose/info`.
 Se o AMCL não localizar: confira que `/scan` e `/tf` chegam (`ros2 topic hz /scan`) e que a pose inicial do `nav2_params.yaml` é (6,5; 26,5; −1,5708), igual ao spawn.
 
 - [ ] **Step 6: Commit**
@@ -982,6 +1014,7 @@ def test_load_stops_skips_the_robot_base_and_converts_degrees(tmp_path):
     stops = load_stops(write_waypoints(tmp_path / "w.yaml"))
     assert [s[0] for s in stops] == ["farmacia_balcao", "cc_entrega"]
     assert stops[0][1:3] == (7, 24)
+    assert all(isinstance(v, float) for s in stops for v in s[1:])  # o rclpy aborta com int
     assert stops[1][3] == pytest.approx(math.pi / 2)
 
 
@@ -1032,7 +1065,8 @@ WAYPOINTS = ROOT / "robot/ros2_ws/src/geraldo_nav/config/waypoints.yaml"
 def load_stops(path=WAYPOINTS) -> list[tuple[str, float, float, float]]:
     """(id, x, y, yaw em radianos) de todos os pontos, exceto a base do robô."""
     data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))["waypoints"]
-    return [(wid, w["x"], w["y"], math.radians(w["yaw"])) for wid, w in data.items() if wid != "base_robo"]
+    # float(): o YAML devolve int para "7" e as mensagens ROS exigem float (senão o rclpy aborta)
+    return [(wid, float(w["x"]), float(w["y"]), math.radians(w["yaw"])) for wid, w in data.items() if wid != "base_robo"]
 
 
 def yaw_to_quaternion(yaw: float) -> tuple[float, float]:
@@ -1051,6 +1085,8 @@ def main() -> int:
 
     rclpy.init()
     nav = BasicNavigator()
+    # o AMCL já nasce na base (nav2_params.yaml): sem isto o BasicNavigator republica a pose (0, 0) e perde a localização
+    nav.initial_pose_received = True
     nav.waitUntilNav2Active()
     failed = []
     for wid, x, y, yaw in load_stops():
@@ -1091,7 +1127,7 @@ source /opt/ros/jazzy/setup.bash && source robot/ros2_ws/install/setup.bash
 python3 robot/scripts/nav_goal_sweep.py
 ```
 
-Expected: 10 linhas `ok` e `TODOS OS PONTOS OK`. Se alguma sala falhar, é quase sempre a porta: ajuste, nesta ordem, `inflation_radius` (de 0,55 para 0,35) e `cost_scaling_factor` (de 3,0 para 5,0) nos dois costmaps de `robot/scripts/make_nav2_params.py`, gere de novo e repita. Só se ainda falhar, avalie alargar `door_width` no `hospital.yaml` (plano B, exige avisar o grupo) ou trocar o controlador.
+Expected: 10 linhas `ok` e `TODOS OS PONTOS OK`. O teste inteiro leva cerca de 10 minutos (validado em 08/11/2026: 10 de 10, de 32 s a 124 s por ponto). Reinicie a simulação e o Nav2 antes de repetir, para o robô nascer na base. Se alguma sala falhar, é quase sempre a porta: ajuste, nesta ordem, `inflation_radius` (de 0,55 para 0,35) e `cost_scaling_factor` (de 3,0 para 5,0) nos dois costmaps de `robot/scripts/make_nav2_params.py`, gere de novo e repita. Só se ainda falhar, avalie alargar `door_width` no `hospital.yaml` (plano B, exige avisar o grupo) ou trocar o controlador.
 
 - [ ] **Step 6: Commit**
 
@@ -1287,8 +1323,9 @@ def test_load_poses_converts_degrees_to_radians(tmp_path):
 
 
 def test_pose_from_dict_converts_degrees_to_radians():
-    pose = Pose.from_dict({"x": 1.0, "y": 2.0, "yaw": 180})
+    pose = Pose.from_dict({"x": 1, "y": 2, "yaw": 180})
     assert (pose.x, pose.y) == (1.0, 2.0) and pose.yaw == pytest.approx(math.pi)
+    assert all(isinstance(v, float) for v in (pose.x, pose.y))  # o rclpy aborta com int
 
 
 def test_login_failure_has_a_clear_message(backend):
@@ -1500,7 +1537,7 @@ class Pose:
 
     @classmethod
     def from_dict(cls, data: dict) -> "Pose":  # FACTORY: o waypoints.yaml guarda o yaw em graus
-        return cls(data["x"], data["y"], math.radians(data["yaw"]))
+        return cls(float(data["x"]), float(data["y"]), math.radians(data["yaw"]))
 
     def quaternion(self) -> tuple[float, float]:
         """(z, w) do quaternion de uma rotação em torno de Z."""
@@ -1592,6 +1629,7 @@ def main() -> None:
 
     rclpy.init()
     nav = BasicNavigator()
+    nav.initial_pose_received = True  # o AMCL já tem a pose inicial; não deixe o BasicNavigator republicar (0, 0)
     nav.waitUntilNav2Active()
     waypoints_file = os.path.join(get_package_share_directory("geraldo_nav"), "config", "waypoints.yaml")
     client = BackendClient(api_url, "robo", password)
