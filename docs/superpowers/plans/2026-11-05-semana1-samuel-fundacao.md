@@ -1392,6 +1392,34 @@ def test_doors_are_open_at_their_center(grid):
             assert not grid[r, c], f"{room['id']} porta {d}"
 
 
+def free_run(grid, cells):
+    """Largura (em células) do trecho livre que contém o centro da lista de células."""
+    mid = len(cells) // 2
+    lo = hi = mid
+    while lo > 0 and not grid[cells[lo - 1]]:
+        lo -= 1
+    while hi < len(cells) - 1 and not grid[cells[hi + 1]]:
+        hi += 1
+    return hi - lo + 1
+
+
+def test_doors_open_a_passage_wider_than_the_robot(grid):
+    res = SPEC["resolution"]
+    ks = range(-30, 31)
+    for room in SPEC["rooms"]:
+        x0, y0, x1, y1 = room["rect"]
+        for d in room["doors"]:
+            at = d["at"]
+            if d["wall"] in ("N", "S"):
+                y = y1 if d["wall"] == "N" else y0
+                cells = [g.cell_of(at + k * res, y, SPEC) for k in ks]
+            else:
+                x = x1 if d["wall"] == "E" else x0
+                cells = [g.cell_of(x, at + k * res, SPEC) for k in ks]
+            width = free_run(grid, cells) * res
+            assert width >= SPEC["door_width"] - res, f"{room['id']} porta {d}: abertura de {width:.2f} m"
+
+
 def test_outputs_are_written(tmp_path):
     out = {
         "world": tmp_path / "hospital.sdf",

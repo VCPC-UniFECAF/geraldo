@@ -1,0 +1,111 @@
+version: 1
+size: [46, 30]            # largura (x) e altura (y), em metros
+resolution: 0.05          # metros por célula do mapa
+wall_thickness: 0.15
+wall_height: 2.5
+door_width: 1.0
+corridor_width: 2.0
+robot_inscribed_radius: 0.25   # meia largura do robô
+robot_margin: 0.10             # folga de inflação
+entrances:                # portas na parede externa
+  - { id: principal, wall: S, at: 7 }
+  - { id: ambulancia, wall: W, at: 11 }
+rooms:
+  - id: farmacia
+    name: Farmácia central
+    kind: pharmacy
+    rect: [2, 16, 12, 28]
+    stock: true
+    doors: [{ wall: N, at: 7 }, { wall: S, at: 7 }]
+    stop: farmacia_balcao
+    waypoints:
+      - { id: base_robo, xy: [6.5, 26.5], yaw: 270 }
+      - { id: farmacia_balcao, xy: [7, 24], yaw: 270 }
+  - id: banco_sangue
+    name: Banco de sangue
+    kind: blood_bank
+    rect: [12, 22, 22, 28]
+    stock: true
+    doors: [{ wall: N, at: 17 }]
+    stop: banco_sangue_retirada
+    waypoints:
+      - { id: banco_sangue_retirada, xy: [17, 25], yaw: 90 }
+  - id: apoio
+    name: Apoio (rouparia)
+    kind: support
+    rect: [12, 16, 22, 22]
+    stock: false
+    doors: [{ wall: S, at: 17 }]
+    stop: rouparia_coleta
+    waypoints:
+      - { id: rouparia_coleta, xy: [17, 18.5], yaw: 270 }
+  - id: centro_cirurgico
+    name: Centro cirúrgico
+    kind: surgery
+    rect: [24, 16, 34, 28]
+    stock: true
+    doors: [{ wall: N, at: 29 }, { wall: S, at: 29 }]
+    stop: cc_entrega
+    waypoints:
+      - { id: cc_entrega, xy: [29, 25], yaw: 90 }
+  - id: uti
+    name: UTI
+    kind: icu
+    rect: [34, 16, 44, 28]
+    stock: true
+    doors: [{ wall: N, at: 39 }, { wall: S, at: 39 }]
+    stop: uti_entrega
+    waypoints:
+      - { id: uti_entrega, xy: [39, 25], yaw: 90 }
+  - id: pronto_socorro
+    name: Pronto-socorro
+    kind: emergency
+    rect: [2, 8, 22, 14]
+    stock: true
+    doors: [{ wall: N, at: 12 }, { wall: W, at: 11 }]
+    stop: ps_entrega
+    waypoints:
+      - { id: ps_entrega, xy: [12, 11], yaw: 90 }
+  - id: recepcao
+    name: Recepção
+    kind: reception
+    rect: [2, 2, 12, 8]
+    stock: false
+    doors: [{ wall: S, at: 7 }]
+    waypoints: []
+  - id: consultorio1
+    name: Consultório 1
+    kind: office
+    rect: [12, 2, 17, 8]
+    stock: true
+    doors: [{ wall: S, at: 14.5 }]
+    stop: cons1_entrega
+    waypoints:
+      - { id: cons1_entrega, xy: [14.5, 4], yaw: 270 }
+  - id: consultorio2
+    name: Consultório 2
+    kind: office
+    rect: [17, 2, 22, 8]
+    stock: true
+    doors: [{ wall: S, at: 19.5 }]
+    stop: cons2_entrega
+    waypoints:
+      - { id: cons2_entrega, xy: [19.5, 4], yaw: 270 }
+  - id: enfermaria214
+    name: Enfermaria 214
+    kind: ward
+    rect: [24, 2, 34, 14]
+    stock: true
+    doors: [{ wall: N, at: 29 }, { wall: S, at: 29 }]
+    stop: enf214_entrega
+    waypoints:
+      - { id: enf214_entrega, xy: [29, 12], yaw: 270 }
+  - id: enfermaria215
+    name: Enfermaria 215
+    kind: ward
+    rect: [34, 2, 44, 14]
+    stock: true
+    doors: [{ wall: N, at: 39 }, { wall: S, at: 39 }]
+    stop: enf215_entrega
+    waypoints:
+      - { id: enf215_entrega, xy: [39, 12], yaw: 270 }
