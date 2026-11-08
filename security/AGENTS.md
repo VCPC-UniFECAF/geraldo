@@ -12,6 +12,8 @@ Escopo: atacar **somente o ambiente local** (`http://localhost:8000`). Nunca con
 
 Cada ataque tem: script em `security/attacks/`, teste automatizado que falha antes da mitigação e passa depois, e uma seção no relatório `security/RELATORIO.md` (antes/depois).
 
+Padrões de código: [`docs/padroes-de-projeto.md`](../docs/padroes-de-projeto.md). O `MockRobot` recebe o cliente HTTP e o `sleep` pelo construtor (DIP) e usa os mesmos nomes de método (`login`, `next_task`, `report`) do `BackendClient` do robô real; o robô de mentira e o `fake_backend` obedecem ao contrato do backend verdadeiro (LSP).
+
 ## Também é seu
 
 CI em `.github/workflows/`, teste de contrato em `backend/tests/test_contract.py`, robô de mentira em `tools/mock_robot.py` e a coleção de requests em `security/requests/`.

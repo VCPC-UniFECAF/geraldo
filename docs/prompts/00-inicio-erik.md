@@ -14,6 +14,9 @@ teste que falha, implementação mínima, teste que passa, commit.
 Não mude docs/contracts/ sem PR e aviso ao Samuel. Não toque em web/, ros2_ws/ nem security/.
 Estoque só muda por Movimentacao.
 
+Siga docs/padroes-de-projeto.md em todo código novo (SOLID, injeção pelo construtor,
+Strategy/Factory no lugar de if/elif por tipo, funções puras); padrão só onde há variação real.
+
 Antes de cada tarefa, diga o plano: o que vai fazer e quais arquivos vai tocar. Só então comece.
 Pare no commit de cada tarefa e me mostre os testes passando.
 ```

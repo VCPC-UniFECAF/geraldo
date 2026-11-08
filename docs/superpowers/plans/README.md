@@ -27,5 +27,6 @@ Qua 11/11  M1: pedido na API vira meta no Nav2 e o robô anda no Gazebo
 **Regras de convivência**
 - Branch por tarefa grande: `feat/<frente>-<assunto>`; PR para a `main`; nada direto na `main`.
 - Contrato em `docs/contracts/` só muda por PR com aviso ao dono da frente afetada.
+- Todo código segue [`docs/padroes-de-projeto.md`](../../padroes-de-projeto.md) (SOLID, injeção pelo construtor, Strategy/Factory no lugar de `if/elif` por tipo, funções puras). Cada plano indica onde isso se aplica.
 - Quem destrava outra pessoa avisa no grupo no mesmo dia.
 - Se uma tarefa bloquear por falta de algo de outra pessoa, use o fixture ou a simulação indicada na própria tarefa e siga em frente.
