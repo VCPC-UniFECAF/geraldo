@@ -9,6 +9,7 @@ install(DIRECTORY urdf meshes launch config worlds
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_urdf test/test_urdf.py)
+  ament_add_pytest_test(test_launch_files test/test_launch_files.py)
 endif()
 
 ament_package()

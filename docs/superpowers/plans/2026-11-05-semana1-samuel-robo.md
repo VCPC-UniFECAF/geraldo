@@ -694,9 +694,10 @@ def generate_launch_description():
 # Sobe a simulação sem tela, confere /scan e /odom e anda 3 segundos com /cmd_vel.
 set -euo pipefail
 
-ros2 launch geraldo_description sim.launch.py headless:=true > /tmp/sim.log 2>&1 &
+# setsid: o launch vira líder de um grupo de processos, e o trap derruba o grupo inteiro (Gazebo, ponte e publisher)
+setsid ros2 launch geraldo_description sim.launch.py headless:=true > /tmp/sim.log 2>&1 &
 LAUNCH_PID=$!
-trap 'kill $LAUNCH_PID 2>/dev/null || true' EXIT
+trap 'kill -INT -- -$LAUNCH_PID 2>/dev/null || true; sleep 3; kill -KILL -- -$LAUNCH_PID 2>/dev/null || true' EXIT
 
 timeout 120 bash -c 'until ros2 topic list | grep -q "^/scan$"; do sleep 2; done'
 timeout 30 ros2 topic echo --once /scan --field ranges > /dev/null
