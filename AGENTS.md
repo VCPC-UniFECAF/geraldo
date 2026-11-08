@@ -29,8 +29,8 @@ Prioridades: `critica` (sangue, drogas de emergência; exige assinatura do farma
 | Pasta | Dono | Conteúdo | Guia |
 |---|---|---|---|
 | `modelos-3d/` | Samuel | Modelo 3D | — |
-| `hospital/`, `tools/` | Samuel | `hospital.yaml` e geradores | — |
-| `ros2_ws/` | Samuel | Robô, simulação, Nav2, dispatcher | `ros2_ws/AGENTS.md` |
+| `robot/` | Samuel | Tudo do robô: `hospital/` (planta e gerador), `scripts/` (ambiente, malha, Nav2, API falsa) e `ros2_ws/` (simulação, Nav2, dispatcher) | `robot/AGENTS.md` |
+| `tools/` | Samuel | Testes e utilitários do repositório inteiro (contratos, layout, AGENTS, design system) | — |
 | `backend/` | Erik | API, estoque, fila, JWT | `backend/AGENTS.md` |
 | `web/` | Vieira | Sistema web responsivo | `web/AGENTS.md` |
 | `design-system/` | Samuel (tokens) e Vieira (componentes) | Tokens e guia visual | — |
@@ -55,11 +55,11 @@ Prioridades: `critica` (sangue, drogas de emergência; exige assinatura do farma
 
 | Área | Comando |
 |---|---|
-| Geradores e testes da raiz | `python -m pytest tools -q` |
+| Geradores e testes da raiz | `python -m pytest tools robot -q` |
 | Backend | `cd backend && python -m pytest -q` e `uvicorn app.main:app --reload` |
 | Web | `cd web && npm test -- --run` e `npm run dev` |
 | Tokens do design system | `node design-system/tokens/build.mjs && (cd design-system && node --test)` |
-| Simulação | `source /opt/ros/jazzy/setup.bash && cd ros2_ws && colcon build --symlink-install` (ver `ros2_ws/AGENTS.md`) |
+| Simulação | `source /opt/ros/jazzy/setup.bash && cd robot/ros2_ws && colcon build --symlink-install` (ver `robot/AGENTS.md`) |
 
 ## Definição de pronto (qualquer tarefa)
 

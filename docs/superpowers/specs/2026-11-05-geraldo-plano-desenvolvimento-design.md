@@ -54,7 +54,7 @@ Um andar, **46 × 30 m**, corredores de 2,0 m, portas de 1,0 m. Origem do refere
 
 ### 3.1 `hospital.yaml` — fonte única
 
-A planta é descrita **uma vez** em `hospital.yaml`; o script `tools/gen_hospital.py` gera:
+A planta é descrita **uma vez** em `hospital.yaml`; o script `robot/hospital/gen_hospital.py` gera:
 
 | Saída | Consumidor |
 |---|---|
@@ -206,7 +206,7 @@ Semana 1 = 05–11/11 · Semana 2 = 12–18/11 · Semana 3 = 19–25/11.
 
 - Arquivos em `modelos-3d/`: `geraldoV1.blend`, `geraldoV1.glb`, renders e `build_geraldoV1.py` (o script gera tudo; cerca de 4 MB, sem Git LFS).
 - Dimensões: chassi 0,70 × 0,50 m; rodas de tração 0,20 m (eixo em x = +0,10 m, mais à frente para estabilidade, com separação de 0,45 m); rodízio traseiro 0,08 m; baú 0,48 × 0,40 m; altura total 0,47 m.
-- O Gazebo **não usa o `.blend`**: usa uma malha visual exportada (`.dae` ou `.stl`) e uma colisão simples de 0,70 × 0,50 m, com URDF escrito à mão em `ros2_ws/src/geraldo_description/`.
+- O Gazebo **não usa o `.blend`**: usa uma malha visual exportada (`.dae` ou `.stl`) e uma colisão simples de 0,70 × 0,50 m, com URDF escrito à mão em `robot/ros2_ws/src/geraldo_description/`.
 - O LiDAR do modelo é um disco opcional no topo; no URDF o sensor existe independentemente do visual. No Gazebo o campo de visão é de cerca de 172° (o baú bloqueia a traseira); a traseira passa a ser coberta pelos 2 sensores de proximidade a ±135° na semana 2.
 - **Ambiente:** o robô roda **nativo** na máquina Linux do líder (Pop!_OS 24.04 com ROS 2 Jazzy e Gazebo Harmonic), que também é a máquina da demo. Os outros três não precisam de ROS: o backend e a web não dependem do Gazebo e o Pedro usa o robô de mentira. Gazebo **headless** para desenvolver. Uma imagem Docker (ROS 2 + Gazebo + Nav2) fica como tarefa opcional da semana 2, para rodar o robô em outra máquina ou no CI.
 - Versão do ROS 2 e do Gazebo a confirmar com o que a disciplina usa (recomendação: Jazzy + Gazebo Harmonic).
@@ -217,7 +217,7 @@ Semana 1 = 05–11/11 · Semana 2 = 12–18/11 · Semana 3 = 19–25/11.
 |---|---|
 | `AGENTS.md` (raiz) | Fonte única: visão, mapa de pastas, regras, contratos, como rodar e testar, definição de pronto |
 | `CLAUDE.md`, `.github/copilot-instructions.md` | Apontam para `AGENTS.md` |
-| `<pasta>/AGENTS.md` | Regras de `backend/`, `ros2_ws/`, `unity/`, `security/`, `web/` |
+| `<pasta>/AGENTS.md` | Regras de `backend/`, `robot/`, `unity/`, `security/`, `web/` |
 | `docs/prompts/00-inicio-<papel>.md` | Prompt de partida por papel |
 
 **Regras duras (no `AGENTS.md`):** contrato primeiro (mudança só via PR em `docs/contracts/`); estoque só por `Movimentacao`; todo código novo com teste; nada na `main` (branch `feat/<frente>-<assunto>` e PR); nenhum segredo no repositório; na dúvida, perguntar antes de inventar.

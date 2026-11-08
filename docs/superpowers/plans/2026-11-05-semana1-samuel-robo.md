@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-05-geraldo-plano-desenvolvimento-design.md` (seções 4.1 e 8)
 
-**Pré-requisito:** Tarefa 4 do plano `2026-11-05-semana1-samuel-fundacao.md` (`hospital/hospital.yaml` e `tools/gen_hospital.py` com o hospital gerado). Nesta branch ela é executada **antes** das tarefas abaixo.
+**Pré-requisito:** Tarefa 4 do plano `2026-11-05-semana1-samuel-fundacao.md` (`robot/hospital/hospital.yaml` e `robot/hospital/gen_hospital.py` com o hospital gerado). Nesta branch ela é executada **antes** das tarefas abaixo.
 
 ## Global Constraints
 
@@ -19,11 +19,11 @@
 - Rodas: separação de **0,45 m** (y = ±0,225), raio **0,10 m**, eixo Y; eixo das rodas em x = **+0,10 m**. Rodízio traseiro de raio 0,04 m em x = −0,30 m (spec §8).
 - Footprint do Nav2: retângulo **0,70 × 0,50 m** com 10 cm de inflação (spec §4.1).
 - Tópicos e estados: `docs/contracts/ros-interfaces.md`. Nenhum tópico novo sem PR no contrato.
-- Mundo, mapa e waypoints são **gerados** por `tools/gen_hospital.py`; não editar à mão.
+- Mundo, mapa e waypoints são **gerados** por `robot/hospital/gen_hospital.py`; não editar à mão.
 - O Gazebo **não usa o `.blend`**: usa a malha visual exportada e colisão simples (spec §8).
 - Gazebo sem interface (`headless`) para desenvolver; a demo roda na máquina Linux do líder (spec §7).
 - **Decisões do debate de 08/11/2026:** (D1) ambiente nativo, não Docker; (D2) `geraldo_dispatcher` mínimo entra na semana 1 (login, `next-task`, `NavigateToPose` origem e depois destino; sem `/robot/events`), testado contra uma API falsa que segue o contrato; (D3) LiDAR mantido em ~172° (o baú bloqueia a traseira), com a traseira coberta pelos sensores de proximidade na semana 2; (D4) portas de 1,0 m mantidas: parâmetros padrão do Nav2, inflação ajustada só se preciso, e um script que envia metas aos 10 pontos de parada.
-- Comandos ROS rodam com `source /opt/ros/jazzy/setup.bash`. Saídas do colcon (`ros2_ws/build`, `install`, `log`) não vão para o Git.
+- Comandos ROS rodam com `source /opt/ros/jazzy/setup.bash`. Saídas do colcon (`robot/ros2_ws/build`, `install`, `log`) não vão para o Git.
 - Padrões (`docs/padroes-de-projeto.md`): o `geraldo_dispatcher` separa as responsabilidades em `ports.py` (interfaces `BackendPort` e `Navigator`), `api.py` (cliente HTTP), `waypoints.py` (poses), `dispatcher.py` (regra) e `node.py` (cola com o ROS). O `Dispatcher` recebe tudo pelo construtor (DIP); o Nav2 fica atrás de um **Adapter** (`Nav2Navigator`) e os testes usam um `FakeNavigator`. As ferramentas em `tools/` são funções puras com `main()` fino.
 - Sem segredos no repositório.
 
@@ -32,15 +32,15 @@
 ### Task 1: Ambiente nativo conferido por script
 
 **Files:**
-- Create: `tools/check_ros_env.sh`, `ros2_ws/.gitignore`
-- Test: `tools/tests/test_check_ros_env.py`
+- Create: `robot/scripts/check_ros_env.sh`, `robot/ros2_ws/.gitignore`
+- Test: `robot/scripts/tests/test_check_ros_env.py`
 
 **Interfaces:**
-- Produces: `bash tools/check_ros_env.sh` (sai com 0 e imprime `AMBIENTE OK` quando tudo o que a simulação precisa está instalado; senão lista o que falta e o comando para instalar).
+- Produces: `bash robot/scripts/check_ros_env.sh` (sai com 0 e imprime `AMBIENTE OK` quando tudo o que a simulação precisa está instalado; senão lista o que falta e o comando para instalar).
 
 - [ ] **Step 1: Escrever o teste (falha primeiro)**
 
-Create `tools/tests/test_check_ros_env.py`:
+Create `robot/scripts/tests/test_check_ros_env.py`:
 
 ```python
 import os
@@ -49,12 +49,12 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 
 
 @pytest.mark.skipif(not os.path.exists("/opt/ros/jazzy/setup.bash"), reason="ROS 2 Jazzy não instalado")
 def test_native_environment_has_everything_the_simulation_needs():
-    result = subprocess.run(["bash", str(ROOT / "tools/check_ros_env.sh")], capture_output=True, text=True, timeout=120)
+    result = subprocess.run(["bash", str(ROOT / "robot/scripts/check_ros_env.sh")], capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stdout
     assert "AMBIENTE OK" in result.stdout
     for needed in ("nav2_bringup", "ros_gz_sim", "ros_gz_bridge", "xacro", "diff-drive"):
@@ -63,12 +63,12 @@ def test_native_environment_has_everything_the_simulation_needs():
 
 - [ ] **Step 2: Rodar e ver falhar**
 
-Run: `python -m pytest tools/tests/test_check_ros_env.py -q`
+Run: `python -m pytest robot/scripts/tests/test_check_ros_env.py -q`
 Expected: FAIL (o script não existe).
 
 - [ ] **Step 3: Escrever o script e o `.gitignore` do workspace**
 
-Create `tools/check_ros_env.sh`:
+Create `robot/scripts/check_ros_env.sh`:
 
 ```bash
 #!/usr/bin/env bash
@@ -97,7 +97,7 @@ else
 fi
 ```
 
-Create `ros2_ws/.gitignore`:
+Create `robot/ros2_ws/.gitignore`:
 
 ```gitignore
 build/
@@ -107,13 +107,13 @@ log/
 
 - [ ] **Step 4: Rodar e ver passar**
 
-Run: `python -m pytest tools/tests/test_check_ros_env.py -q`
+Run: `python -m pytest robot/scripts/tests/test_check_ros_env.py -q`
 Expected: `1 passed`. Se falhar com `FALTA nav2_...`, rode o `sudo apt install` que o próprio script imprime e repita.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add tools/check_ros_env.sh tools/tests/test_check_ros_env.py ros2_ws/.gitignore
+git add robot/scripts/check_ros_env.sh robot/scripts/tests/test_check_ros_env.py robot/ros2_ws/.gitignore
 git commit -m "feat: confere o ambiente nativo de ROS 2 + Gazebo + Nav2"
 ```
 
@@ -124,9 +124,9 @@ git commit -m "feat: confere o ambiente nativo de ROS 2 + Gazebo + Nav2"
 ### Task 2: Malha do robô exportada do Blender
 
 **Files:**
-- Create: `tools/export_blender_mesh.py`
-- Create (gerados): `ros2_ws/src/geraldo_description/meshes/geraldo_body.obj`, `ros2_ws/src/geraldo_description/meshes/geraldo_body.mtl`
-- Test: `tools/tests/test_export_mesh.py`
+- Create: `robot/scripts/export_blender_mesh.py`
+- Create (gerados): `robot/ros2_ws/src/geraldo_description/meshes/geraldo_body.obj`, `robot/ros2_ws/src/geraldo_description/meshes/geraldo_body.mtl`
+- Test: `robot/scripts/tests/test_export_mesh.py`
 
 **Interfaces:**
 - Consumes: `modelos-3d/geraldoV1.blend` (coleção `GERALDO`; objetos de roda começam com `roda_`, `disco_`, `tampa_`, rodízio com `rodizio_`).
@@ -134,7 +134,7 @@ git commit -m "feat: confere o ambiente nativo de ROS 2 + Gazebo + Nav2"
 
 - [ ] **Step 1: Escrever o teste (falha primeiro)**
 
-Create `tools/tests/test_export_mesh.py`:
+Create `robot/scripts/tests/test_export_mesh.py`:
 
 ```python
 import shutil
@@ -143,14 +143,14 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
-OBJ = ROOT / "ros2_ws/src/geraldo_description/meshes/geraldo_body.obj"
+ROOT = Path(__file__).resolve().parents[3]
+OBJ = ROOT / "robot/ros2_ws/src/geraldo_description/meshes/geraldo_body.obj"
 
 
 @pytest.mark.skipif(shutil.which("blender") is None, reason="Blender não instalado")
 def test_export_creates_the_body_mesh_in_the_right_frame():
     subprocess.run(
-        ["blender", "-b", str(ROOT / "modelos-3d/geraldoV1.blend"), "--python", str(ROOT / "tools/export_blender_mesh.py")],
+        ["blender", "-b", str(ROOT / "modelos-3d/geraldoV1.blend"), "--python", str(ROOT / "robot/scripts/export_blender_mesh.py")],
         check=True, capture_output=True, text=True, timeout=300,
     )
     verts = [l.split() for l in OBJ.read_text().splitlines() if l.startswith("v ")]
@@ -165,25 +165,25 @@ def test_export_creates_the_body_mesh_in_the_right_frame():
 
 - [ ] **Step 2: Rodar e ver falhar**
 
-Run: `python -m pytest tools/tests/test_export_mesh.py -q`
+Run: `python -m pytest robot/scripts/tests/test_export_mesh.py -q`
 Expected: FAIL (`export_blender_mesh.py` não existe) ou `skipped` se não houver Blender na máquina; nesse caso peça ao Samuel para rodar.
 
 - [ ] **Step 3: Implementar o script de exportação**
 
-Create `tools/export_blender_mesh.py`:
+Create `robot/scripts/export_blender_mesh.py`:
 
 ```python
 """Exporta a malha do corpo do G.E.R.A.L.D.O. para o Gazebo (OBJ).
 
-Uso: blender -b modelos-3d/geraldoV1.blend --python tools/export_blender_mesh.py
+Uso: blender -b modelos-3d/geraldoV1.blend --python robot/scripts/export_blender_mesh.py
 Rodas e rodízio ficam de fora: o URDF as descreve com primitivas para poderem girar.
 """
 import os
 
 import bpy
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "ros2_ws", "src", "geraldo_description", "meshes")
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUT = os.path.join(ROOT, "robot", "ros2_ws", "src", "geraldo_description", "meshes")
 SKIP_PREFIXES = ("roda_", "disco_", "tampa_", "rodizio_")
 
 os.makedirs(OUT, exist_ok=True)
@@ -210,13 +210,13 @@ print("EXPORT_OK", count)
 
 - [ ] **Step 4: Rodar e ver passar**
 
-Run: `python -m pytest tools/tests/test_export_mesh.py -q`
-Expected: `1 passed`. Confira o tamanho: `ls -la ros2_ws/src/geraldo_description/meshes/` (cerca de 1–3 MB).
+Run: `python -m pytest robot/scripts/tests/test_export_mesh.py -q`
+Expected: `1 passed`. Confira o tamanho: `ls -la robot/ros2_ws/src/geraldo_description/meshes/` (cerca de 1–3 MB).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add tools/export_blender_mesh.py tools/tests/test_export_mesh.py ros2_ws/src/geraldo_description/meshes
+git add robot/scripts/export_blender_mesh.py robot/scripts/tests/test_export_mesh.py robot/ros2_ws/src/geraldo_description/meshes
 git commit -m "feat: exporta a malha do corpo do robo para o Gazebo"
 ```
 
@@ -225,9 +225,9 @@ git commit -m "feat: exporta a malha do corpo do robo para o Gazebo"
 ### Task 3: Pacote `geraldo_description` — URDF
 
 **Files:**
-- Create: `ros2_ws/src/geraldo_description/package.xml`, `ros2_ws/src/geraldo_description/CMakeLists.txt`, `ros2_ws/src/geraldo_description/urdf/geraldo.urdf.xacro`
-- Create (vazias por ora): `ros2_ws/src/geraldo_description/launch/.gitkeep`, `ros2_ws/src/geraldo_description/config/.gitkeep`
-- Test: `ros2_ws/src/geraldo_description/test/test_urdf.py`
+- Create: `robot/ros2_ws/src/geraldo_description/package.xml`, `robot/ros2_ws/src/geraldo_description/CMakeLists.txt`, `robot/ros2_ws/src/geraldo_description/urdf/geraldo.urdf.xacro`
+- Create (vazias por ora): `robot/ros2_ws/src/geraldo_description/launch/.gitkeep`, `robot/ros2_ws/src/geraldo_description/config/.gitkeep`
+- Test: `robot/ros2_ws/src/geraldo_description/test/test_urdf.py`
 
 **Interfaces:**
 - Consumes: `meshes/geraldo_body.obj` (Tarefa 2) e `worlds/hospital.sdf` (gerado na Tarefa 4 do plano de fundação).
@@ -235,7 +235,7 @@ git commit -m "feat: exporta a malha do corpo do robo para o Gazebo"
 
 - [ ] **Step 1: Escrever o teste (falha primeiro)**
 
-Create `ros2_ws/src/geraldo_description/test/test_urdf.py`:
+Create `robot/ros2_ws/src/geraldo_description/test/test_urdf.py`:
 
 ```python
 import subprocess
@@ -316,12 +316,12 @@ def test_mesh_uri_points_to_the_package(robot):
 
 - [ ] **Step 2: Rodar e ver falhar**
 
-Run: `source /opt/ros/jazzy/setup.bash && (cd ros2_ws/src/geraldo_description && python3 -m pytest test/test_urdf.py -q)`
+Run: `source /opt/ros/jazzy/setup.bash && (cd robot/ros2_ws/src/geraldo_description && python3 -m pytest test/test_urdf.py -q)`
 Expected: FAIL (o xacro não existe).
 
 - [ ] **Step 3: Escrever `package.xml` e `CMakeLists.txt`**
 
-`ros2_ws/src/geraldo_description/package.xml`:
+`robot/ros2_ws/src/geraldo_description/package.xml`:
 
 ```xml
 <?xml version="1.0"?>
@@ -343,7 +343,7 @@ Expected: FAIL (o xacro não existe).
 </package>
 ```
 
-`ros2_ws/src/geraldo_description/CMakeLists.txt`:
+`robot/ros2_ws/src/geraldo_description/CMakeLists.txt`:
 
 ```cmake
 cmake_minimum_required(VERSION 3.8)
@@ -366,7 +366,7 @@ Crie também `launch/.gitkeep` e `config/.gitkeep` (o `install(DIRECTORY ...)` e
 
 - [ ] **Step 4: Escrever o URDF**
 
-`ros2_ws/src/geraldo_description/urdf/geraldo.urdf.xacro`:
+`robot/ros2_ws/src/geraldo_description/urdf/geraldo.urdf.xacro`:
 
 ```xml
 <?xml version="1.0"?>
@@ -524,13 +524,13 @@ Crie também `launch/.gitkeep` e `config/.gitkeep` (o `install(DIRECTORY ...)` e
 
 - [ ] **Step 5: Rodar e ver passar**
 
-Run: `source /opt/ros/jazzy/setup.bash && (cd ros2_ws/src/geraldo_description && python3 -m pytest test/test_urdf.py -q && xacro urdf/geraldo.urdf.xacro > /tmp/g.urdf && check_urdf /tmp/g.urdf | head -20)`
+Run: `source /opt/ros/jazzy/setup.bash && (cd robot/ros2_ws/src/geraldo_description && python3 -m pytest test/test_urdf.py -q && xacro urdf/geraldo.urdf.xacro > /tmp/g.urdf && check_urdf /tmp/g.urdf | head -20)`
 Expected: `7 passed` e `check_urdf` listando a árvore `base_link` com 4 filhos (`wheel_left_link`, `wheel_right_link`, `caster_link`, `lidar_link`).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add ros2_ws/src/geraldo_description
+git add robot/ros2_ws/src/geraldo_description
 git commit -m "feat: URDF do robo (rodas, rodizio, LiDAR e DiffDrive)"
 ```
 
@@ -539,9 +539,9 @@ git commit -m "feat: URDF do robo (rodas, rodizio, LiDAR e DiffDrive)"
 ### Task 4: Gazebo com o hospital, ponte e launch
 
 **Files:**
-- Create: `ros2_ws/src/geraldo_description/config/bridge.yaml`, `ros2_ws/src/geraldo_description/launch/sim.launch.py`
-- Create: `ros2_ws/src/geraldo_description/test/smoke_sim.sh`
-- Test: `ros2_ws/src/geraldo_description/test/test_launch_files.py`
+- Create: `robot/ros2_ws/src/geraldo_description/config/bridge.yaml`, `robot/ros2_ws/src/geraldo_description/launch/sim.launch.py`
+- Create: `robot/ros2_ws/src/geraldo_description/test/smoke_sim.sh`
+- Test: `robot/ros2_ws/src/geraldo_description/test/test_launch_files.py`
 
 **Interfaces:**
 - Consumes: URDF (Tarefa 3), `worlds/hospital.sdf` (gerado).
@@ -549,7 +549,7 @@ git commit -m "feat: URDF do robo (rodas, rodizio, LiDAR e DiffDrive)"
 
 - [ ] **Step 1: Escrever os testes (falham primeiro)**
 
-Create `ros2_ws/src/geraldo_description/test/test_launch_files.py`:
+Create `robot/ros2_ws/src/geraldo_description/test/test_launch_files.py`:
 
 ```python
 import ast
@@ -580,7 +580,7 @@ def test_launch_file_is_valid_python_and_declares_the_arguments():
 
 - [ ] **Step 2: Rodar e ver falhar**
 
-Run: `source /opt/ros/jazzy/setup.bash && (cd ros2_ws/src/geraldo_description && python3 -m pytest test/test_launch_files.py -q)`
+Run: `source /opt/ros/jazzy/setup.bash && (cd robot/ros2_ws/src/geraldo_description && python3 -m pytest test/test_launch_files.py -q)`
 Expected: FAIL (arquivos não existem).
 
 - [ ] **Step 3: Escrever `config/bridge.yaml`**
@@ -687,7 +687,7 @@ def generate_launch_description():
 
 - [ ] **Step 5: Escrever o teste de fumaça da simulação**
 
-`ros2_ws/src/geraldo_description/test/smoke_sim.sh`:
+`robot/ros2_ws/src/geraldo_description/test/smoke_sim.sh`:
 
 ```bash
 #!/usr/bin/env bash
@@ -713,14 +713,14 @@ echo "SMOKE OK"
 
 - [ ] **Step 6: Rodar os testes de arquivo e ver passar**
 
-Run: `source /opt/ros/jazzy/setup.bash && (cd ros2_ws/src/geraldo_description && python3 -m pytest test/ -q)`
+Run: `source /opt/ros/jazzy/setup.bash && (cd robot/ros2_ws/src/geraldo_description && python3 -m pytest test/ -q)`
 Expected: `9 passed`.
 
 - [ ] **Step 7: Compilar e rodar o teste de fumaça**
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-cd ros2_ws && colcon build --symlink-install --packages-select geraldo_description && source install/setup.bash && bash src/geraldo_description/test/smoke_sim.sh
+cd robot/ros2_ws && colcon build --symlink-install --packages-select geraldo_description && source install/setup.bash && bash src/geraldo_description/test/smoke_sim.sh
 ```
 
 Expected: termina com `SMOKE OK`. Se falhar, `cat /tmp/sim.log` mostra o motivo. Causas conhecidas e onde mexer:
@@ -732,7 +732,7 @@ Expected: termina com `SMOKE OK`. Se falhar, `cat /tmp/sim.log` mostra o motivo.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add ros2_ws/src/geraldo_description
+git add robot/ros2_ws/src/geraldo_description
 git commit -m "feat: simulacao no Gazebo com o hospital, ponte ROS e launch"
 ```
 
@@ -741,21 +741,21 @@ git commit -m "feat: simulacao no Gazebo com o hospital, ponte ROS e launch"
 ### Task 5: Nav2 básico no hospital
 
 **Files:**
-- Create: `ros2_ws/src/geraldo_nav/package.xml`, `ros2_ws/src/geraldo_nav/CMakeLists.txt`, `ros2_ws/src/geraldo_nav/launch/nav.launch.py`
-- Create: `tools/make_nav2_params.py`
-- Create (gerado): `ros2_ws/src/geraldo_nav/config/nav2_params.yaml`
-- Test: `tools/tests/test_make_nav2_params.py`
+- Create: `robot/ros2_ws/src/geraldo_nav/package.xml`, `robot/ros2_ws/src/geraldo_nav/CMakeLists.txt`, `robot/ros2_ws/src/geraldo_nav/launch/nav.launch.py`
+- Create: `robot/scripts/make_nav2_params.py`
+- Create (gerado): `robot/ros2_ws/src/geraldo_nav/config/nav2_params.yaml`
+- Test: `robot/scripts/tests/test_make_nav2_params.py`
 
 **Interfaces:**
 - Consumes: `maps/hospital.yaml` e `config/waypoints.yaml` (gerados na Tarefa 4 do plano de fundação, já dentro de `geraldo_nav`), simulação (Tarefa 4).
-- Produces: `ros2 launch geraldo_nav nav.launch.py` (map_server, AMCL, planejador, controlador, `/navigate_to_pose`); função `tools.make_nav2_params.patch_params(params: dict) -> dict`.
+- Produces: `ros2 launch geraldo_nav nav.launch.py` (map_server, AMCL, planejador, controlador, `/navigate_to_pose`); função `robot.scripts.make_nav2_params.patch_params(params: dict) -> dict`.
 
 - [ ] **Step 1: Escrever o teste (falha primeiro)**
 
-Create `tools/tests/test_make_nav2_params.py`:
+Create `robot/scripts/tests/test_make_nav2_params.py`:
 
 ```python
-from tools.make_nav2_params import FOOTPRINT, INITIAL_POSE, patch_params
+from robot.scripts.make_nav2_params import FOOTPRINT, INITIAL_POSE, patch_params
 
 
 def fake_defaults():
@@ -789,17 +789,17 @@ def test_other_parameters_are_preserved():
 
 - [ ] **Step 2: Rodar e ver falhar**
 
-Run: `python -m pytest tools/tests/test_make_nav2_params.py -q`
-Expected: FAIL (`tools.make_nav2_params` não existe).
+Run: `python -m pytest robot/scripts/tests/test_make_nav2_params.py -q`
+Expected: FAIL (`robot.scripts.make_nav2_params` não existe).
 
 - [ ] **Step 3: Implementar o gerador de parâmetros**
 
-Create `tools/make_nav2_params.py`:
+Create `robot/scripts/make_nav2_params.py`:
 
 ```python
-"""Gera ros2_ws/src/geraldo_nav/config/nav2_params.yaml a partir do padrão do nav2_bringup.
+"""Gera robot/ros2_ws/src/geraldo_nav/config/nav2_params.yaml a partir do padrão do nav2_bringup.
 
-Uso: python3 tools/make_nav2_params.py
+Uso: python3 robot/scripts/make_nav2_params.py
 Ajusta o footprint (0,70 x 0,50 m) e a pose inicial do AMCL (base do robô, na farmácia).
 """
 import sys
@@ -807,9 +807,9 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULTS = Path("/opt/ros/jazzy/share/nav2_bringup/params/nav2_params.yaml")
-OUT = ROOT / "ros2_ws/src/geraldo_nav/config/nav2_params.yaml"
+OUT = ROOT / "robot/ros2_ws/src/geraldo_nav/config/nav2_params.yaml"
 
 FOOTPRINT = "[[0.35, 0.25], [0.35, -0.25], [-0.35, -0.25], [-0.35, 0.25]]"
 INITIAL_POSE = {"x": 6.5, "y": 26.5, "z": 0.0, "yaw": -1.5708}
@@ -841,12 +841,12 @@ if __name__ == "__main__":
 
 - [ ] **Step 3b: Rodar e ver passar**
 
-Run: `python -m pytest tools/tests/test_make_nav2_params.py -q`
+Run: `python -m pytest robot/scripts/tests/test_make_nav2_params.py -q`
 Expected: `3 passed`.
 
 - [ ] **Step 4: Criar o pacote `geraldo_nav` e o launch**
 
-`ros2_ws/src/geraldo_nav/package.xml`:
+`robot/ros2_ws/src/geraldo_nav/package.xml`:
 
 ```xml
 <?xml version="1.0"?>
@@ -865,7 +865,7 @@ Expected: `3 passed`.
 </package>
 ```
 
-`ros2_ws/src/geraldo_nav/CMakeLists.txt`:
+`robot/ros2_ws/src/geraldo_nav/CMakeLists.txt`:
 
 ```cmake
 cmake_minimum_required(VERSION 3.8)
@@ -879,7 +879,7 @@ install(DIRECTORY maps config launch
 ament_package()
 ```
 
-`ros2_ws/src/geraldo_nav/launch/nav.launch.py`:
+`robot/ros2_ws/src/geraldo_nav/launch/nav.launch.py`:
 
 ```python
 import os
@@ -910,14 +910,14 @@ def generate_launch_description():
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-python tools/make_nav2_params.py
-ls ros2_ws/src/geraldo_nav/config/
-cd ros2_ws && colcon build --symlink-install && echo BUILD_OK
+python robot/scripts/make_nav2_params.py
+ls robot/ros2_ws/src/geraldo_nav/config/
+cd robot/ros2_ws && colcon build --symlink-install && echo BUILD_OK
 ```
 
 Expected: `nav2_params.yaml` e `waypoints.yaml` em `config/`, e `BUILD_OK`.
 
-Depois, em **três terminais** (todos com `source /opt/ros/jazzy/setup.bash && source ros2_ws/install/setup.bash`):
+Depois, em **três terminais** (todos com `source /opt/ros/jazzy/setup.bash && source robot/ros2_ws/install/setup.bash`):
 
 ```bash
 # terminal 1
@@ -935,7 +935,7 @@ Se o AMCL não localizar: confira que `/scan` e `/tf` chegam (`ros2 topic hz /sc
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tools/make_nav2_params.py tools/tests/test_make_nav2_params.py ros2_ws/src/geraldo_nav
+git add robot/scripts/make_nav2_params.py robot/scripts/tests/test_make_nav2_params.py robot/ros2_ws/src/geraldo_nav
 git commit -m "feat: Nav2 basico no hospital (mapa, footprint 70x50 e launch)"
 ```
 
@@ -946,16 +946,16 @@ As tarefas 6 e 7 fecham o marco M1 (qua 11/11): o teste dos pontos de parada val
 ### Task 6: Teste dos 10 pontos de parada (valida as portas de 1,0 m)
 
 **Files:**
-- Create: `tools/nav_goal_sweep.py`
-- Test: `tools/tests/test_nav_goal_sweep.py`
+- Create: `robot/scripts/nav_goal_sweep.py`
+- Test: `robot/scripts/tests/test_nav_goal_sweep.py`
 
 **Interfaces:**
-- Consumes: `ros2_ws/src/geraldo_nav/config/waypoints.yaml` (gerado), simulação e Nav2 rodando (Tarefas 4 e 5).
-- Produces: `tools.nav_goal_sweep.load_stops(path=WAYPOINTS) -> list[tuple[str, float, float, float]]` (id, x, y, yaw em radianos; todos os pontos exceto `base_robo`), `yaw_to_quaternion(yaw) -> tuple[float, float]` (z, w) e o comando `python3 tools/nav_goal_sweep.py [--timeout 180]`, que sai com 0 só se **todos** os pontos forem alcançados.
+- Consumes: `robot/ros2_ws/src/geraldo_nav/config/waypoints.yaml` (gerado), simulação e Nav2 rodando (Tarefas 4 e 5).
+- Produces: `robot.scripts.nav_goal_sweep.load_stops(path=WAYPOINTS) -> list[tuple[str, float, float, float]]` (id, x, y, yaw em radianos; todos os pontos exceto `base_robo`), `yaw_to_quaternion(yaw) -> tuple[float, float]` (z, w) e o comando `python3 robot/scripts/nav_goal_sweep.py [--timeout 180]`, que sai com 0 só se **todos** os pontos forem alcançados.
 
 - [ ] **Step 1: Escrever os testes (falham primeiro)**
 
-Create `tools/tests/test_nav_goal_sweep.py`:
+Create `robot/scripts/tests/test_nav_goal_sweep.py`:
 
 ```python
 import math
@@ -963,7 +963,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.nav_goal_sweep import WAYPOINTS, load_stops, yaw_to_quaternion
+from robot.scripts.nav_goal_sweep import WAYPOINTS, load_stops, yaw_to_quaternion
 
 
 def write_waypoints(path: Path) -> Path:
@@ -1002,19 +1002,19 @@ def test_generated_waypoints_have_the_ten_stops():
 
 - [ ] **Step 2: Rodar e ver falhar**
 
-Run: `python -m pytest tools/tests/test_nav_goal_sweep.py -q`
-Expected: FAIL (`tools.nav_goal_sweep` não existe).
+Run: `python -m pytest robot/scripts/tests/test_nav_goal_sweep.py -q`
+Expected: FAIL (`robot.scripts.nav_goal_sweep` não existe).
 
 - [ ] **Step 3: Implementar**
 
-Create `tools/nav_goal_sweep.py`:
+Create `robot/scripts/nav_goal_sweep.py`:
 
 ```python
 #!/usr/bin/env python3
 """Manda o robô a cada ponto de parada do hospital e confere se o Nav2 chega (valida as portas de 1,0 m).
 
 Uso (com a simulação e o Nav2 rodando, ROS carregado):
-  python3 tools/nav_goal_sweep.py [--timeout 180]
+  python3 robot/scripts/nav_goal_sweep.py [--timeout 180]
 Sai com 0 só se todos os pontos forem alcançados.
 """
 import argparse
@@ -1024,8 +1024,8 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[1]
-WAYPOINTS = ROOT / "ros2_ws/src/geraldo_nav/config/waypoints.yaml"
+ROOT = Path(__file__).resolve().parents[2]
+WAYPOINTS = ROOT / "robot/ros2_ws/src/geraldo_nav/config/waypoints.yaml"
 
 
 def load_stops(path=WAYPOINTS) -> list[tuple[str, float, float, float]]:
@@ -1080,22 +1080,22 @@ if __name__ == "__main__":
 
 - [ ] **Step 4: Rodar e ver passar**
 
-Run: `python -m pytest tools/tests/test_nav_goal_sweep.py -q`
+Run: `python -m pytest robot/scripts/tests/test_nav_goal_sweep.py -q`
 Expected: `3 passed`.
 
 - [ ] **Step 5: Rodar com a simulação (precisa dos terminais 1 e 2 da Tarefa 5)**
 
 ```bash
-source /opt/ros/jazzy/setup.bash && source ros2_ws/install/setup.bash
-python3 tools/nav_goal_sweep.py
+source /opt/ros/jazzy/setup.bash && source robot/ros2_ws/install/setup.bash
+python3 robot/scripts/nav_goal_sweep.py
 ```
 
-Expected: 10 linhas `ok` e `TODOS OS PONTOS OK`. Se alguma sala falhar, é quase sempre a porta: ajuste, nesta ordem, `inflation_radius` (de 0,55 para 0,35) e `cost_scaling_factor` (de 3,0 para 5,0) nos dois costmaps de `tools/make_nav2_params.py`, gere de novo e repita. Só se ainda falhar, avalie alargar `door_width` no `hospital.yaml` (plano B, exige avisar o grupo) ou trocar o controlador.
+Expected: 10 linhas `ok` e `TODOS OS PONTOS OK`. Se alguma sala falhar, é quase sempre a porta: ajuste, nesta ordem, `inflation_radius` (de 0,55 para 0,35) e `cost_scaling_factor` (de 3,0 para 5,0) nos dois costmaps de `robot/scripts/make_nav2_params.py`, gere de novo e repita. Só se ainda falhar, avalie alargar `door_width` no `hospital.yaml` (plano B, exige avisar o grupo) ou trocar o controlador.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tools/nav_goal_sweep.py tools/tests/test_nav_goal_sweep.py tools/make_nav2_params.py
+git add robot/scripts/nav_goal_sweep.py robot/scripts/tests/test_nav_goal_sweep.py robot/scripts/make_nav2_params.py
 git commit -m "feat: teste dos 10 pontos de parada do hospital no Nav2"
 ```
 
@@ -1104,15 +1104,15 @@ git commit -m "feat: teste dos 10 pontos de parada do hospital no Nav2"
 ### Task 7: `geraldo_dispatcher` mínimo e API falsa
 
 **Files:**
-- Create: `tools/fake_backend.py`
-- Create: `ros2_ws/src/geraldo_dispatcher/package.xml`, `setup.py`, `setup.cfg`, `resource/geraldo_dispatcher`
-- Create: `ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/__init__.py`, `ports.py`, `api.py`, `waypoints.py`, `dispatcher.py`, `node.py`
-- Test: `ros2_ws/src/geraldo_dispatcher/test/test_dispatcher.py`
+- Create: `robot/scripts/fake_backend.py`
+- Create: `robot/ros2_ws/src/geraldo_dispatcher/package.xml`, `setup.py`, `setup.cfg`, `resource/geraldo_dispatcher`
+- Create: `robot/ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/__init__.py`, `ports.py`, `api.py`, `waypoints.py`, `dispatcher.py`, `node.py`
+- Test: `robot/ros2_ws/src/geraldo_dispatcher/test/test_dispatcher.py`
 
 **Interfaces:**
 - Consumes: contrato `POST /auth/login` e `POST /robot/next-task` (`RobotTask`: `id`, `origin_waypoint`, `dest_waypoint`...) e `waypoints.yaml` (Tarefa 4 do plano de fundação).
 - Produces:
-  - `tools.fake_backend.FakeBackend(tasks=None, username="robo", password="robo-local", port=0)` com `start() -> self`, `stop()`, `url`, `calls`, `expire_token()`; CLI `python tools/fake_backend.py --port 8000`.
+  - `robot.scripts.fake_backend.FakeBackend(tasks=None, username="robo", password="robo-local", port=0)` com `start() -> self`, `stop()`, `url`, `calls`, `expire_token()`; CLI `python robot/scripts/fake_backend.py --port 8000`.
   - `geraldo_dispatcher.ports.BackendPort` (`next_task() -> dict | None`) e `Navigator` (`go_to(pose) -> bool`): interfaces pequenas (ISP).
   - `geraldo_dispatcher.api.BackendClient(base_url, username, password)`, um `BackendPort` com `login()` e `next_task()` (só biblioteca padrão; refaz o login uma vez se o token expirar).
   - `geraldo_dispatcher.waypoints.Pose(x, y, yaw)` (`Pose.from_dict(d)` converte graus em radianos; `quaternion() -> (z, w)`) e `load_poses(path) -> dict[str, Pose]`.
@@ -1122,14 +1122,14 @@ git commit -m "feat: teste dos 10 pontos de parada do hospital no Nav2"
 
 - [ ] **Step 1: Escrever a API falsa**
 
-Create `tools/fake_backend.py`:
+Create `robot/scripts/fake_backend.py`:
 
 ```python
 #!/usr/bin/env python3
 """API falsa do robô para desenvolver o dispatcher sem o backend. Segue docs/contracts/openapi.yaml
 (somente POST /auth/login e POST /robot/next-task).
 
-Uso: python tools/fake_backend.py --port 8000     (usuário `robo`, senha `robo-local`)
+Uso: python robot/scripts/fake_backend.py --port 8000     (usuário `robo`, senha `robo-local`)
 """
 import argparse
 import json
@@ -1220,7 +1220,7 @@ if __name__ == "__main__":
 
 - [ ] **Step 2: Escrever os testes do dispatcher (falham primeiro)**
 
-Create `ros2_ws/src/geraldo_dispatcher/test/test_dispatcher.py`:
+Create `robot/ros2_ws/src/geraldo_dispatcher/test/test_dispatcher.py`:
 
 ```python
 import math
@@ -1229,14 +1229,14 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(ROOT))
 
 from geraldo_dispatcher.api import BackendClient  # noqa: E402
 from geraldo_dispatcher.dispatcher import Dispatcher  # noqa: E402
 from geraldo_dispatcher.ports import BackendPort, Navigator  # noqa: E402
 from geraldo_dispatcher.waypoints import Pose, load_poses  # noqa: E402
-from tools.fake_backend import DEMO_TASKS, FakeBackend  # noqa: E402
+from robot.scripts.fake_backend import DEMO_TASKS, FakeBackend  # noqa: E402
 
 POSES = {
     "farmacia_balcao": Pose(7, 24, math.radians(270)),
@@ -1352,12 +1352,12 @@ def test_dispatcher_works_with_any_backend_port_without_http():
 
 - [ ] **Step 3: Rodar e ver falhar**
 
-Run: `source /opt/ros/jazzy/setup.bash && (cd ros2_ws/src/geraldo_dispatcher && python3 -m pytest test -q)`
+Run: `source /opt/ros/jazzy/setup.bash && (cd robot/ros2_ws/src/geraldo_dispatcher && python3 -m pytest test -q)`
 Expected: FAIL (o pacote não existe).
 
 - [ ] **Step 4: Criar o pacote Python**
 
-`ros2_ws/src/geraldo_dispatcher/package.xml`:
+`robot/ros2_ws/src/geraldo_dispatcher/package.xml`:
 
 ```xml
 <?xml version="1.0"?>
@@ -1378,7 +1378,7 @@ Expected: FAIL (o pacote não existe).
 </package>
 ```
 
-`ros2_ws/src/geraldo_dispatcher/setup.py`:
+`robot/ros2_ws/src/geraldo_dispatcher/setup.py`:
 
 ```python
 from setuptools import find_packages, setup
@@ -1403,7 +1403,7 @@ setup(
 )
 ```
 
-`ros2_ws/src/geraldo_dispatcher/setup.cfg`:
+`robot/ros2_ws/src/geraldo_dispatcher/setup.cfg`:
 
 ```ini
 [develop]
@@ -1414,7 +1414,7 @@ install_scripts=$base/lib/geraldo_dispatcher
 
 Crie `resource/geraldo_dispatcher` (arquivo vazio) e `geraldo_dispatcher/__init__.py` (vazio).
 
-`ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/ports.py`:
+`robot/ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/ports.py`:
 
 ```python
 from abc import ABC, abstractmethod
@@ -1434,7 +1434,7 @@ class Navigator(ABC):  # porta: tudo o que o dispatcher precisa da navegação
         """Leva o robô até a pose. True se chegou."""
 ```
 
-`ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/api.py`:
+`robot/ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/api.py`:
 
 ```python
 import json
@@ -1481,7 +1481,7 @@ class BackendClient(BackendPort):  # ADAPTER: traduz a API HTTP do backend para 
             return None if response.status == 204 else json.load(response)
 ```
 
-`ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/waypoints.py`:
+`robot/ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/waypoints.py`:
 
 ```python
 import math
@@ -1507,12 +1507,12 @@ class Pose:
 
 
 def load_poses(path) -> dict[str, Pose]:
-    """Lê o waypoints.yaml gerado por tools/gen_hospital.py (yaw em graus) e devolve poses em radianos."""
+    """Lê o waypoints.yaml gerado por robot/hospital/gen_hospital.py (yaw em graus) e devolve poses em radianos."""
     data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))["waypoints"]
     return {wid: Pose.from_dict(w) for wid, w in data.items()}
 ```
 
-`ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/dispatcher.py`:
+`robot/ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/dispatcher.py`:
 
 ```python
 from .ports import BackendPort, Navigator
@@ -1535,7 +1535,7 @@ class Dispatcher:
         for key in ("origin_waypoint", "dest_waypoint"):
             waypoint = task[key]
             if waypoint not in self.poses:
-                raise KeyError(f"Waypoint desconhecido: {waypoint}. Gere o hospital de novo (tools/gen_hospital.py).")
+                raise KeyError(f"Waypoint desconhecido: {waypoint}. Gere o hospital de novo (robot/hospital/gen_hospital.py).")
             self.log(f"entrega {task['id']}: indo para {waypoint}")
             if not self.navigator.go_to(self.poses[waypoint]):
                 self.log(f"entrega {task['id']}: não chegou a {waypoint}")
@@ -1544,7 +1544,7 @@ class Dispatcher:
         return {**task, "result": "CHEGOU"}
 ```
 
-`ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/node.py`:
+`robot/ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/node.py`:
 
 ```python
 import os
@@ -1606,14 +1606,14 @@ def main() -> None:
 
 - [ ] **Step 5: Rodar e ver passar**
 
-Run: `source /opt/ros/jazzy/setup.bash && (cd ros2_ws/src/geraldo_dispatcher && python3 -m pytest test -q)`
+Run: `source /opt/ros/jazzy/setup.bash && (cd robot/ros2_ws/src/geraldo_dispatcher && python3 -m pytest test -q)`
 Expected: `10 passed`.
 
 - [ ] **Step 6: Compilar o pacote e conferir o executável**
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-cd ros2_ws && colcon build --symlink-install --packages-select geraldo_nav geraldo_dispatcher && source install/setup.bash
+cd robot/ros2_ws && colcon build --symlink-install --packages-select geraldo_nav geraldo_dispatcher && source install/setup.bash
 ros2 pkg executables geraldo_dispatcher
 ```
 
@@ -1623,9 +1623,9 @@ Expected: `geraldo_dispatcher dispatcher`.
 
 ```bash
 # terminal 3
-python tools/fake_backend.py --port 8000
+python robot/scripts/fake_backend.py --port 8000
 # terminal 4
-source /opt/ros/jazzy/setup.bash && source ros2_ws/install/setup.bash
+source /opt/ros/jazzy/setup.bash && source robot/ros2_ws/install/setup.bash
 GERALDO_ROBOT_PASSWORD=robo-local ros2 run geraldo_dispatcher dispatcher
 ```
 
@@ -1634,6 +1634,6 @@ Expected: no terminal 4, `entrega 1: indo para farmacia_balcao`, depois `... con
 - [ ] **Step 8: Commit**
 
 ```bash
-git add tools/fake_backend.py ros2_ws/src/geraldo_dispatcher
+git add robot/scripts/fake_backend.py robot/ros2_ws/src/geraldo_dispatcher
 git commit -m "feat: geraldo_dispatcher minimo (portas, adapter do Nav2 e API falsa)"
 ```

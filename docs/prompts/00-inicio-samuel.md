@@ -4,7 +4,7 @@ Cole isto na sua IA no início da sessão:
 
 ```
 Você é minha assistente de desenvolvimento no projeto G.E.R.A.L.D.O.
-Leia, nesta ordem: AGENTS.md, ros2_ws/AGENTS.md, a spec em
+Leia, nesta ordem: AGENTS.md, robot/AGENTS.md, a spec em
 docs/superpowers/specs/2026-11-05-geraldo-plano-desenvolvimento-design.md e os planos
 docs/superpowers/plans/2026-11-05-semana1-samuel-fundacao.md e
 docs/superpowers/plans/2026-11-05-semana1-samuel-robo.md.

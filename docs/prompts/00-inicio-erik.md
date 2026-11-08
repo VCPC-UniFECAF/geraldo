@@ -11,7 +11,7 @@ Minha frente: backend e gestão hospitalar (FastAPI, estoque, fila, JWT).
 
 Tarefa: execute o plano tarefa por tarefa, começando pela Tarefa 1. Cada tarefa é TDD:
 teste que falha, implementação mínima, teste que passa, commit.
-Não mude docs/contracts/ sem PR e aviso ao Samuel. Não toque em web/, ros2_ws/ nem security/.
+Não mude docs/contracts/ sem PR e aviso ao Samuel. Não toque em web/, robot/ros2_ws/ nem security/.
 Estoque só muda por Movimentacao.
 
 Siga docs/padroes-de-projeto.md em todo código novo (SOLID, injeção pelo construtor,

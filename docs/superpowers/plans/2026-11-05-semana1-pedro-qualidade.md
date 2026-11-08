@@ -18,7 +18,7 @@
 - Testes e ataques só contra `localhost` (`security/AGENTS.md`).
 - Nenhuma senha ou segredo no repositório: o robô de mentira lê a senha de `GERALDO_ROBOT_PASSWORD` (ou `GERALDO_DEMO_PASSWORD`).
 - Papel `robo` é o único que chama `/robot/next-task` (spec §6.1).
-- Padrões (`docs/padroes-de-projeto.md`): o `MockRobot` recebe o `httpx.Client` e o `sleep` pelo construtor (DIP), então roda contra o servidor e dentro dos testes sem mudar nada. Os métodos `login`, `next_task` e `report` têm os mesmos nomes do `BackendClient` do robô real, e o robô de mentira e o `tools/fake_backend.py` do Samuel obedecem ao mesmo contrato do backend verdadeiro (LSP); é isso que o teste de contrato garante.
+- Padrões (`docs/padroes-de-projeto.md`): o `MockRobot` recebe o `httpx.Client` e o `sleep` pelo construtor (DIP), então roda contra o servidor e dentro dos testes sem mudar nada. Os métodos `login`, `next_task` e `report` têm os mesmos nomes do `BackendClient` do robô real, e o robô de mentira e o `robot/scripts/fake_backend.py` do Samuel obedecem ao mesmo contrato do backend verdadeiro (LSP); é isso que o teste de contrato garante.
 - Pedro testa as frentes dos outros; **não** implementa funcionalidade do backend, da web nem do robô.
 - Commits em português, curtos; branch `feat/qualidade-<assunto>`; nada direto na `main`.
 
@@ -116,11 +116,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install numpy pyyaml pytest openapi-spec-validator httpx
-      - run: python -m pytest tools -q
+      - run: python -m pytest tools robot -q
       - run: python -m openapi_spec_validator docs/contracts/openapi.yaml
       - name: Arquivos gerados do hospital precisam estar commitados
         run: |
-          python tools/gen_hospital.py
+          python robot/hospital/gen_hospital.py
           git diff --exit-code
 
   backend:

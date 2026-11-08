@@ -8,9 +8,10 @@ REQUIRED_DIRS = [
     "web",
     "security",
     "unity",
-    "ros2_ws/src",
+    "robot/ros2_ws/src",
+    "robot/scripts",
     "design-system",
-    "hospital",
+    "robot/hospital",
     "tools",
     "docs/contracts",
     "docs/prompts",
@@ -33,6 +34,11 @@ def test_required_dirs_exist():
 def test_required_files_exist():
     missing = [f for f in REQUIRED_FILES if not (ROOT / f).is_file()]
     assert not missing, f"arquivos faltando: {missing}"
+
+
+def test_robot_front_is_not_scattered_in_the_root():
+    scattered = [d for d in ("hospital", "ros2_ws") if (ROOT / d).exists()]
+    assert not scattered, f"mover para robot/: {scattered}"
 
 
 def test_model_files_are_not_empty():
