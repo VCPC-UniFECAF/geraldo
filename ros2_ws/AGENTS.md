@@ -13,6 +13,8 @@ ros2 launch geraldo_description sim.launch.py headless:=true
 
 ## Convenções
 
+Padrões de código (SOLID, Adapter, injeção): [`docs/padroes-de-projeto.md`](../docs/padroes-de-projeto.md). No `geraldo_dispatcher`: `Navigator` (porta) com `Nav2Navigator` (adapter do `BasicNavigator`) e `FakeNavigator` nos testes; `BackendPort` com `BackendClient`; `Pose.from_dict`; um módulo por responsabilidade (`api`, `waypoints`, `dispatcher`, `node`). O `Dispatcher` recebe tudo pelo construtor.
+
 - Referencial: `map` → `odom` → `base_link` (no chão; frente = +X). Unidades em metros e radianos.
 - Rodas: `wheel_left_joint` e `wheel_right_joint` (eixo Y), separação de 0,45 m, raio de 0,10 m.
 - Footprint do Nav2: retângulo 0,70 × 0,50 m (+10 cm de inflação).

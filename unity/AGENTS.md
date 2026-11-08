@@ -6,3 +6,4 @@
 - Cores: `design-system/dist/GeraldoTokens.cs` (não edite à mão).
 - Dados: `GET /telemetry` e `WS /ws/telemetry` (contrato em `docs/contracts/openapi.yaml`).
 - Alvo: desktop e celular.
+- Padrões de código: [`docs/padroes-de-projeto.md`](../docs/padroes-de-projeto.md) (a mesma ideia vale em C#: interfaces, injeção, Strategy e Observer).
