@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>geraldo_nav</name>
+  <version>0.1.0</version>
+  <description>Mapa, waypoints e launch do Nav2 do G.E.R.A.L.D.O.</description>
+  <maintainer email="geraldo@example.com">Samuel</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>nav2_bringup</exec_depend>
+  <exec_depend>geraldo_description</exec_depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
