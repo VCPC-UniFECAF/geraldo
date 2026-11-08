@@ -11,6 +11,7 @@ Stack: ROS 2 Jazzy + Gazebo Harmonic 8 + Nav2, **nativos** na máquina do Samuel
 | `ros2_ws/src/` | Pacotes ROS 2: `geraldo_description` (URDF, mundo, launch), `geraldo_nav` (mapa, waypoints, Nav2) e `geraldo_dispatcher` |
 
 Testes do robô: `python -m pytest robot -q` (a raiz roda tudo com `python -m pytest tools robot -q`).
+Os testes dos pacotes ROS (`ros2_ws/src/*/test/`) precisam do ROS carregado e ficam fora desse comando: `source /opt/ros/jazzy/setup.bash && (cd robot/ros2_ws/src/<pacote> && python3 -m pytest test -q)`.
 
 ## Comandos
 
