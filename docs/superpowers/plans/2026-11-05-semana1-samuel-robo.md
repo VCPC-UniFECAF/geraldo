@@ -24,6 +24,7 @@
 - Gazebo sem interface (`headless`) para desenvolver; a demo roda na máquina Linux do líder (spec §7).
 - **Decisões do debate de 08/11/2026:** (D1) ambiente nativo, não Docker; (D2) `geraldo_dispatcher` mínimo entra na semana 1 (login, `next-task`, `NavigateToPose` origem e depois destino; sem `/robot/events`), testado contra uma API falsa que segue o contrato; (D3) LiDAR mantido em ~172° (o baú bloqueia a traseira), com a traseira coberta pelos sensores de proximidade na semana 2; (D4) portas de 1,0 m mantidas: parâmetros padrão do Nav2, inflação ajustada só se preciso, e um script que envia metas aos 10 pontos de parada.
 - Comandos ROS rodam com `source /opt/ros/jazzy/setup.bash`. Saídas do colcon (`ros2_ws/build`, `install`, `log`) não vão para o Git.
+- Padrões (`docs/padroes-de-projeto.md`): o `geraldo_dispatcher` separa as responsabilidades em `ports.py` (interfaces `BackendPort` e `Navigator`), `api.py` (cliente HTTP), `waypoints.py` (poses), `dispatcher.py` (regra) e `node.py` (cola com o ROS). O `Dispatcher` recebe tudo pelo construtor (DIP); o Nav2 fica atrás de um **Adapter** (`Nav2Navigator`) e os testes usam um `FakeNavigator`. As ferramentas em `tools/` são funções puras com `main()` fino.
 - Sem segredos no repositório.
 
 ---
@@ -1105,16 +1106,18 @@ git commit -m "feat: teste dos 10 pontos de parada do hospital no Nav2"
 **Files:**
 - Create: `tools/fake_backend.py`
 - Create: `ros2_ws/src/geraldo_dispatcher/package.xml`, `setup.py`, `setup.cfg`, `resource/geraldo_dispatcher`
-- Create: `ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/__init__.py`, `api.py`, `waypoints.py`, `dispatcher.py`, `node.py`
+- Create: `ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/__init__.py`, `ports.py`, `api.py`, `waypoints.py`, `dispatcher.py`, `node.py`
 - Test: `ros2_ws/src/geraldo_dispatcher/test/test_dispatcher.py`
 
 **Interfaces:**
 - Consumes: contrato `POST /auth/login` e `POST /robot/next-task` (`RobotTask`: `id`, `origin_waypoint`, `dest_waypoint`...) e `waypoints.yaml` (Tarefa 4 do plano de fundação).
 - Produces:
   - `tools.fake_backend.FakeBackend(tasks=None, username="robo", password="robo-local", port=0)` com `start() -> self`, `stop()`, `url`, `calls`, `expire_token()`; CLI `python tools/fake_backend.py --port 8000`.
-  - `geraldo_dispatcher.api.BackendClient(base_url, username, password)` com `login()` e `next_task() -> dict | None` (só biblioteca padrão; refaz o login uma vez se o token expirar).
-  - `geraldo_dispatcher.waypoints.Pose(x, y, yaw)` (`quaternion() -> (z, w)`) e `load_poses(path) -> dict[str, Pose]`.
-  - `geraldo_dispatcher.dispatcher.Dispatcher(client, poses, navigate, log=print).run_once() -> dict | None`: `None` se a fila está vazia; senão a própria tarefa com o campo extra `result` (`"CHEGOU"` ou `"FALHOU"`; no segundo caso, também `failed_at`).
+  - `geraldo_dispatcher.ports.BackendPort` (`next_task() -> dict | None`) e `Navigator` (`go_to(pose) -> bool`): interfaces pequenas (ISP).
+  - `geraldo_dispatcher.api.BackendClient(base_url, username, password)`, um `BackendPort` com `login()` e `next_task()` (só biblioteca padrão; refaz o login uma vez se o token expirar).
+  - `geraldo_dispatcher.waypoints.Pose(x, y, yaw)` (`Pose.from_dict(d)` converte graus em radianos; `quaternion() -> (z, w)`) e `load_poses(path) -> dict[str, Pose]`.
+  - `geraldo_dispatcher.node.Nav2Navigator(BasicNavigator, timeout)`, o adapter que implementa `Navigator`.
+  - `geraldo_dispatcher.dispatcher.Dispatcher(backend, poses, navigator, log=print).run_once() -> dict | None`: `None` se a fila está vazia; senão a própria tarefa com o campo extra `result` (`"CHEGOU"` ou `"FALHOU"`; no segundo caso, também `failed_at`).
   - Executável: `ros2 run geraldo_dispatcher dispatcher` (variáveis `GERALDO_API_URL`, `GERALDO_ROBOT_PASSWORD`).
 
 - [ ] **Step 1: Escrever a API falsa**
@@ -1231,6 +1234,7 @@ sys.path.insert(0, str(ROOT))
 
 from geraldo_dispatcher.api import BackendClient  # noqa: E402
 from geraldo_dispatcher.dispatcher import Dispatcher  # noqa: E402
+from geraldo_dispatcher.ports import BackendPort, Navigator  # noqa: E402
 from geraldo_dispatcher.waypoints import Pose, load_poses  # noqa: E402
 from tools.fake_backend import DEMO_TASKS, FakeBackend  # noqa: E402
 
@@ -1240,6 +1244,24 @@ POSES = {
     "banco_sangue_retirada": Pose(17, 25, math.radians(90)),
     "cc_entrega": Pose(29, 25, math.radians(90)),
 }
+
+
+class FakeNavigator(Navigator):  # substituto de teste do Nav2 (LSP)
+    def __init__(self, reaches: bool = True) -> None:
+        self.visited: list[Pose] = []
+        self._reaches = reaches
+
+    def go_to(self, pose: Pose) -> bool:
+        self.visited.append(pose)
+        return self._reaches
+
+
+class ListBackend(BackendPort):  # substituto de teste do backend: sem HTTP
+    def __init__(self, tasks: list[dict]) -> None:
+        self._tasks = tasks
+
+    def next_task(self):
+        return self._tasks.pop(0) if self._tasks else None
 
 
 @pytest.fixture
@@ -1261,6 +1283,11 @@ def test_load_poses_converts_degrees_to_radians(tmp_path):
     assert pose.yaw == pytest.approx(math.pi / 2)
     z, w = pose.quaternion()
     assert z == pytest.approx(math.sin(math.pi / 4)) and w == pytest.approx(math.cos(math.pi / 4))
+
+
+def test_pose_from_dict_converts_degrees_to_radians():
+    pose = Pose.from_dict({"x": 1.0, "y": 2.0, "yaw": 180})
+    assert (pose.x, pose.y) == (1.0, 2.0) and pose.yaw == pytest.approx(math.pi)
 
 
 def test_login_failure_has_a_clear_message(backend):
@@ -1285,37 +1312,42 @@ def test_client_logs_in_again_when_the_token_expires(backend):
 
 
 def test_dispatcher_goes_to_origin_then_destination(backend):
-    visited = []
+    navigator = FakeNavigator()
     client = client_for(backend)
     client.login()
-    dispatcher = Dispatcher(client, POSES, lambda pose: visited.append(pose) or True, log=lambda *_: None)
-    result = dispatcher.run_once()
-    assert visited == [POSES["farmacia_balcao"], POSES["cons1_entrega"]]
+    result = Dispatcher(client, POSES, navigator, log=lambda *_: None).run_once()
+    assert navigator.visited == [POSES["farmacia_balcao"], POSES["cons1_entrega"]]
     assert result["id"] == 1 and result["result"] == "CHEGOU"
 
 
 def test_dispatcher_stops_when_the_robot_cannot_reach_the_origin(backend):
-    visited = []
+    navigator = FakeNavigator(reaches=False)
     client = client_for(backend)
     client.login()
-    dispatcher = Dispatcher(client, POSES, lambda pose: visited.append(pose) and False, log=lambda *_: None)
-    result = dispatcher.run_once()
+    result = Dispatcher(client, POSES, navigator, log=lambda *_: None).run_once()
     assert result["result"] == "FALHOU" and result["failed_at"] == "farmacia_balcao"
-    assert len(visited) == 1
+    assert len(navigator.visited) == 1
 
 
 def test_dispatcher_returns_none_on_an_empty_queue(backend):
     backend.tasks.clear()
     client = client_for(backend)
     client.login()
-    assert Dispatcher(client, POSES, lambda pose: True, log=lambda *_: None).run_once() is None
+    assert Dispatcher(client, POSES, FakeNavigator(), log=lambda *_: None).run_once() is None
 
 
 def test_unknown_waypoint_is_an_error_not_a_silent_skip(backend):
     client = client_for(backend)
     client.login()
     with pytest.raises(KeyError, match="farmacia_balcao"):
-        Dispatcher(client, {}, lambda pose: True, log=lambda *_: None).run_once()
+        Dispatcher(client, {}, FakeNavigator(), log=lambda *_: None).run_once()
+
+
+def test_dispatcher_works_with_any_backend_port_without_http():
+    task = {"id": 5, "origin_waypoint": "farmacia_balcao", "dest_waypoint": "cc_entrega"}
+    navigator = FakeNavigator()
+    result = Dispatcher(ListBackend([task]), POSES, navigator, log=lambda *_: None).run_once()
+    assert result["result"] == "CHEGOU" and navigator.visited == [POSES["farmacia_balcao"], POSES["cc_entrega"]]
 ```
 
 - [ ] **Step 3: Rodar e ver falhar**
@@ -1382,6 +1414,26 @@ install_scripts=$base/lib/geraldo_dispatcher
 
 Crie `resource/geraldo_dispatcher` (arquivo vazio) e `geraldo_dispatcher/__init__.py` (vazio).
 
+`ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/ports.py`:
+
+```python
+from abc import ABC, abstractmethod
+
+from .waypoints import Pose
+
+
+class BackendPort(ABC):  # porta: tudo o que o dispatcher precisa do backend (ISP)
+    @abstractmethod
+    def next_task(self) -> dict | None:
+        """Próxima entrega da fila, ou None se não há nenhuma."""
+
+
+class Navigator(ABC):  # porta: tudo o que o dispatcher precisa da navegação
+    @abstractmethod
+    def go_to(self, pose: Pose) -> bool:
+        """Leva o robô até a pose. True se chegou."""
+```
+
 `ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/api.py`:
 
 ```python
@@ -1389,8 +1441,10 @@ import json
 import urllib.error
 import urllib.request
 
+from .ports import BackendPort
 
-class BackendClient:
+
+class BackendClient(BackendPort):  # ADAPTER: traduz a API HTTP do backend para a porta que o dispatcher usa
     """Cliente mínimo do backend (só biblioteca padrão): login do robô e próxima tarefa."""
 
     def __init__(self, base_url: str, username: str, password: str, timeout: float = 10.0) -> None:
@@ -1443,6 +1497,10 @@ class Pose:
     y: float
     yaw: float  # radianos
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "Pose":  # FACTORY: o waypoints.yaml guarda o yaw em graus
+        return cls(data["x"], data["y"], math.radians(data["yaw"]))
+
     def quaternion(self) -> tuple[float, float]:
         """(z, w) do quaternion de uma rotação em torno de Z."""
         return math.sin(self.yaw / 2), math.cos(self.yaw / 2)
@@ -1451,25 +1509,27 @@ class Pose:
 def load_poses(path) -> dict[str, Pose]:
     """Lê o waypoints.yaml gerado por tools/gen_hospital.py (yaw em graus) e devolve poses em radianos."""
     data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))["waypoints"]
-    return {wid: Pose(w["x"], w["y"], math.radians(w["yaw"])) for wid, w in data.items()}
+    return {wid: Pose.from_dict(w) for wid, w in data.items()}
 ```
 
 `ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/dispatcher.py`:
 
 ```python
-from typing import Callable
-
+from .ports import BackendPort, Navigator
 from .waypoints import Pose
 
 
 class Dispatcher:
-    """Pega a próxima entrega da fila e leva o robô à origem e depois ao destino."""
+    """Pega a próxima entrega da fila e leva o robô à origem e depois ao destino.
 
-    def __init__(self, client, poses: dict[str, Pose], navigate: Callable[[Pose], bool], log=print) -> None:
-        self.client, self.poses, self.navigate, self.log = client, poses, navigate, log
+    Só conhece as portas `BackendPort` e `Navigator` (DIP): o Nav2 e o HTTP entram pelo construtor.
+    """
+
+    def __init__(self, backend: BackendPort, poses: dict[str, Pose], navigator: Navigator, log=print) -> None:
+        self.backend, self.poses, self.navigator, self.log = backend, poses, navigator, log
 
     def run_once(self) -> dict | None:
-        task = self.client.next_task()
+        task = self.backend.next_task()
         if task is None:
             return None
         for key in ("origin_waypoint", "dest_waypoint"):
@@ -1477,7 +1537,7 @@ class Dispatcher:
             if waypoint not in self.poses:
                 raise KeyError(f"Waypoint desconhecido: {waypoint}. Gere o hospital de novo (tools/gen_hospital.py).")
             self.log(f"entrega {task['id']}: indo para {waypoint}")
-            if not self.navigate(self.poses[waypoint]):
+            if not self.navigator.go_to(self.poses[waypoint]):
                 self.log(f"entrega {task['id']}: não chegou a {waypoint}")
                 return {**task, "result": "FALHOU", "failed_at": waypoint}
         self.log(f"entrega {task['id']}: chegou ao destino")
@@ -1497,11 +1557,17 @@ from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 
 from .api import BackendClient
 from .dispatcher import Dispatcher
+from .ports import Navigator
 from .waypoints import Pose, load_poses
 
 
-def make_navigate(nav: BasicNavigator, timeout: float):
-    def navigate(pose: Pose) -> bool:
+class Nav2Navigator(Navigator):  # ADAPTER: traduz Pose para o NavigateToPose do Nav2 (BasicNavigator)
+    def __init__(self, nav: BasicNavigator, timeout: float = 300.0) -> None:
+        self._nav = nav
+        self._timeout = timeout
+
+    def go_to(self, pose: Pose) -> bool:
+        nav = self._nav
         goal = PoseStamped()
         goal.header.frame_id = "map"
         goal.header.stamp = nav.get_clock().now().to_msg()
@@ -1510,13 +1576,11 @@ def make_navigate(nav: BasicNavigator, timeout: float):
         nav.goToPose(goal)
         start = time.monotonic()
         while not nav.isTaskComplete():
-            if time.monotonic() - start > timeout:
+            if time.monotonic() - start > self._timeout:
                 nav.cancelTask()
                 break
             time.sleep(0.5)
         return nav.getResult() == TaskResult.SUCCEEDED
-
-    return navigate
 
 
 def main() -> None:
@@ -1531,7 +1595,7 @@ def main() -> None:
     waypoints_file = os.path.join(get_package_share_directory("geraldo_nav"), "config", "waypoints.yaml")
     client = BackendClient(api_url, "robo", password)
     client.login()
-    dispatcher = Dispatcher(client, load_poses(waypoints_file), make_navigate(nav, timeout=300))
+    dispatcher = Dispatcher(client, load_poses(waypoints_file), Nav2Navigator(nav, timeout=300))
     try:
         while rclpy.ok():
             if dispatcher.run_once() is None:
@@ -1543,7 +1607,7 @@ def main() -> None:
 - [ ] **Step 5: Rodar e ver passar**
 
 Run: `source /opt/ros/jazzy/setup.bash && (cd ros2_ws/src/geraldo_dispatcher && python3 -m pytest test -q)`
-Expected: `8 passed`.
+Expected: `10 passed`.
 
 - [ ] **Step 6: Compilar o pacote e conferir o executável**
 
@@ -1571,5 +1635,5 @@ Expected: no terminal 4, `entrega 1: indo para farmacia_balcao`, depois `... con
 
 ```bash
 git add tools/fake_backend.py ros2_ws/src/geraldo_dispatcher
-git commit -m "feat: geraldo_dispatcher minimo (fila do backend -> Nav2) e API falsa"
+git commit -m "feat: geraldo_dispatcher minimo (portas, adapter do Nav2 e API falsa)"
 ```
