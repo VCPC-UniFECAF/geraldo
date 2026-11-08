@@ -7,7 +7,7 @@ Cada pessoa executa **o seu plano**, tarefa por tarefa, na ordem. Cada tarefa te
 | Plano | Dono | Entrega ao final da semana 1 |
 |---|---|---|
 | [Fundação, contratos, hospital e tokens](2026-11-05-semana1-samuel-fundacao.md) | Samuel | Repo organizado, modelo 3D no repo, guia das IAs, contratos travados, hospital gerado de um YAML, tokens do design system |
-| [Robô e simulação](2026-11-05-semana1-samuel-robo.md) | Samuel | Imagem Docker, URDF do robô, Gazebo com o hospital, `/cmd_vel` e `/scan`, Nav2 básico |
+| [Robô e simulação](2026-11-05-semana1-samuel-robo.md) | Samuel | Ambiente nativo conferido, URDF do robô, Gazebo com o hospital, `/cmd_vel` e `/scan`, Nav2, teste dos 10 pontos de parada e `geraldo_dispatcher` mínimo |
 | [Backend](2026-11-05-semana1-erik-backend.md) | Erik | FastAPI com JWT, locais, estoque, criar entrega com reserva e fila de prioridade |
 | [Web responsivo](2026-11-05-semana1-vieira-web.md) | Vieira | App web com tokens, componentes base e de domínio, tela de solicitar (mobile-first) sobre API simulada |
 | [Qualidade e robô de mentira](2026-11-05-semana1-pedro-qualidade.md) | Pedro | CI no GitHub, teste de contrato da API, robô de mentira, coleção de requests |
