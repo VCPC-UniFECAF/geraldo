@@ -72,6 +72,18 @@ Um hospital inventado, de **um andar (46 × 30 m)**, desenhado para a simulaçã
 
 Na demonstração, uma maca bloqueia o corredor norte (rota curta) e o robô **recalcula pela cruz central** (rota alternativa, tracejada).
 
+# Design system
+
+<p align="center">
+  <img src="design-system/preview.png" alt="Prévia do design system: cores, selos de prioridade, botões e componentes" width="760">
+</p>
+
+Visual **clínico e limpo**, de base branca, azul e vermelha. O **azul** é a ação e a identidade; o **vermelho** é reservado ao que exige atenção imediata (prioridade crítica, perigo, estoque abaixo do mínimo). Os valores vivem em um único arquivo, [`tokens.json`](design-system/tokens/tokens.json), que gera o CSS, o preset do Tailwind e as cores do Unity.
+
+- [Guia de referência](design-system/DESIGN_SYSTEM.md): as 9 regras de ouro, como usar os tokens e a lista de componentes.
+- [Especificação completa](docs/superpowers/specs/2026-11-05-geraldo-design-system-design.md).
+- [Prévia ao vivo](design-system/preview.html): abra no navegador.
+
 # Como funciona uma entrega
 
 ```
@@ -107,7 +119,7 @@ Python · FastAPI · ROS 2 (Jazzy) · Gazebo (Harmonic) · Nav2 · SQLite · JWT
 
 | | |
 |---|---|
-| ✅ Pronto | Especificações, planos de implementação, modelo 3D V1 e planta do hospital |
+| ✅ Pronto | Especificações, planos de implementação, modelo 3D V1, planta do hospital e design system v0 (tokens, guia e prévia) |
 | 🔧 Em andamento | **Semana 1 (05 a 11/11):** repositório, contratos, simulação, backend, sistema web, CI |
 | 🎯 Marcos | **M1 (11/11)** um pedido na API vira meta no Nav2 e o robô anda no Gazebo · **M2 (18/11)** entrega completa, com o estoque mudando por causa do robô · **M3 (25/11)** demonstração congelada · **28/11** ExpoTech |
 
@@ -117,18 +129,24 @@ Python · FastAPI · ROS 2 (Jazzy) · Gazebo (Harmonic) · Nav2 · SQLite · JWT
 geraldo/
 ├── README.md
 ├── modelos-3d/          # modelo do robô (.blend, .glb, script e renders)
+├── design-system/       # tokens, guia de referência e prévia visual
+│   ├── tokens/          # tokens.json (fonte única) e o gerador
+│   ├── dist/            # tokens.css, preset do Tailwind e cores do Unity (gerados)
+│   └── tests/           # testes dos tokens e do contraste
+├── tools/               # utilitários e testes da raiz
 ├── docs/
 │   ├── img/             # imagens da documentação
 │   └── superpowers/
 │       ├── specs/       # especificações (plano de desenvolvimento e design system)
 │       └── plans/       # planos de implementação da semana 1, um por pessoa
-└── (a seguir)           # hospital/, ros2_ws/, backend/, web/, design-system/, security/, unity/
+└── (a seguir)           # hospital/, ros2_ws/, backend/, web/, security/, unity/
 ```
 
 # Documentação
 
 - [Especificação do plano de desenvolvimento](docs/superpowers/specs/2026-11-05-geraldo-plano-desenvolvimento-design.md): escopo, equipe, hospital, funções, contratos e cronograma.
 - [Especificação do design system](docs/superpowers/specs/2026-11-05-geraldo-design-system-design.md): cores, tipografia e componentes.
+- [Guia do design system](design-system/DESIGN_SYSTEM.md): regras de ouro e como usar os tokens.
 - [Planos da semana 1](docs/superpowers/plans/README.md): ordem de execução e o plano de cada pessoa.
 
 # Equipe

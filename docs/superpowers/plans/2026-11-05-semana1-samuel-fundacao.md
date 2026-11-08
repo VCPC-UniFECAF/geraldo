@@ -1686,6 +1686,8 @@ Avise o Erik: `backend/seeds/locais.json` está pronto (ids dos locais e waypoin
 
 ### Task 5: Tokens do design system
 
+> **Já feito em 08/11/2026 (direto na `main`):** `design-system/tokens/` (tokens, gerador e contraste), `design-system/tests/` e `design-system/dist/` estão no repositório, com os 18 testes passando. Use este bloco só como referência do que foi feito.
+
 **Files:**
 - Create: `design-system/tokens/tokens.json`, `design-system/tokens/build.mjs`, `design-system/tokens/contrast.mjs`
 - Create (gerados): `design-system/dist/tokens.css`, `design-system/dist/tailwind.preset.cjs`, `design-system/dist/GeraldoTokens.cs`
@@ -1944,6 +1946,8 @@ Avise o Vieira: "tokens v0 prontos em `design-system/dist/`".
 ---
 
 ### Task 6: Guia de referência do design system (`DESIGN_SYSTEM.md`)
+
+> **Já feito em 08/11/2026 (direto na `main`):** `design-system/DESIGN_SYSTEM.md`, `tools/tests/test_design_system_doc.py` e, além do plano, a prévia visual `design-system/preview.html` e `preview.png`.
 
 **Files:**
 - Create: `design-system/DESIGN_SYSTEM.md`
