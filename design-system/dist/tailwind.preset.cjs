@@ -50,7 +50,7 @@ module.exports = {
           "700": "#8A5A07"
         },
         "fundo": "#F4F6FB",
-        "branco": "#FFFFFF",
+        "branco": "#FAFBFD",
         "tinta": "#1B2233"
       },
       "fontFamily": {

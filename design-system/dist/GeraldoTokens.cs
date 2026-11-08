@@ -42,7 +42,7 @@ namespace Geraldo
         public static readonly Color32 Aviso500 = new Color32(0xE3, 0x9A, 0x1B, 0xFF);
         public static readonly Color32 Aviso700 = new Color32(0x8A, 0x5A, 0x07, 0xFF);
         public static readonly Color32 Fundo = new Color32(0xF4, 0xF6, 0xFB, 0xFF);
-        public static readonly Color32 Branco = new Color32(0xFF, 0xFF, 0xFF, 0xFF);
+        public static readonly Color32 Branco = new Color32(0xFA, 0xFB, 0xFD, 0xFF);
         public static readonly Color32 Tinta = new Color32(0x1B, 0x22, 0x33, 0xFF);
     }
 }

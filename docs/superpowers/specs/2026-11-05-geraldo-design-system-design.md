@@ -78,7 +78,7 @@ Clínica, limpa e confiável. Base branca, azul e vermelha:
 
 | Token | Hex | Uso |
 |---|---|---|
-| `branco` | `#FFFFFF` | Cards, campos |
+| `branco` | `#FAFBFD` | Cards, campos e texto sobre azul e vermelho (branco suave) |
 | `fundo` | `#F4F6FB` | Fundo das telas |
 | `neutro-50` | `#EEF1F7` | Linhas de lista, selo "rotina" |
 | `neutro-100` | `#E5E9F2` | Bordas e divisórias |
@@ -90,6 +90,8 @@ Clínica, limpa e confiável. Base branca, azul e vermelha:
 | `neutro-700` | `#323A4D` | Rótulos |
 | **`tinta`** (`neutro-800`) | **`#1B2233`** | **Texto principal** |
 | `neutro-900` | `#0F1422` | Contraste máximo |
+
+**Sem branco nem preto puros:** o `branco` é um off-white (`#FAFBFD`) e o tom mais escuro é `neutro-900`. Nenhuma cor da paleta é branco puro nem preto puro; o teste `design-system/tests/palette.test.mjs` garante isso.
 
 ### 3.4 Feedback (fora da identidade)
 
@@ -126,7 +128,7 @@ Clínica, limpa e confiável. Base branca, azul e vermelha:
 
 ### 3.6 Contraste
 
-Pares texto/fundo usados nos componentes precisam de **pelo menos 4,5:1** (texto normal) ou 3:1 (texto grande e ícones). Referência: `branco` sobre `azul-500` e sobre `vermelho-500` ficam perto de 4,9:1 e 4,8:1; `neutro-500` sobre `fundo` passa de 4,5:1. O teste em `design-system/tests/` calcula todos os pares usados e falha o CI se algum ficar abaixo.
+Pares texto/fundo usados nos componentes precisam de **pelo menos 4,5:1** (texto normal) ou 3:1 (texto grande e ícones). Referência: `branco` sobre `azul-500` e sobre `vermelho-500` ficam em cerca de 4,8:1 e 4,6:1; `neutro-500` sobre `fundo` passa de 4,5:1. O teste em `design-system/tests/` calcula todos os pares usados e falha o CI se algum ficar abaixo.
 
 ## 4. Tipografia
 

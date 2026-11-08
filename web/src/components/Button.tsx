@@ -18,7 +18,7 @@ const SIZES: Record<ButtonSize, string> = {
 
 const BASE =
   "inline-flex items-center justify-center gap-2 rounded-controle font-sans font-semibold transition active:scale-[0.98] " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azul-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azul-400 focus-visible:ring-offset-2 focus-visible:ring-offset-branco disabled:cursor-not-allowed disabled:opacity-50";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize };
 

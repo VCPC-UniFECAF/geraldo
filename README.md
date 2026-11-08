@@ -78,7 +78,7 @@ Na demonstração, uma maca bloqueia o corredor norte (rota curta) e o robô **r
   <img src="design-system/preview.png" alt="Prévia do design system: cores, selos de prioridade, botões e componentes" width="760">
 </p>
 
-Visual **clínico e limpo**, de base branca, azul e vermelha. O **azul** é a ação e a identidade; o **vermelho** é reservado ao que exige atenção imediata (prioridade crítica, perigo, estoque abaixo do mínimo). Os valores vivem em um único arquivo, [`tokens.json`](design-system/tokens/tokens.json), que gera o CSS, o preset do Tailwind e as cores do Unity.
+Visual **clínico e limpo**, de base branca, azul e vermelha (sem branco nem preto puros). O **azul** é a ação e a identidade; o **vermelho** é reservado ao que exige atenção imediata (prioridade crítica, perigo, estoque abaixo do mínimo). Os valores vivem em um único arquivo, [`tokens.json`](design-system/tokens/tokens.json), que gera o CSS, o preset do Tailwind e as cores do Unity.
 
 - [Guia de referência](design-system/DESIGN_SYSTEM.md): as 9 regras de ouro, como usar os tokens e a lista de componentes.
 - [Especificação completa](docs/superpowers/specs/2026-11-05-geraldo-design-system-design.md).

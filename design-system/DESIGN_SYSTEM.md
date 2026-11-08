@@ -45,9 +45,12 @@ Depois de editar `tokens.json`: `node design-system/tokens/build.mjs && (cd desi
 | Primária (ação, item ativo) | `azul-500` | `#3A66E8` |
 | Alerta clínico | `vermelho-500` | `#D92D3A` |
 | Fundo das telas | `fundo` | `#F4F6FB` |
+| Cards, campos e texto sobre azul e vermelho | `branco` | `#FAFBFD` |
 | Texto principal | `tinta` | `#1B2233` |
 
-Escalas completas de azul, vermelho, neutro, sucesso e aviso: no `tokens.json` e na spec.
+**Sem branco nem preto puros.** O `branco` do sistema é um off-white suave e o tom mais escuro é `neutro-900`; nenhuma cor da paleta é branco ou preto puro (garantido pelo teste `design-system/tests/palette.test.mjs`).
+
+Escalas completas de azul, vermelho, neutro, sucesso e aviso: no `tokens.json`, na spec e na prévia acima.
 
 ## Prioridade, status e estoque
 

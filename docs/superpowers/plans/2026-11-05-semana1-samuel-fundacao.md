@@ -1686,7 +1686,7 @@ Avise o Erik: `backend/seeds/locais.json` está pronto (ids dos locais e waypoin
 
 ### Task 5: Tokens do design system
 
-> **Já feito em 08/11/2026 (direto na `main`):** `design-system/tokens/` (tokens, gerador e contraste), `design-system/tests/` e `design-system/dist/` estão no repositório, com os 18 testes passando. Use este bloco só como referência do que foi feito.
+> **Já feito em 08/11/2026 (direto na `main`):** `design-system/tokens/` (tokens, gerador e contraste), `design-system/tests/` e `design-system/dist/` estão no repositório, com os testes passando. Depois, o `branco` passou de branco puro para `#FAFBFD` e entrou `design-system/tests/palette.test.mjs` (nenhuma cor pode ser branco ou preto puro). Use este bloco só como referência do que foi feito.
 
 **Files:**
 - Create: `design-system/tokens/tokens.json`, `design-system/tokens/build.mjs`, `design-system/tokens/contrast.mjs`
@@ -1713,7 +1713,7 @@ Avise o Erik: `backend/seeds/locais.json` está pronto (ids dos locais e waypoin
     "sucesso": { "50": "#E8F6EE", "500": "#1F9D61", "700": "#146B41" },
     "aviso": { "50": "#FEF5E3", "500": "#E39A1B", "700": "#8A5A07" },
     "fundo": "#F4F6FB",
-    "branco": "#FFFFFF",
+    "branco": "#FAFBFD",
     "tinta": "#1B2233"
   },
   "font": {
