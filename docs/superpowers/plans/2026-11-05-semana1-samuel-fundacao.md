@@ -861,7 +861,7 @@ Prioridades: `critica` (sangue, drogas de emergência; exige assinatura do farma
 |---|---|---|---|
 | `modelos-3d/` | Samuel | Modelo 3D | — |
 | `hospital/`, `tools/` | Samuel | `hospital.yaml` e geradores | — |
-| `ros2_ws/`, `docker/` | Samuel | Robô, simulação, Nav2, dispatcher | `ros2_ws/AGENTS.md` |
+| `ros2_ws/` | Samuel | Robô, simulação, Nav2, dispatcher | `ros2_ws/AGENTS.md` |
 | `backend/` | Erik | API, estoque, fila, JWT | `backend/AGENTS.md` |
 | `web/` | Vieira | Sistema web responsivo | `web/AGENTS.md` |
 | `design-system/` | Samuel (tokens) e Vieira (componentes) | Tokens e guia visual | — |
@@ -889,7 +889,7 @@ Prioridades: `critica` (sangue, drogas de emergência; exige assinatura do farma
 | Backend | `cd backend && python -m pytest -q` e `uvicorn app.main:app --reload` |
 | Web | `cd web && npm test -- --run` e `npm run dev` |
 | Tokens do design system | `node design-system/tokens/build.mjs && (cd design-system && node --test)` |
-| Simulação | `docker compose -f docker/compose.yml run --rm ros ...` (ver `ros2_ws/AGENTS.md`) |
+| Simulação | `source /opt/ros/jazzy/setup.bash && cd ros2_ws && colcon build --symlink-install` (ver `ros2_ws/AGENTS.md`) |
 
 ## Definição de pronto (qualquer tarefa)
 
@@ -962,7 +962,7 @@ uvicorn app.main:app --reload
 ````markdown
 # web/AGENTS.md — sistema web responsivo (dono: Vieira)
 
-Stack recomendada (Vieira confirma até 07/11): React + Vite + TypeScript + Tailwind v3, Vitest + Testing Library, MSW para simular a API. Se a stack for outra, os tokens de `design-system/dist/tokens.css` valem do mesmo jeito.
+Stack: React + Vite + TypeScript + Tailwind v3, Vitest + Testing Library, MSW para simular a API. Os padrões de projeto da disciplina ficam em `src/domain/` e `src/apresentacao/`; siga o padrão que já existe lá.
 
 ## Comandos
 
@@ -993,15 +993,14 @@ Consuma só a API do contrato (`docs/contracts/openapi.yaml`). Enquanto o backen
 ````markdown
 # ros2_ws/AGENTS.md — robô e simulação (dono: Samuel)
 
-Stack: ROS 2 Jazzy + Gazebo Harmonic + Nav2, dentro do Docker (`docker/Dockerfile.ros`). A versão final é confirmada com a disciplina.
+Stack: ROS 2 Jazzy + Gazebo Harmonic 8 + Nav2, **nativos** na máquina do Samuel (Pop!_OS 24.04), que também é a máquina da demo. A versão final é confirmada com a disciplina. Docker é opcional (semana 2).
 
-## Comandos (sempre dentro do container)
+## Comandos
 
 ```bash
-docker compose -f docker/compose.yml build
-docker compose -f docker/compose.yml run --rm ros bash
-# dentro do container:
-cd /ws && colcon build --symlink-install && source install/setup.bash
+bash tools/check_ros_env.sh                      # confere o ambiente (deve imprimir AMBIENTE OK)
+source /opt/ros/jazzy/setup.bash
+cd ros2_ws && colcon build --symlink-install && source install/setup.bash
 ros2 launch geraldo_description sim.launch.py headless:=true
 ```
 
