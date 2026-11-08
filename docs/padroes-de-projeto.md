@@ -9,7 +9,7 @@ Este é o padrão de código de **todo mundo** (Samuel, Erik, Vieira, Pedro e as
 1. **Uma responsabilidade por classe e por módulo (SRP).** Router valida e traduz erro; comando decide; consulta lê; seed popula. Se a descrição da classe pede um "e", divida.
 2. **Aberto para extensão, fechado para modificação (OCP).** Nova prioridade, novo tipo de movimentação ou novo status = **classe nova**, sem mexer em `if/elif` espalhados.
 3. **Sem `if/elif` por tipo.** Quando o comportamento depende de um tipo (prioridade, status, movimentação), use Strategy ou Factory Method em vez de comparar valores em vários lugares.
-4. **Subtipos substituíveis (LSP).** Quem implementa uma interface cumpre o contrato inteiro: o `MockRobot` troca o robô real, o `FakeNavigator` troca o Nav2, sem o chamador perceber.
+4. **Subtipos substituíveis (LSP).** Quem implementa uma interface cumpre o contrato inteiro: o `FakeNavigator` troca o Nav2 e o `fake_backend` troca a API de verdade, sem o chamador perceber.
 5. **Interfaces pequenas (ISP).** Uma interface com 1 a 3 métodos que o cliente realmente usa (`Navigator.go_to`, `BackendPort.next_task`), nunca uma interface gorda.
 6. **Dependa de abstração e injete pelo construtor (DIP).** Nenhuma classe cria sua própria dependência (`Session`, cliente HTTP, relógio, navegador). Ela recebe pelo `__init__`; o valor padrão pode ser o real, o teste passa o falso.
 7. **Funções puras para transformar dados.** Filtrar, mapear, ordenar e somar usam `filter`/`map`/`sorted`/compreensões, sem mudar a lista original nem ler estado global.
@@ -25,7 +25,7 @@ Este é o padrão de código de **todo mundo** (Samuel, Erik, Vieira, Pedro e as
 | Montar um objeto aos poucos e validar no fim | **Builder** | `SolicitacaoBuilder` (web); em testes, para montar payloads |
 | Avisar vários interessados quando algo acontece | **Observer** | `Sessao` e `TokenObserver` (web); eventos de entrega e telemetria (backend e robô, semana 2) |
 | Falar com uma biblioteca ou serviço de interface diferente | **Adapter** | `EntregaAdapter` (web), `Nav2Navigator` em volta do `BasicNavigator` (robô), `BackendClient` |
-| Trocar implementação sem mudar quem usa | **DIP / injeção** | `Dispatcher(client, poses, navigator)`; `MockRobot` e `FakeBackend` nos testes |
+| Trocar implementação sem mudar quem usa | **DIP / injeção** | `Dispatcher(client, poses, navigator)`; `MockRobot` e `fake_backend` nos testes |
 
 Cada classe de padrão leva um comentário curto com o nome (`# STRATEGY`, `# FACTORY`, `# ADAPTER`), como o código da web já faz.
 
@@ -227,4 +227,4 @@ assert with_stock(entries) == [entries[1]] and len(entries) == 2
 | Samuel, fundação | `gen_hospital.py` em funções puras (parse, raster, inflação, escrita) |
 | Erik, backend | `CreateDelivery` com dependências injetadas; `PriorityPolicy`/`policy_for`; `MovementCreator`; Observer de eventos na semana 2 |
 | Vieira, web | Já aplicado em `src/domain/` e `src/apresentacao/`; manter o vocabulário e documentar |
-| Pedro, qualidade | `MockRobot` implementa a mesma interface do robô real (LSP); teste de contrato isolado por injeção |
+| Pedro, qualidade | `MockRobot` e `fake_backend` obedecem ao mesmo contrato do backend real (LSP); cliente HTTP e `sleep` entram pelo construtor (DIP) |

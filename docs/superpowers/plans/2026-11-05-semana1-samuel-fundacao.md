@@ -19,6 +19,7 @@
 - Contratos em `docs/contracts/` travados até domingo, 08/11/2026 (spec §6).
 - Nenhum hex de cor fora de `design-system/tokens/tokens.json` e `design-system/dist/` (DS §2).
 - Nenhum segredo no repositório (spec §9).
+- Padrões de código (`docs/padroes-de-projeto.md`, adicionado em 08/11): `tools/gen_hospital.py` é feito de **funções puras** (`wall_segments`, `rasterize`, `inflate`, `distances`) e cada `write_*` escreve um arquivo só; `generate()` é o único ponto que junta tudo (SRP). Nenhuma função lê estado global.
 - Branch `feat/<frente>-<assunto>`; commits em português, curtos; nada direto na `main`.
 
 ---
@@ -766,6 +767,8 @@ Avise o grupo: "Contratos v0 no PR de `feat/samuel-fundacao`; comentem até sáb
 ---
 
 ### Task 3: Guia das IAs (AGENTS.md e prompts por papel)
+
+> **Atualização 08/11:** esta tarefa já foi entregue. Depois dela, o grupo adotou o padrão de código da disciplina: `docs/padroes-de-projeto.md` (guia), regra 10 no `AGENTS.md`, seção de padrões nos `AGENTS.md` das pastas e `.github/pull_request_template.md`. O texto abaixo é o que foi entregue na época; vale o que está no repositório.
 
 **Files:**
 - Create: `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`

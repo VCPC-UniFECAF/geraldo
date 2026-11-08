@@ -25,6 +25,7 @@
 - Números com `tabular-nums`; texto de interface em português, *sentence case*, botão com verbo curto, sem "por favor" e sem ponto final em rótulos e títulos (DS §2).
 - Cantos: card `rounded-card` (16 px), controles `rounded-controle` (12 px), selos `rounded-full` (DS §6).
 - Ícones: `lucide-react`; 16 px em texto, 20 px em botão e campo, 24 px na navegação (DS §9).
+- Padrões (`docs/padroes-de-projeto.md`): o app já usa `EntregaAdapter`, `Observavel`/`Sessao`, `SolicitacaoBuilder`, `PrioridadeStrategy`/`StatusStrategy` e funções puras em `src/domain/operacoes.ts`. Tela ou componente novo reaproveita esses blocos: status e prioridade novos viram classe nova (OCP), nada de `switch` por valor dentro de componente; dependências (cliente da API) entram por parâmetro ou construtor.
 - Consumir só a API do contrato; não criar endpoint nem campo novo. Mudança de contrato só por PR com aviso ao Samuel.
 - Sem segredos no repositório; a URL da API vem de `VITE_API_URL` (padrão `http://localhost:8000`).
 - Branch `feat/web-<assunto>`; commits em português, curtos; nada direto na `main`.
