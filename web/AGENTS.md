@@ -1,6 +1,6 @@
 # web/AGENTS.md — sistema web responsivo (dono: Vieira)
 
-Stack: React + Vite + TypeScript + Tailwind v3, Vitest + Testing Library, MSW para simular a API. Os padrões de projeto da disciplina ficam em `src/domain/` e `src/apresentacao/`; siga o padrão que já existe lá.
+Stack: React + Vite + TypeScript + Tailwind v3, Vitest + Testing Library, MSW para simular a API. Os padrões de projeto da disciplina ficam em `src/domain/` e `src/apresentacao/`; siga o padrão que já existe lá. Guia geral: [`docs/padroes-de-projeto.md`](../docs/padroes-de-projeto.md) (Adapter, Observer, Builder, Strategy e funções puras já estão aplicados; novas telas reaproveitam esses blocos).
 
 ## Comandos
 

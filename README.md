@@ -147,6 +147,7 @@ geraldo/
 - [Especificação do plano de desenvolvimento](docs/superpowers/specs/2026-11-05-geraldo-plano-desenvolvimento-design.md): escopo, equipe, hospital, funções, contratos e cronograma.
 - [Especificação do design system](docs/superpowers/specs/2026-11-05-geraldo-design-system-design.md): cores, tipografia e componentes.
 - [Guia do design system](design-system/DESIGN_SYSTEM.md): regras de ouro e como usar os tokens.
+- [Padrões de projeto](docs/padroes-de-projeto.md): SOLID, Factory, Strategy, Observer, Adapter e injeção de dependência, o padrão de código de todas as frentes.
 - [Planos da semana 1](docs/superpowers/plans/README.md): ordem de execução e o plano de cada pessoa.
 
 # Equipe

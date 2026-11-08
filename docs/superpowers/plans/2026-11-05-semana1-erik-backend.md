@@ -4,7 +4,7 @@
 
 **Goal:** Ter uma API FastAPI com login JWT, locais e estoque, criação de entrega com reserva de estoque (padrão Command) e a fila de prioridade que o robô consulta, tudo com testes.
 
-**Architecture:** FastAPI + SQLModel (SQLite). O domínio fica em `app/commands/` (um comando por ação, método `execute()`); os routers só validam a entrada, chamam o comando e traduzem as exceções do domínio em HTTP. O estoque muda **somente** por `Movimentacao` (registro imutável). O banco de testes é SQLite em memória, criado a cada teste.
+**Architecture:** FastAPI + SQLModel (SQLite). O domínio fica em `app/commands/` (um comando por ação, método `execute()`); os routers só validam a entrada, chamam o comando e traduzem as exceções do domínio em HTTP. O estoque muda **somente** por `Movimentacao` (registro imutável). O código segue `docs/padroes-de-projeto.md`: o comando recebe as dependências pelo construtor (DIP), a prioridade é uma **Strategy** (`app/priority.py`) criada por uma **Factory** (`policy_for`) e a movimentação de estoque é um **Factory Method** (`app/movements.py`). O banco de testes é SQLite em memória, criado a cada teste.
 
 **Tech Stack:** Python 3.11+, FastAPI, SQLModel, PyJWT, pytest, httpx.
 
@@ -19,6 +19,7 @@
 - Papéis que criam entrega: `medico`, `enfermeiro`, `farmaceutico`, `admin`. Só `robo` chama `/robot/next-task`.
 - Mensagens de erro em português: o que houve e o que fazer.
 - Locais sem `waypoint` (ex.: recepção) não recebem nem originam entregas do robô.
+- Padrões (`docs/padroes-de-projeto.md`): sem `if/elif` por prioridade fora de `app/priority.py`; só `MovementCreator` muda `quantity`/`reserved`; o comando não cria dependências (recebe-as). Sem Repository genérico: a `Session` já é a abstração.
 - Nenhum segredo no repositório; a senha dos usuários de demonstração vem de `GERALDO_DEMO_PASSWORD`.
 
 ---
@@ -954,14 +955,16 @@ git commit -m "feat(backend): login JWT (HS256), /me e dependencias de papel"
 ### Task 4: Locais, estoque e criação de entrega (Command)
 
 **Files:**
-- Create: `backend/app/queries.py`, `backend/app/commands/__init__.py`, `backend/app/commands/create_delivery.py`, `backend/app/routers/catalog.py`, `backend/app/routers/deliveries.py`
+- Create: `backend/app/priority.py`, `backend/app/movements.py`, `backend/app/queries.py`, `backend/app/commands/__init__.py`, `backend/app/commands/create_delivery.py`, `backend/app/routers/catalog.py`, `backend/app/routers/deliveries.py`
 - Modify: `backend/app/main.py`
-- Test: `backend/tests/test_catalog.py`, `backend/tests/test_deliveries.py`
+- Test: `backend/tests/test_catalog.py`, `backend/tests/test_deliveries.py`, `backend/tests/test_priority.py`, `backend/tests/test_movements.py`, `backend/tests/test_create_delivery_command.py`
 
 **Interfaces:**
 - Consumes: `get_current_user`, `require_roles`, modelos, schemas (Tarefas 2 e 3).
 - Produces:
-  - `app.commands.create_delivery.CreateDelivery(session, user, payload).execute() -> Delivery` e as exceções `DeliveryError` (com `.status_code`), `UnknownLocation`, `UnknownItem`, `SameLocation`, `InsufficientStock`.
+  - `app.priority.PriorityPolicy` (Strategy: `priority`, `rank`, `initial_status`) e `policy_for(priority)` (Factory).
+  - `app.movements.MovementCreator` (Factory Method: `register(stock, *, delivery_id, quantity) -> Movement`) e `ReservaCreator`.
+  - `app.commands.create_delivery.CreateDelivery(session, user, payload, *, policy_for=policy_for, reserva=None).execute() -> Delivery` e as exceções `DeliveryError` (com `.status_code`), `UnknownLocation`, `UnknownItem`, `SameLocation`, `InsufficientStock`.
   - `app.queries.delivery_out(session, delivery) -> DeliveryOut`.
   - `GET /locations`, `GET /stock`, `POST /deliveries`, `GET /deliveries`, `GET /deliveries/{id}`.
 
@@ -1101,12 +1104,196 @@ def test_get_delivery_of_someone_else_is_404(client, auth):
     assert client.get("/deliveries/9999", headers=auth("medico1")).status_code == 404
 ```
 
+Create `backend/tests/test_priority.py`:
+
+```python
+from app.models import DeliveryStatus, Priority
+from app.priority import policy_for
+
+
+def test_rank_orders_critica_media_rotina():
+    ranks = [policy_for(p).rank for p in (Priority.critica, Priority.media, Priority.rotina)]
+    assert ranks == sorted(ranks) and len(set(ranks)) == 3
+
+
+def test_only_critica_starts_pending_approval():
+    assert policy_for(Priority.critica).initial_status == DeliveryStatus.PENDENTE_APROVACAO
+    assert policy_for(Priority.media).initial_status == DeliveryStatus.NA_FILA
+    assert policy_for(Priority.rotina).initial_status == DeliveryStatus.NA_FILA
+
+
+def test_every_priority_has_its_own_policy():
+    for priority in Priority:
+        assert policy_for(priority).priority == priority
+```
+
+Create `backend/tests/test_movements.py`:
+
+```python
+import pytest
+
+from app.models import MovementType, Stock
+from app.movements import ReservaCreator
+
+
+def make_stock() -> Stock:
+    return Stock(location_id="farmacia", item_id="dipirona-500mg", quantity=10, reserved=1)
+
+
+def test_reserva_raises_reserved_and_returns_the_record():
+    stock = make_stock()
+    movement = ReservaCreator().register(stock, delivery_id=7, quantity=3)
+    assert (stock.quantity, stock.reserved) == (10, 4)
+    assert (movement.type, movement.item_id, movement.location_id, movement.quantity, movement.delivery_id) == (
+        MovementType.RESERVA,
+        "dipirona-500mg",
+        "farmacia",
+        3,
+        7,
+    )
+
+
+@pytest.mark.parametrize("quantity", [0, -2])
+def test_quantity_must_be_positive_and_stock_stays_untouched(quantity):
+    stock = make_stock()
+    with pytest.raises(ValueError):
+        ReservaCreator().register(stock, delivery_id=1, quantity=quantity)
+    assert (stock.quantity, stock.reserved) == (10, 1)
+```
+
+Create `backend/tests/test_create_delivery_command.py` (prova da injeção de dependências: o comando aceita um substituto no lugar da política e do criador de movimentação):
+
+```python
+from sqlmodel import select
+
+from app.commands.create_delivery import CreateDelivery
+from app.models import DeliveryStatus, Priority, User
+from app.movements import ReservaCreator
+from app.priority import PriorityPolicy
+from app.schemas import DeliveryCreate, DeliveryItemIn
+
+
+class HoldEverything(PriorityPolicy):
+    priority = Priority.rotina
+    rank = 9
+    initial_status = DeliveryStatus.PENDENTE_APROVACAO
+
+
+class SpyReserva(ReservaCreator):
+    def __init__(self) -> None:
+        self.calls = []
+
+    def register(self, stock, *, delivery_id, quantity):
+        self.calls.append((stock.item_id, quantity))
+        return super().register(stock, delivery_id=delivery_id, quantity=quantity)
+
+
+def test_command_uses_the_injected_policy_and_movement_creator(session):
+    user = session.exec(select(User).where(User.username == "medico1")).one()
+    spy = SpyReserva()
+    payload = DeliveryCreate(origin_id="farmacia", items=[DeliveryItemIn(item_id="dipirona-500mg", quantity=2)], priority=Priority.media)
+
+    delivery = CreateDelivery(session, user, payload, policy_for=lambda _: HoldEverything(), reserva=spy).execute()
+
+    assert delivery.status == DeliveryStatus.PENDENTE_APROVACAO
+    assert spy.calls == [("dipirona-500mg", 2)]
+```
+
 - [ ] **Step 2: Rodar e ver falhar**
 
-Run: `python -m pytest tests/test_catalog.py tests/test_deliveries.py -q`
-Expected: FAIL (rotas não existem).
+Run: `python -m pytest tests/test_catalog.py tests/test_deliveries.py tests/test_priority.py tests/test_movements.py tests/test_create_delivery_command.py -q`
+Expected: FAIL (rotas e módulos `app.priority` e `app.movements` não existem).
 
-- [ ] **Step 3: Implementar `queries.py` e o comando `CreateDelivery`**
+- [ ] **Step 3: Implementar `priority.py`, `movements.py`, `queries.py` e o comando `CreateDelivery`**
+
+Create `backend/app/priority.py`:
+
+```python
+from abc import ABC, abstractmethod
+
+from app.models import DeliveryStatus, Priority
+
+
+class PriorityPolicy(ABC):  # STRATEGY: cada prioridade sabe sua posição na fila e como a entrega nasce
+    @property
+    @abstractmethod
+    def priority(self) -> Priority: ...
+
+    @property
+    @abstractmethod
+    def rank(self) -> int:
+        """Menor número sai primeiro da fila."""
+
+    @property
+    @abstractmethod
+    def initial_status(self) -> DeliveryStatus: ...
+
+
+class Critical(PriorityPolicy):
+    priority = Priority.critica
+    rank = 0
+    initial_status = DeliveryStatus.PENDENTE_APROVACAO  # exige a assinatura do farmacêutico
+
+
+class Standard(PriorityPolicy):
+    priority = Priority.media
+    rank = 1
+    initial_status = DeliveryStatus.NA_FILA
+
+
+class Routine(PriorityPolicy):
+    priority = Priority.rotina
+    rank = 2
+    initial_status = DeliveryStatus.NA_FILA
+
+
+_POLICIES = {policy.priority: policy for policy in (Critical(), Standard(), Routine())}
+
+
+def policy_for(priority: Priority) -> PriorityPolicy:  # FACTORY: nova prioridade = classe nova + uma linha acima
+    return _POLICIES[priority]
+```
+
+Create `backend/app/movements.py`:
+
+```python
+from abc import ABC, abstractmethod
+
+from app.models import Movement, MovementType, Stock
+
+
+class MovementCreator(ABC):  # FACTORY METHOD + TEMPLATE METHOD: o único lugar que muda o saldo
+    @property
+    @abstractmethod
+    def type(self) -> MovementType: ...
+
+    @abstractmethod
+    def apply(self, stock: Stock, quantity: int) -> None:
+        """Efeito deste tipo de movimentação no saldo."""
+
+    def register(self, stock: Stock, *, delivery_id: int | None, quantity: int) -> Movement:
+        if quantity <= 0:
+            raise ValueError("A quantidade da movimentação deve ser positiva.")
+        self.apply(stock, quantity)
+        return Movement(
+            delivery_id=delivery_id,
+            type=self.type,
+            item_id=stock.item_id,
+            location_id=stock.location_id,
+            quantity=quantity,
+        )
+
+
+class ReservaCreator(MovementCreator):
+    type = MovementType.RESERVA
+
+    def apply(self, stock: Stock, quantity: int) -> None:
+        stock.reserved += quantity
+
+
+# Semana 2: BaixaCreator, CreditoCreator e EstornoCreator entram como classes novas, sem mexer nas existentes (OCP).
+```
+
 
 Create `backend/app/queries.py`:
 
@@ -1136,18 +1323,9 @@ Create `backend/app/commands/__init__.py` (vazio) e `backend/app/commands/create
 ```python
 from sqlmodel import Session
 
-from app.models import (
-    Delivery,
-    DeliveryItem,
-    DeliveryStatus,
-    Item,
-    Location,
-    Movement,
-    MovementType,
-    Priority,
-    Stock,
-    User,
-)
+from app.models import Delivery, DeliveryItem, Item, Location, Stock, User
+from app.movements import MovementCreator, ReservaCreator
+from app.priority import policy_for
 from app.schemas import DeliveryCreate
 
 
@@ -1172,68 +1350,89 @@ class InsufficientStock(DeliveryError):
 
 
 class CreateDelivery:
-    """Comando CriarEntrega: valida, reserva o estoque na origem e registra a movimentação."""
+    """Comando CriarEntrega: valida, reserva o estoque na origem e registra a movimentação.
 
-    def __init__(self, session: Session, user: User, payload: DeliveryCreate) -> None:
+    As dependências entram pelo construtor (DIP): a política de prioridade e o criador de
+    movimentação têm padrão real, e o teste passa um substituto.
+    """
+
+    def __init__(
+        self,
+        session: Session,
+        user: User,
+        payload: DeliveryCreate,
+        *,
+        policy_for=policy_for,
+        reserva: MovementCreator | None = None,
+    ) -> None:
         self.session = session
         self.user = user
         self.payload = payload
+        self._policy_for = policy_for
+        self._reserva = reserva or ReservaCreator()
 
     def execute(self) -> Delivery:
-        session, payload = self.session, self.payload
-        dest_id = payload.dest_id or self.user.local_id
+        dest_id = self._destination()
+        self._check_locations(dest_id)
+        wanted = self._wanted_items()
+        stocks = self._check_stock(wanted)
+        return self._create(dest_id, wanted, stocks)
+
+    def _destination(self) -> str:
+        dest_id = self.payload.dest_id or self.user.local_id
         if dest_id is None:
             raise UnknownLocation("Informe o destino: seu usuário não tem um local padrão.")
-        for loc_id in (payload.origin_id, dest_id):
-            location = session.get(Location, loc_id)
+        return dest_id
+
+    def _check_locations(self, dest_id: str) -> None:
+        for loc_id in (self.payload.origin_id, dest_id):
+            location = self.session.get(Location, loc_id)
             if location is None:
                 raise UnknownLocation(f"Local desconhecido: {loc_id}. Escolha um local da lista.")
             if location.waypoint is None:
                 raise UnknownLocation(f"O local {location.name} não recebe entregas do robô. Escolha outro.")
-        if payload.origin_id == dest_id:
+        if self.payload.origin_id == dest_id:
             raise SameLocation("Origem e destino são o mesmo local. Escolha destinos diferentes.")
 
+    def _wanted_items(self) -> dict[str, int]:
         wanted: dict[str, int] = {}
-        for line in payload.items:
+        for line in self.payload.items:
             wanted[line.item_id] = wanted.get(line.item_id, 0) + line.quantity
+        return wanted
 
+    def _check_stock(self, wanted: dict[str, int]) -> dict[str, Stock]:
+        origin_id = self.payload.origin_id
         stocks: dict[str, Stock] = {}
         for item_id, qty in wanted.items():
-            if session.get(Item, item_id) is None:
+            if self.session.get(Item, item_id) is None:
                 raise UnknownItem(f"Item desconhecido: {item_id}. Escolha um item da lista.")
-            stock = session.get(Stock, (payload.origin_id, item_id))
+            stock = self.session.get(Stock, (origin_id, item_id))
             available = 0 if stock is None else stock.quantity - stock.reserved
             if available < qty:
                 raise InsufficientStock(
-                    f"Estoque insuficiente de {item_id} em {payload.origin_id}: disponível {available}, pedido {qty}. Reduza a quantidade."
+                    f"Estoque insuficiente de {item_id} em {origin_id}: disponível {available}, pedido {qty}. Reduza a quantidade."
                 )
             stocks[item_id] = stock
+        return stocks
 
-        status = DeliveryStatus.PENDENTE_APROVACAO if payload.priority == Priority.critica else DeliveryStatus.NA_FILA
+    def _create(self, dest_id: str, wanted: dict[str, int], stocks: dict[str, Stock]) -> Delivery:
+        policy = self._policy_for(self.payload.priority)
         delivery = Delivery(
-            origin_id=payload.origin_id,
+            origin_id=self.payload.origin_id,
             dest_id=dest_id,
-            priority=payload.priority,
-            status=status,
+            priority=self.payload.priority,
+            status=policy.initial_status,
             requested_by=self.user.id,
         )
-        session.add(delivery)
-        session.flush()
+        self.session.add(delivery)
+        self.session.flush()
         for item_id, qty in wanted.items():
-            session.add(DeliveryItem(delivery_id=delivery.id, item_id=item_id, quantity=qty))
-            stocks[item_id].reserved += qty
-            session.add(stocks[item_id])
-            session.add(
-                Movement(
-                    delivery_id=delivery.id,
-                    type=MovementType.RESERVA,
-                    item_id=item_id,
-                    location_id=payload.origin_id,
-                    quantity=qty,
-                )
-            )
-        session.commit()
-        session.refresh(delivery)
+            stock = stocks[item_id]
+            self.session.add(DeliveryItem(delivery_id=delivery.id, item_id=item_id, quantity=qty))
+            self.session.add(self._reserva.register(stock, delivery_id=delivery.id, quantity=qty))
+            self.session.add(stock)
+        self.session.commit()
+        self.session.refresh(delivery)
         return delivery
 ```
 
@@ -1325,7 +1524,7 @@ app.include_router(deliveries.router)
 - [ ] **Step 5: Rodar e ver passar**
 
 Run: `python -m pytest -q`
-Expected: todos passam (`16` anteriores + `3` de catálogo + `12` de entregas = `31 passed`).
+Expected: todos passam (`16` anteriores + `3` de catálogo + `12` de entregas + `7` de padrões (prioridade, movimentação e injeção no comando) = `38 passed`).
 
 - [ ] **Step 6: Commit**
 
@@ -1345,7 +1544,7 @@ git commit -m "feat(backend): locais, estoque e criacao de entrega com reserva (
 - Test: `backend/tests/test_robot_queue.py`
 
 **Interfaces:**
-- Consumes: `require_roles`, `delivery_out`, modelos (Tarefas 2 a 4).
+- Consumes: `require_roles`, `delivery_out`, `policy_for` (Strategy da prioridade), modelos (Tarefas 2 a 4).
 - Produces: `POST /robot/next-task` (papel `robo`): `200` com `RobotTask` (entrega + `origin_waypoint` e `dest_waypoint`), a entrega passa a `EM_ROTA`; `204` se a fila (apenas `NA_FILA`) estiver vazia. Ordem: `critica` < `media` < `rotina`, depois `id`.
 
 - [ ] **Step 1: Escrever os testes (falham primeiro)**
@@ -1416,12 +1615,12 @@ from sqlmodel import Session, select
 
 from app.db import get_session
 from app.deps import require_roles
-from app.models import Delivery, DeliveryStatus, Location, Priority, Role, User
+from app.models import Delivery, DeliveryStatus, Location, Role, User
+from app.priority import policy_for
 from app.queries import delivery_out
 from app.schemas import RobotTaskOut
 
 router = APIRouter()
-PRIORITY_RANK = {Priority.critica: 0, Priority.media: 1, Priority.rotina: 2}
 
 
 @router.post("/robot/next-task", response_model=RobotTaskOut, responses={204: {"description": "Fila vazia"}})
@@ -1429,7 +1628,7 @@ def next_task(_: User = Depends(require_roles(Role.robo)), session: Session = De
     queued = session.exec(select(Delivery).where(Delivery.status == DeliveryStatus.NA_FILA)).all()
     if not queued:
         return Response(status_code=204)
-    delivery = min(queued, key=lambda d: (PRIORITY_RANK[d.priority], d.id))
+    delivery = min(queued, key=lambda d: (policy_for(d.priority).rank, d.id))
     origin, dest = session.get(Location, delivery.origin_id), session.get(Location, delivery.dest_id)
     if origin is None or dest is None or origin.waypoint is None or dest.waypoint is None:
         raise HTTPException(status_code=409, detail="A entrega aponta para um local sem ponto de parada. Corrija os locais.")
@@ -1445,7 +1644,7 @@ Edit `backend/app/main.py`: `from app.routers import auth, catalog, deliveries, 
 - [ ] **Step 4: Rodar e ver passar**
 
 Run: `python -m pytest -q`
-Expected: `36 passed`.
+Expected: `43 passed`.
 
 - [ ] **Step 5: Rodar o servidor e conferir à mão**
 

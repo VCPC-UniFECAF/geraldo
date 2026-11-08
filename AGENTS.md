@@ -22,6 +22,7 @@ Prioridades: `critica` (sangue, drogas de emergência; exige assinatura do farma
 2. `docs/superpowers/specs/2026-11-05-geraldo-design-system-design.md` — visual.
 3. `docs/contracts/` — contratos (API, ROS, JWT).
 4. `docs/superpowers/plans/` — o seu plano da semana, tarefa por tarefa.
+5. `docs/padroes-de-projeto.md` — **como escrever o código** (SOLID, Factory, Strategy, Observer, Adapter, Builder, injeção de dependência).
 
 ## Mapa de pastas e donos
 
@@ -48,6 +49,7 @@ Prioridades: `critica` (sangue, drogas de emergência; exige assinatura do farma
 7. **Texto de interface em português**; comandos, pastas e código em inglês. Mensagem de erro diz o que houve e o que fazer.
 8. **Na dúvida, pergunte antes de inventar.** Não crie contrato, endpoint, tópico ROS ou campo novo por conta própria.
 9. **Ataques de teste só contra o ambiente local** (`localhost`). Nunca contra hosts externos.
+10. **Padrões de projeto da disciplina.** Siga `docs/padroes-de-projeto.md`: uma responsabilidade por classe, dependências injetadas pelo construtor, Strategy ou Factory no lugar de `if/elif` por tipo, funções puras para transformar dados. Só use um padrão onde há variação real; sem padrão decorativo.
 
 ## Como rodar
 
@@ -64,7 +66,7 @@ Prioridades: `critica` (sangue, drogas de emergência; exige assinatura do farma
 - Testes da área passando e nenhum teste de outra área quebrado.
 - Commit pequeno, mensagem em português, no formato `tipo: o que mudou`.
 - Contratos e documentação atualizados se a tarefa tocou algum deles.
-- PR com descrição curta e o que foi testado.
+- PR com descrição curta e o que foi testado (o template do GitHub traz o checklist de padrões).
 
 ## Como trabalhar com a IA
 

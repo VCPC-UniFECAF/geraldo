@@ -14,6 +14,13 @@ uvicorn app.main:app --reload
 
 ## Padrões
 
+Padrões de código (SOLID, Factory, Strategy, Observer, Adapter, injeção): [`docs/padroes-de-projeto.md`](../docs/padroes-de-projeto.md). Aqui valem, em especial:
+
+- **Dependências pelo construtor (DIP):** o comando recebe `session`, `user`, `payload` e, opcionalmente, a política de prioridade e o criador de movimentação. Nada de criar `Session` dentro do comando.
+- **Strategy:** `app/priority.py` (`PriorityPolicy`, `policy_for`) define ranking e se exige aprovação. Não compare `Priority.critica` fora dele.
+- **Factory Method:** `app/movements.py` (`MovementCreator`) é o único lugar que muda `quantity` ou `reserved`. Tipo novo de movimentação = classe nova.
+- **Observer:** eventos de entrega e de estoque baixo entram na semana 2.
+
 - **Command:** cada ação do domínio (criar, cancelar, aprovar entrega) é uma classe em `app/commands/` com método `execute()`. Os routers só validam a entrada, chamam o comando e traduzem exceções do domínio em HTTP.
 - **Estoque só por `Movimentacao`** (`RESERVA`, `BAIXA`, `CREDITO`, `ESTORNO`). `quantity` do movimento é sempre positiva; o tipo diz a direção.
 - **Prioridade:** `critica` < `media` < `rotina`; dentro da mesma prioridade, FIFO por `id`.

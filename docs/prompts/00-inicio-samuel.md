@@ -15,6 +15,9 @@ contratos e tokens do design system.
 Tarefa: execute os planos tarefa por tarefa, na ordem do docs/superpowers/plans/README.md.
 Não mude contratos já travados sem me avisar. Não toque em backend/, web/ nem security/.
 
+Siga docs/padroes-de-projeto.md em todo código novo (SOLID, injeção pelo construtor,
+Strategy/Factory no lugar de if/elif por tipo, funções puras); padrão só onde há variação real.
+
 Antes de cada tarefa, diga o plano: o que vai fazer e quais arquivos vai tocar. Só então comece.
 Pare no commit de cada tarefa e me mostre os testes passando.
 ```
