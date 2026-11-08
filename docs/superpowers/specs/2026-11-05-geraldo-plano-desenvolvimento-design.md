@@ -222,6 +222,8 @@ Semana 1 = 05–11/11 · Semana 2 = 12–18/11 · Semana 3 = 19–25/11.
 
 **Regras duras (no `AGENTS.md`):** contrato primeiro (mudança só via PR em `docs/contracts/`); estoque só por `Movimentacao`; todo código novo com teste; nada na `main` (branch `feat/<frente>-<assunto>` e PR); nenhum segredo no repositório; na dúvida, perguntar antes de inventar.
 
+**Padrão de código (adotado em 08/11):** o código segue os conceitos da disciplina Programming Paradigms (SOLID, Factory Method, Strategy, Builder, Observer, Adapter, injeção de dependência e funções puras), detalhados em `docs/padroes-de-projeto.md`. Regra: padrão só onde há variação real.
+
 **Formato dos prompts:** contexto → minha frente → tarefa da semana → o que não tocar → "diga o plano antes de agir".
 Documentos em português; comandos, pastas e código em inglês.
 
