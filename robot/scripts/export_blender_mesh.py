@@ -25,8 +25,9 @@ bpy.ops.wm.obj_export(
     export_selected_objects=True,
     apply_modifiers=True,
     export_materials=True,
-    # a "frente" do exportador é o -Y do Blender; com NEGATIVE_Y e Z os eixos do arquivo ficam idênticos aos da cena (frente = +X)
-    forward_axis="NEGATIVE_Y",
+    # com forward="Y" e up="Z" as coordenadas do arquivo ficam iguais às da cena do Blender (frente = +X, Z para cima);
+    # com NEGATIVE_Y o arquivo saía girado 180 graus e o corpo aparecia de costas para as rodas e o rodízio no Gazebo
+    forward_axis="Y",
     up_axis="Z",
     global_scale=1.0,
 )
