@@ -797,6 +797,14 @@ def test_no_node_keeps_looking_for_base_footprint():
     assert out["collision_monitor"]["ros__parameters"]["base_frame_id"] == "base_link"
 
 
+def test_global_costmap_ignores_lidar_marks_but_the_local_one_keeps_them():
+    defaults = fake_defaults()
+    defaults["global_costmap"]["global_costmap"]["ros__parameters"]["plugins"] = ["static_layer", "obstacle_layer", "inflation_layer"]
+    out = patch_params(defaults)
+    assert out["global_costmap"]["global_costmap"]["ros__parameters"]["plugins"] == ["static_layer", "inflation_layer"]
+    assert out["local_costmap"]["local_costmap"]["ros__parameters"]["plugins"] == ["voxel_layer"]
+
+
 def test_other_parameters_are_preserved():
     out = patch_params(fake_defaults())
     assert out["local_costmap"]["local_costmap"]["ros__parameters"]["plugins"] == ["voxel_layer"]
@@ -843,6 +851,11 @@ def patch_params(params: dict) -> dict:
         p = params[name][name]["ros__parameters"]
         p.pop("robot_radius", None)
         p["footprint"] = FOOTPRINT
+    # O hospital é estático: uma marca do LiDAR num vão de 1,0 m fecha a porta para o planejador global.
+    # Obstáculos novos continuam no costmap local, que o controlador usa para desviar.
+    glob = params["global_costmap"]["global_costmap"]["ros__parameters"]
+    if "plugins" in glob:
+        glob["plugins"] = [x for x in glob["plugins"] if x != "obstacle_layer"]
     amcl = params["amcl"]["ros__parameters"]
     amcl["set_initial_pose"] = True
     amcl["initial_pose"] = dict(INITIAL_POSE)
@@ -874,7 +887,7 @@ if __name__ == "__main__":
 - [ ] **Step 3b: Rodar e ver passar**
 
 Run: `python -m pytest robot/scripts/tests/test_make_nav2_params.py -q`
-Expected: `5 passed`.
+Expected: `6 passed`.
 
 - [ ] **Step 4: Criar o pacote `geraldo_nav` e o launch**
 

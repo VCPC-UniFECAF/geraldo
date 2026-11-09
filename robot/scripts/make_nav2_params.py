@@ -29,7 +29,12 @@ def patch_params(params: dict) -> dict:
         p = params[name][name]["ros__parameters"]
         p.pop("robot_radius", None)
         p["footprint"] = FOOTPRINT
-    amcl = params["amcl"]["ros__parameters"]
+    # O hospital é estático: uma marca do LiDAR num vão de 1,0 m fecha a porta para o planejador global.
+    # Obstáculos novos continuam no costmap local, que o controlador usa para desviar.
+    glob = params["global_costmap"]["global_costmap"]["ros__parameters"]
+    if "plugins" in glob:
+        glob["plugins"] = [x for x in glob["plugins"] if x != "obstacle_layer"]
+    amcl =params["amcl"]["ros__parameters"]
     amcl["set_initial_pose"] = True
     amcl["initial_pose"] = dict(INITIAL_POSE)
     amcl["base_frame_id"] = "base_link"
