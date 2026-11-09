@@ -27,6 +27,9 @@ def generate_launch_description():
         DeclareLaunchArgument("y", default_value="26.5"),
         DeclareLaunchArgument("yaw", default_value="-1.5708"),
         SetEnvironmentVariable("GZ_SIM_RESOURCE_PATH", resource_path),
+        # com tela: no Wayland com GPU híbrida a janela do Gazebo (Ogre2) quebra; roda via X11
+        SetEnvironmentVariable("QT_QPA_PLATFORM", "xcb", condition=UnlessCondition(LaunchConfiguration("headless"))),
+        SetEnvironmentVariable("EGL_PLATFORM", "", condition=UnlessCondition(LaunchConfiguration("headless"))),
         # sem tela: só o servidor, com renderização EGL para o LiDAR
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(gz_launch),

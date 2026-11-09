@@ -22,3 +22,9 @@ def test_launch_file_is_valid_python_and_declares_the_arguments():
     for arg in ("headless", "x", "y", "yaw"):
         assert f'DeclareLaunchArgument("{arg}"' in src
     assert "generate_launch_description" in src
+
+
+def test_gui_runs_on_x11_so_wayland_with_hybrid_gpu_does_not_crash_ogre():
+    src = (PKG / "launch/sim.launch.py").read_text()
+    assert 'SetEnvironmentVariable("QT_QPA_PLATFORM", "xcb"' in src
+    assert 'SetEnvironmentVariable("EGL_PLATFORM", ""' in src
