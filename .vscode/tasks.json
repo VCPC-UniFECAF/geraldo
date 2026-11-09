@@ -1,0 +1,53 @@
+{
+  "version": "2.0.0",
+  "options": {
+    "cwd": "${workspaceFolder}",
+    "shell": { "executable": "/bin/bash", "args": ["-c"] }
+  },
+  "tasks": [
+    {
+      "label": "GERALDO: build",
+      "type": "shell",
+      "command": "source /opt/ros/jazzy/setup.bash && cd robot/ros2_ws && colcon build --symlink-install",
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "GERALDO: simulação",
+      "type": "shell",
+      "command": "source /opt/ros/jazzy/setup.bash && source robot/ros2_ws/install/setup.bash && ros2 launch geraldo_description sim.launch.py",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "GERALDO: Nav2",
+      "type": "shell",
+      "command": "source /opt/ros/jazzy/setup.bash && source robot/ros2_ws/install/setup.bash && bash robot/scripts/wait_for.sh \"timeout 5 ros2 topic echo --once /scan\" 120 && ros2 launch geraldo_nav nav.launch.py",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "GERALDO: simulação + Nav2",
+      "dependsOn": ["GERALDO: simulação", "GERALDO: Nav2"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "GERALDO: varredura dos 10 pontos",
+      "type": "shell",
+      "command": "source /opt/ros/jazzy/setup.bash && source robot/ros2_ws/install/setup.bash && bash robot/scripts/wait_for.sh \"ros2 lifecycle get /amcl | grep -q active && ros2 lifecycle get /bt_navigator | grep -q active\" 180 && sleep 5 && python3 robot/scripts/nav_goal_sweep.py",
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "GERALDO: testes",
+      "type": "shell",
+      "command": "python3 -m pytest tools robot -q",
+      "group": "test",
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    }
+  ]
+}

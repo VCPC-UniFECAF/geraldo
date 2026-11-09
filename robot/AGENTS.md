@@ -22,6 +22,19 @@ cd robot/ros2_ws && colcon build --symlink-install && source install/setup.bash
 ros2 launch geraldo_description sim.launch.py headless:=true
 ```
 
+## Rodar pelo Cursor / VS Code (sem digitar comando)
+
+Abra a pasta `geraldo` (a raiz deste repositório) no Cursor. Depois: `Ctrl+Shift+P` → **Tasks: Run Task** e escolha (definidas em `.vscode/tasks.json`):
+
+| Tarefa | O que faz |
+|---|---|
+| `GERALDO: build` | `colcon build --symlink-install` (rode depois de mudar um pacote) |
+| `GERALDO: simulação + Nav2` | sobe o Gazebo com o hospital e o Nav2; o Nav2 espera o `/scan` da simulação |
+| `GERALDO: varredura dos 10 pontos` | espera o Nav2 ficar ativo e navega pelos 10 pontos (uns 10 min); termina em `TODOS OS PONTOS OK` |
+| `GERALDO: testes` | `python3 -m pytest tools robot -q` |
+
+Cada tarefa carrega o ROS sozinha. Para parar: `Ctrl+Shift+P` → **Tasks: Terminate Task** (ou `Ctrl+C` no painel da tarefa). A simulação e o Nav2 têm tarefas separadas (`GERALDO: simulação`, `GERALDO: Nav2`) se você quiser reiniciar só um deles.
+
 ## Convenções
 
 Padrões de código (SOLID, Adapter, injeção): [`docs/padroes-de-projeto.md`](../docs/padroes-de-projeto.md). No `geraldo_dispatcher`: `Navigator` (porta) com `Nav2Navigator` (adapter do `BasicNavigator`) e `FakeNavigator` nos testes; `BackendPort` com `BackendClient`; `Pose.from_dict`; um módulo por responsabilidade (`api`, `waypoints`, `dispatcher`, `node`). O `Dispatcher` recebe tudo pelo construtor.
