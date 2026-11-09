@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>geraldo_dispatcher</name>
+  <version>0.1.0</version>
+  <description>Liga a fila do backend ao Nav2: pega a próxima entrega e leva o robô da origem ao destino.</description>
+  <maintainer email="geraldo@example.com">Samuel</maintainer>
+  <license>MIT</license>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav2_simple_commander</exec_depend>
+  <exec_depend>geraldo_nav</exec_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

@@ -2,141 +2,131 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ter o robô simulado no Gazebo, dentro do hospital gerado do `hospital.yaml`, respondendo a `/cmd_vel`, publicando `/scan` e `/odom`, e navegando com o Nav2 até um ponto do mapa.
+**Goal:** Ter o robô simulado no Gazebo, dentro do hospital gerado do `hospital.yaml`, respondendo a `/cmd_vel`, publicando `/scan` e `/odom`, navegando com o Nav2 até os 10 pontos de parada e consumindo a fila do backend por um `geraldo_dispatcher` mínimo.
 
-**Architecture:** Uma imagem Docker única (ROS 2 Jazzy + Gazebo Harmonic + Nav2) para todos. O pacote `geraldo_description` tem o URDF (xacro), a malha exportada do Blender, o mundo gerado e o launch do Gazebo com a ponte ROS↔Gazebo. O pacote `geraldo_nav` tem o mapa gerado, os waypoints e o launch do Nav2, com parâmetros gerados por script a partir do padrão do `nav2_bringup`.
+**Architecture:** Ambiente **nativo** na máquina do Samuel (Pop!_OS 24.04 com ROS 2 Jazzy e Gazebo Harmonic já instalados; a demo roda nela). O Docker fica como tarefa opcional da semana 2, para quem precisar rodar o robô em outra máquina. O pacote `geraldo_description` tem o URDF (xacro), a malha exportada do Blender, o mundo gerado e o launch do Gazebo com a ponte ROS↔Gazebo. O pacote `geraldo_nav` tem o mapa gerado, os waypoints e o launch do Nav2, com parâmetros gerados por script a partir do padrão do `nav2_bringup`. O pacote `geraldo_dispatcher` liga a API ao Nav2.
 
-**Tech Stack:** ROS 2 Jazzy, Gazebo Harmonic (`gz sim`), `ros_gz_sim`, `ros_gz_bridge`, Nav2, xacro, Docker, Blender (só para exportar a malha), pytest.
+**Tech Stack:** ROS 2 Jazzy, Gazebo Harmonic 8.15 (`gz sim`), `ros_gz_sim`, `ros_gz_bridge`, Nav2 (`nav2_simple_commander`), xacro, Python (`urllib`, PyYAML, pytest), Blender (só para exportar a malha).
 
 **Spec:** `docs/superpowers/specs/2026-11-05-geraldo-plano-desenvolvimento-design.md` (seções 4.1 e 8)
 
-**Pré-requisito:** Tarefas 1 e 4 do plano `2026-11-05-semana1-samuel-fundacao.md` (repo, modelo em `modelos-3d/` e `tools/gen_hospital.py` com o hospital gerado).
+**Pré-requisito:** Tarefa 4 do plano `2026-11-05-semana1-samuel-fundacao.md` (`robot/hospital/hospital.yaml` e `robot/hospital/gen_hospital.py` com o hospital gerado). Nesta branch ela é executada **antes** das tarefas abaixo.
 
 ## Global Constraints
 
-- Versões: ROS 2 **Jazzy** + Gazebo **Harmonic** (confirmar com a disciplina; se a disciplina usar outra, só o `Dockerfile` e os nomes `gz-sim-*` mudam).
+- Versões: ROS 2 **Jazzy** + Gazebo **Harmonic** (confirmar com a disciplina; se a disciplina usar outra, só os nomes `gz-sim-*` e os pacotes `ros-jazzy-*` mudam).
 - Referencial `map → odom → base_link`; `base_link` no chão, frente = +X (spec §8).
 - Rodas: separação de **0,45 m** (y = ±0,225), raio **0,10 m**, eixo Y; eixo das rodas em x = **+0,10 m**. Rodízio traseiro de raio 0,04 m em x = −0,30 m (spec §8).
 - Footprint do Nav2: retângulo **0,70 × 0,50 m** com 10 cm de inflação (spec §4.1).
 - Tópicos e estados: `docs/contracts/ros-interfaces.md`. Nenhum tópico novo sem PR no contrato.
-- Mundo, mapa e waypoints são **gerados** por `tools/gen_hospital.py`; não editar à mão.
+- Mundo, mapa e waypoints são **gerados** por `robot/hospital/gen_hospital.py`; não editar à mão.
 - O Gazebo **não usa o `.blend`**: usa a malha visual exportada e colisão simples (spec §8).
 - Gazebo sem interface (`headless`) para desenvolver; a demo roda na máquina Linux do líder (spec §7).
+- **Decisões do debate de 08/11/2026:** (D1) ambiente nativo, não Docker; (D2) `geraldo_dispatcher` mínimo entra na semana 1 (login, `next-task`, `NavigateToPose` origem e depois destino; sem `/robot/events`), testado contra uma API falsa que segue o contrato; (D3) LiDAR mantido em ~172° (o baú bloqueia a traseira), com a traseira coberta pelos sensores de proximidade na semana 2; (D4) portas de 1,0 m mantidas: parâmetros padrão do Nav2, inflação ajustada só se preciso, e um script que envia metas aos 10 pontos de parada.
+- Comandos ROS rodam com `source /opt/ros/jazzy/setup.bash`. Saídas do colcon (`robot/ros2_ws/build`, `install`, `log`) não vão para o Git.
+- Padrões (`docs/padroes-de-projeto.md`): o `geraldo_dispatcher` separa as responsabilidades em `ports.py` (interfaces `BackendPort` e `Navigator`), `api.py` (cliente HTTP), `waypoints.py` (poses), `dispatcher.py` (regra) e `node.py` (cola com o ROS). O `Dispatcher` recebe tudo pelo construtor (DIP); o Nav2 fica atrás de um **Adapter** (`Nav2Navigator`) e os testes usam um `FakeNavigator`. As ferramentas em `tools/` são funções puras com `main()` fino.
 - Sem segredos no repositório.
 
 ---
 
-### Task 1: Imagem Docker única
+### Task 1: Ambiente nativo conferido por script
 
 **Files:**
-- Create: `docker/Dockerfile.ros`, `docker/compose.yml`, `docker/compose.gui.yml`, `docker/smoke_image.sh`
+- Create: `robot/scripts/check_ros_env.sh`, `robot/ros2_ws/.gitignore`
+- Test: `robot/scripts/tests/test_check_ros_env.py`
 
 **Interfaces:**
-- Produces: serviço `ros` do compose (`docker compose -f docker/compose.yml run --rm ros <comando>`), com `/ws` = `ros2_ws/`, `/repo/tools` e `/repo/hospital` montados; `ROS_DOMAIN_ID=42`.
+- Produces: `bash robot/scripts/check_ros_env.sh` (sai com 0 e imprime `AMBIENTE OK` quando tudo o que a simulação precisa está instalado; senão lista o que falta e o comando para instalar).
 
-- [ ] **Step 1: Escrever o teste de fumaça (falha primeiro)**
+- [ ] **Step 1: Escrever o teste (falha primeiro)**
 
-Create `docker/smoke_image.sh`:
+Create `robot/scripts/tests/test_check_ros_env.py`:
 
-```bash
-#!/usr/bin/env bash
-# Confirma que a imagem tem tudo que o projeto precisa.
-set -euo pipefail
-cd "$(dirname "$0")/.."
-docker compose -f docker/compose.yml build
-found=$(docker compose -f docker/compose.yml run --rm -T ros bash -lc \
-  'ros2 pkg list | grep -E "^(nav2_bringup|ros_gz_sim|ros_gz_bridge|xacro|robot_state_publisher)$" | sort')
-echo "$found"
-test "$(echo "$found" | wc -l)" -eq 5 || { echo "FALTAM PACOTES"; exit 1; }
-docker compose -f docker/compose.yml run --rm -T ros bash -lc 'gz sim --versions | head -1'
-echo "IMAGEM OK"
+```python
+import os
+import subprocess
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[3]
+
+
+@pytest.mark.skipif(not os.path.exists("/opt/ros/jazzy/setup.bash"), reason="ROS 2 Jazzy não instalado")
+def test_native_environment_has_everything_the_simulation_needs():
+    result = subprocess.run(["bash", str(ROOT / "robot/scripts/check_ros_env.sh")], capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stdout
+    assert "AMBIENTE OK" in result.stdout
+    for needed in ("nav2_bringup", "ros_gz_sim", "ros_gz_bridge", "xacro", "diff-drive"):
+        assert needed in result.stdout, needed
 ```
 
 - [ ] **Step 2: Rodar e ver falhar**
 
-Run: `bash docker/smoke_image.sh`
-Expected: FAIL (compose não existe).
+Run: `python -m pytest robot/scripts/tests/test_check_ros_env.py -q`
+Expected: FAIL (o script não existe).
 
-- [ ] **Step 3: Escrever o Dockerfile e o compose**
+- [ ] **Step 3: Escrever o script e o `.gitignore` do workspace**
 
-Create `docker/Dockerfile.ros`:
+Create `robot/scripts/check_ros_env.sh`:
 
-```dockerfile
-FROM osrf/ros:jazzy-desktop-full
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      ros-jazzy-navigation2 \
-      ros-jazzy-nav2-bringup \
-      ros-jazzy-ros-gz \
-      ros-jazzy-xacro \
-      ros-jazzy-robot-state-publisher \
-      python3-pytest python3-yaml python3-numpy \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /ws
-CMD ["bash"]
+```bash
+#!/usr/bin/env bash
+# Confere se o ambiente nativo tem tudo o que a simulação do G.E.R.A.L.D.O. precisa.
+# (sem `set -u`: o setup.bash do ROS usa variáveis não definidas)
+source /opt/ros/jazzy/setup.bash 2>/dev/null || { echo "FALTA   ROS 2 Jazzy em /opt/ros/jazzy"; exit 1; }
+missing=0
+for pkg in nav2_bringup nav2_amcl nav2_map_server nav2_msgs nav2_simple_commander ros_gz_sim ros_gz_bridge robot_state_publisher xacro; do
+  if ros2 pkg prefix "$pkg" >/dev/null 2>&1; then echo "ok      $pkg"; else echo "FALTA   $pkg"; missing=1; fi
+done
+version=$(gz sim --versions 2>/dev/null | head -1)
+case "$version" in
+  8.*) echo "ok      gazebo $version (Harmonic)" ;;
+  *) echo "FALTA   Gazebo Harmonic 8.x (achei: ${version:-nada})"; missing=1 ;;
+esac
+if ls /opt/ros/jazzy/opt/gz_sim_vendor/lib/gz-sim-8/plugins/libgz-sim8-diff-drive-system.so >/dev/null 2>&1; then
+  echo "ok      plugin diff-drive do Gazebo"
+else
+  echo "FALTA   plugin diff-drive do Gazebo"; missing=1
+fi
+if [ "$missing" -eq 0 ]; then
+  echo "AMBIENTE OK"
+else
+  echo "AMBIENTE INCOMPLETO. Para o Nav2: sudo apt install ros-jazzy-navigation2 ros-jazzy-nav2-bringup"
+  exit 1
+fi
 ```
 
-Create `docker/compose.yml`:
+Create `robot/ros2_ws/.gitignore`:
 
-```yaml
-services:
-  ros:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.ros
-    image: geraldo/ros:jazzy
-    working_dir: /ws
-    volumes:
-      - ../ros2_ws:/ws
-      - ../tools:/repo/tools
-      - ../hospital:/repo/hospital
-    environment:
-      - ROS_DOMAIN_ID=42
-    extra_hosts:
-      - "host.docker.internal:host-gateway"   # o dispatcher acessa a API do backend que roda no host
-    stdin_open: true
-    tty: true
+```gitignore
+build/
+install/
+log/
 ```
-
-Create `docker/compose.gui.yml` (só para Linux com tela; some com `headless:=false`):
-
-```yaml
-services:
-  ros:
-    environment:
-      - DISPLAY=${DISPLAY}
-      - QT_X11_NO_MITSHM=1
-    volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix
-    devices:
-      - /dev/dri:/dev/dri
-```
-
-Uso com tela: `docker compose -f docker/compose.yml -f docker/compose.gui.yml run --rm ros bash` (antes, `xhost +local:docker` no host).
 
 - [ ] **Step 4: Rodar e ver passar**
 
-Run: `bash docker/smoke_image.sh`
-Expected: lista 5 pacotes (`nav2_bringup`, `robot_state_publisher`, `ros_gz_bridge`, `ros_gz_sim`, `xacro`), uma linha de versão do Gazebo (`8.x`, Harmonic) e `IMAGEM OK`. A primeira build demora (baixa a imagem base).
+Run: `python -m pytest robot/scripts/tests/test_check_ros_env.py -q`
+Expected: `1 passed`. Se falhar com `FALTA nav2_...`, rode o `sudo apt install` que o próprio script imprime e repita.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add docker
-git commit -m "feat: imagem Docker unica (ROS 2 Jazzy, Gazebo Harmonic, Nav2)"
+git add robot/scripts/check_ros_env.sh robot/scripts/tests/test_check_ros_env.py robot/ros2_ws/.gitignore
+git commit -m "feat: confere o ambiente nativo de ROS 2 + Gazebo + Nav2"
 ```
 
-Avise Erik, Vieira e Pedro: "imagem pronta; só quem mexe no robô precisa dela".
+> **Docker (opcional, semana 2):** se o Pedro ou o Erik precisarem rodar o robô no CI ou na máquina deles, a imagem `osrf/ros:jazzy-desktop-full` com `ros-jazzy-navigation2`, `ros-jazzy-nav2-bringup`, `ros-jazzy-ros-gz` e `ros-jazzy-xacro` cobre o mesmo ambiente. Não faz parte da semana 1.
 
 ---
 
 ### Task 2: Malha do robô exportada do Blender
 
 **Files:**
-- Create: `tools/export_blender_mesh.py`
-- Create (gerados): `ros2_ws/src/geraldo_description/meshes/geraldo_body.obj`, `ros2_ws/src/geraldo_description/meshes/geraldo_body.mtl`
-- Test: `tools/tests/test_export_mesh.py`
+- Create: `robot/scripts/export_blender_mesh.py`
+- Create (gerados): `robot/ros2_ws/src/geraldo_description/meshes/geraldo_body.obj`, `robot/ros2_ws/src/geraldo_description/meshes/geraldo_body.mtl`
+- Test: `robot/scripts/tests/test_export_mesh.py`
 
 **Interfaces:**
 - Consumes: `modelos-3d/geraldoV1.blend` (coleção `GERALDO`; objetos de roda começam com `roda_`, `disco_`, `tampa_`, rodízio com `rodizio_`).
@@ -144,7 +134,7 @@ Avise Erik, Vieira e Pedro: "imagem pronta; só quem mexe no robô precisa dela"
 
 - [ ] **Step 1: Escrever o teste (falha primeiro)**
 
-Create `tools/tests/test_export_mesh.py`:
+Create `robot/scripts/tests/test_export_mesh.py`:
 
 ```python
 import shutil
@@ -153,14 +143,14 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
-OBJ = ROOT / "ros2_ws/src/geraldo_description/meshes/geraldo_body.obj"
+ROOT = Path(__file__).resolve().parents[3]
+OBJ = ROOT / "robot/ros2_ws/src/geraldo_description/meshes/geraldo_body.obj"
 
 
 @pytest.mark.skipif(shutil.which("blender") is None, reason="Blender não instalado")
 def test_export_creates_the_body_mesh_in_the_right_frame():
     subprocess.run(
-        ["blender", "-b", str(ROOT / "modelos-3d/geraldoV1.blend"), "--python", str(ROOT / "tools/export_blender_mesh.py")],
+        ["blender", "-b", str(ROOT / "modelos-3d/geraldoV1.blend"), "--python", str(ROOT / "robot/scripts/export_blender_mesh.py")],
         check=True, capture_output=True, text=True, timeout=300,
     )
     verts = [l.split() for l in OBJ.read_text().splitlines() if l.startswith("v ")]
@@ -171,29 +161,45 @@ def test_export_creates_the_body_mesh_in_the_right_frame():
     assert 0.30 < max(xs) < 0.45 and -0.45 < min(xs) < -0.30   # frente em +X, traseira em -X
     assert 0.20 < max(ys) < 0.30 and -0.30 < min(ys) < -0.20   # largura ~0,50 m
     assert 0.40 < max(zs) < 0.55 and min(zs) > 0.03            # sobe até ~0,47 m; rodas fora da malha
+
+
+def _object_mean_x(name: str) -> float:
+    xs, current = [], None
+    for l in OBJ.read_text().splitlines():
+        if l.startswith("o "):
+            current = l[2:].strip()
+        elif l.startswith("v ") and current == name:
+            xs.append(float(l.split()[1]))
+    return sum(xs) / len(xs)
+
+
+def test_the_front_sensors_are_at_plus_x_like_the_urdf_lidar():
+    # URDF: frente = +X, LiDAR em x=+0,275. Se o OBJ sair espelhado, o corpo aparece de costas para as rodas e o rodízio.
+    assert _object_mean_x("camera_rgbd") > 0.3
+    assert _object_mean_x("lidar") > 0.2
 ```
 
 - [ ] **Step 2: Rodar e ver falhar**
 
-Run: `python -m pytest tools/tests/test_export_mesh.py -q`
+Run: `python -m pytest robot/scripts/tests/test_export_mesh.py -q`
 Expected: FAIL (`export_blender_mesh.py` não existe) ou `skipped` se não houver Blender na máquina; nesse caso peça ao Samuel para rodar.
 
 - [ ] **Step 3: Implementar o script de exportação**
 
-Create `tools/export_blender_mesh.py`:
+Create `robot/scripts/export_blender_mesh.py`:
 
 ```python
 """Exporta a malha do corpo do G.E.R.A.L.D.O. para o Gazebo (OBJ).
 
-Uso: blender -b modelos-3d/geraldoV1.blend --python tools/export_blender_mesh.py
+Uso: blender -b modelos-3d/geraldoV1.blend --python robot/scripts/export_blender_mesh.py
 Rodas e rodízio ficam de fora: o URDF as descreve com primitivas para poderem girar.
 """
 import os
 
 import bpy
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "ros2_ws", "src", "geraldo_description", "meshes")
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUT = os.path.join(ROOT, "robot", "ros2_ws", "src", "geraldo_description", "meshes")
 SKIP_PREFIXES = ("roda_", "disco_", "tampa_", "rodizio_")
 
 os.makedirs(OUT, exist_ok=True)
@@ -210,8 +216,9 @@ bpy.ops.wm.obj_export(
     export_selected_objects=True,
     apply_modifiers=True,
     export_materials=True,
-    # a "frente" do exportador é o -Y do Blender; com NEGATIVE_Y e Z os eixos do arquivo ficam idênticos aos da cena (frente = +X)
-    forward_axis="NEGATIVE_Y",
+    # com forward="Y" e up="Z" as coordenadas do arquivo ficam iguais às da cena do Blender (frente = +X, Z para cima);
+    # com NEGATIVE_Y o arquivo saía girado 180 graus e o corpo aparecia de costas para as rodas e o rodízio no Gazebo
+    forward_axis="Y",
     up_axis="Z",
     global_scale=1.0,
 )
@@ -220,13 +227,13 @@ print("EXPORT_OK", count)
 
 - [ ] **Step 4: Rodar e ver passar**
 
-Run: `python -m pytest tools/tests/test_export_mesh.py -q`
-Expected: `1 passed`. Confira o tamanho: `ls -la ros2_ws/src/geraldo_description/meshes/` (cerca de 1–3 MB).
+Run: `python -m pytest robot/scripts/tests/test_export_mesh.py -q`
+Expected: `1 passed`. Confira o tamanho: `ls -la robot/ros2_ws/src/geraldo_description/meshes/` (cerca de 1–3 MB).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add tools/export_blender_mesh.py tools/tests/test_export_mesh.py ros2_ws/src/geraldo_description/meshes
+git add robot/scripts/export_blender_mesh.py robot/scripts/tests/test_export_mesh.py robot/ros2_ws/src/geraldo_description/meshes
 git commit -m "feat: exporta a malha do corpo do robo para o Gazebo"
 ```
 
@@ -235,9 +242,9 @@ git commit -m "feat: exporta a malha do corpo do robo para o Gazebo"
 ### Task 3: Pacote `geraldo_description` — URDF
 
 **Files:**
-- Create: `ros2_ws/src/geraldo_description/package.xml`, `ros2_ws/src/geraldo_description/CMakeLists.txt`, `ros2_ws/src/geraldo_description/urdf/geraldo.urdf.xacro`
-- Create (vazias por ora): `ros2_ws/src/geraldo_description/launch/.gitkeep`, `ros2_ws/src/geraldo_description/config/.gitkeep`
-- Test: `ros2_ws/src/geraldo_description/test/test_urdf.py`
+- Create: `robot/ros2_ws/src/geraldo_description/package.xml`, `robot/ros2_ws/src/geraldo_description/CMakeLists.txt`, `robot/ros2_ws/src/geraldo_description/urdf/geraldo.urdf.xacro`
+- Create (vazias por ora): `robot/ros2_ws/src/geraldo_description/launch/.gitkeep`, `robot/ros2_ws/src/geraldo_description/config/.gitkeep`
+- Test: `robot/ros2_ws/src/geraldo_description/test/test_urdf.py`
 
 **Interfaces:**
 - Consumes: `meshes/geraldo_body.obj` (Tarefa 2) e `worlds/hospital.sdf` (gerado na Tarefa 4 do plano de fundação).
@@ -245,7 +252,7 @@ git commit -m "feat: exporta a malha do corpo do robo para o Gazebo"
 
 - [ ] **Step 1: Escrever o teste (falha primeiro)**
 
-Create `ros2_ws/src/geraldo_description/test/test_urdf.py`:
+Create `robot/ros2_ws/src/geraldo_description/test/test_urdf.py`:
 
 ```python
 import subprocess
@@ -326,12 +333,12 @@ def test_mesh_uri_points_to_the_package(robot):
 
 - [ ] **Step 2: Rodar e ver falhar**
 
-Run (dentro do container): `docker compose -f docker/compose.yml run --rm ros bash -lc "cd /ws/src/geraldo_description && python3 -m pytest test/test_urdf.py -q"`
+Run: `source /opt/ros/jazzy/setup.bash && (cd robot/ros2_ws/src/geraldo_description && python3 -m pytest test/test_urdf.py -q)`
 Expected: FAIL (o xacro não existe).
 
 - [ ] **Step 3: Escrever `package.xml` e `CMakeLists.txt`**
 
-`ros2_ws/src/geraldo_description/package.xml`:
+`robot/ros2_ws/src/geraldo_description/package.xml`:
 
 ```xml
 <?xml version="1.0"?>
@@ -353,7 +360,7 @@ Expected: FAIL (o xacro não existe).
 </package>
 ```
 
-`ros2_ws/src/geraldo_description/CMakeLists.txt`:
+`robot/ros2_ws/src/geraldo_description/CMakeLists.txt`:
 
 ```cmake
 cmake_minimum_required(VERSION 3.8)
@@ -376,7 +383,7 @@ Crie também `launch/.gitkeep` e `config/.gitkeep` (o `install(DIRECTORY ...)` e
 
 - [ ] **Step 4: Escrever o URDF**
 
-`ros2_ws/src/geraldo_description/urdf/geraldo.urdf.xacro`:
+`robot/ros2_ws/src/geraldo_description/urdf/geraldo.urdf.xacro`:
 
 ```xml
 <?xml version="1.0"?>
@@ -534,13 +541,13 @@ Crie também `launch/.gitkeep` e `config/.gitkeep` (o `install(DIRECTORY ...)` e
 
 - [ ] **Step 5: Rodar e ver passar**
 
-Run: `docker compose -f docker/compose.yml run --rm ros bash -lc "cd /ws/src/geraldo_description && python3 -m pytest test/test_urdf.py -q && xacro urdf/geraldo.urdf.xacro > /tmp/g.urdf && check_urdf /tmp/g.urdf | head -20"`
+Run: `source /opt/ros/jazzy/setup.bash && (cd robot/ros2_ws/src/geraldo_description && python3 -m pytest test/test_urdf.py -q && xacro urdf/geraldo.urdf.xacro > /tmp/g.urdf && check_urdf /tmp/g.urdf | head -20)`
 Expected: `7 passed` e `check_urdf` listando a árvore `base_link` com 4 filhos (`wheel_left_link`, `wheel_right_link`, `caster_link`, `lidar_link`).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add ros2_ws/src/geraldo_description
+git add robot/ros2_ws/src/geraldo_description
 git commit -m "feat: URDF do robo (rodas, rodizio, LiDAR e DiffDrive)"
 ```
 
@@ -549,9 +556,9 @@ git commit -m "feat: URDF do robo (rodas, rodizio, LiDAR e DiffDrive)"
 ### Task 4: Gazebo com o hospital, ponte e launch
 
 **Files:**
-- Create: `ros2_ws/src/geraldo_description/config/bridge.yaml`, `ros2_ws/src/geraldo_description/launch/sim.launch.py`
-- Create: `ros2_ws/src/geraldo_description/test/smoke_sim.sh`
-- Test: `ros2_ws/src/geraldo_description/test/test_launch_files.py`
+- Create: `robot/ros2_ws/src/geraldo_description/config/bridge.yaml`, `robot/ros2_ws/src/geraldo_description/launch/sim.launch.py`
+- Create: `robot/ros2_ws/src/geraldo_description/test/smoke_sim.sh`
+- Test: `robot/ros2_ws/src/geraldo_description/test/test_launch_files.py`
 
 **Interfaces:**
 - Consumes: URDF (Tarefa 3), `worlds/hospital.sdf` (gerado).
@@ -559,7 +566,7 @@ git commit -m "feat: URDF do robo (rodas, rodizio, LiDAR e DiffDrive)"
 
 - [ ] **Step 1: Escrever os testes (falham primeiro)**
 
-Create `ros2_ws/src/geraldo_description/test/test_launch_files.py`:
+Create `robot/ros2_ws/src/geraldo_description/test/test_launch_files.py`:
 
 ```python
 import ast
@@ -586,11 +593,17 @@ def test_launch_file_is_valid_python_and_declares_the_arguments():
     for arg in ("headless", "x", "y", "yaw"):
         assert f'DeclareLaunchArgument("{arg}"' in src
     assert "generate_launch_description" in src
+
+
+def test_gui_runs_on_x11_so_wayland_with_hybrid_gpu_does_not_crash_ogre():
+    src = (PKG / "launch/sim.launch.py").read_text()
+    assert 'SetEnvironmentVariable("QT_QPA_PLATFORM", "xcb"' in src
+    assert 'SetEnvironmentVariable("EGL_PLATFORM", ""' in src
 ```
 
 - [ ] **Step 2: Rodar e ver falhar**
 
-Run: `docker compose -f docker/compose.yml run --rm ros bash -lc "cd /ws/src/geraldo_description && python3 -m pytest test/test_launch_files.py -q"`
+Run: `source /opt/ros/jazzy/setup.bash && (cd robot/ros2_ws/src/geraldo_description && python3 -m pytest test/test_launch_files.py -q)`
 Expected: FAIL (arquivos não existem).
 
 - [ ] **Step 3: Escrever `config/bridge.yaml`**
@@ -659,6 +672,9 @@ def generate_launch_description():
         DeclareLaunchArgument("y", default_value="26.5"),
         DeclareLaunchArgument("yaw", default_value="-1.5708"),
         SetEnvironmentVariable("GZ_SIM_RESOURCE_PATH", resource_path),
+        # com tela: no Wayland com GPU híbrida a janela do Gazebo (Ogre2) quebra; roda via X11
+        SetEnvironmentVariable("QT_QPA_PLATFORM", "xcb", condition=UnlessCondition(LaunchConfiguration("headless"))),
+        SetEnvironmentVariable("EGL_PLATFORM", "", condition=UnlessCondition(LaunchConfiguration("headless"))),
         # sem tela: só o servidor, com renderização EGL para o LiDAR
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(gz_launch),
@@ -697,16 +713,17 @@ def generate_launch_description():
 
 - [ ] **Step 5: Escrever o teste de fumaça da simulação**
 
-`ros2_ws/src/geraldo_description/test/smoke_sim.sh`:
+`robot/ros2_ws/src/geraldo_description/test/smoke_sim.sh`:
 
 ```bash
 #!/usr/bin/env bash
 # Sobe a simulação sem tela, confere /scan e /odom e anda 3 segundos com /cmd_vel.
 set -euo pipefail
 
-ros2 launch geraldo_description sim.launch.py headless:=true > /tmp/sim.log 2>&1 &
+# setsid: o launch vira líder de um grupo de processos, e o trap derruba o grupo inteiro (Gazebo, ponte e publisher)
+setsid ros2 launch geraldo_description sim.launch.py headless:=true > /tmp/sim.log 2>&1 &
 LAUNCH_PID=$!
-trap 'kill $LAUNCH_PID 2>/dev/null || true' EXIT
+trap 'kill -INT -- -$LAUNCH_PID 2>/dev/null || true; sleep 3; kill -KILL -- -$LAUNCH_PID 2>/dev/null || true' EXIT
 
 timeout 120 bash -c 'until ros2 topic list | grep -q "^/scan$"; do sleep 2; done'
 timeout 30 ros2 topic echo --once /scan --field ranges > /dev/null
@@ -723,17 +740,18 @@ echo "SMOKE OK"
 
 - [ ] **Step 6: Rodar os testes de arquivo e ver passar**
 
-Run: `docker compose -f docker/compose.yml run --rm ros bash -lc "cd /ws/src/geraldo_description && python3 -m pytest test/ -q"`
+Run: `source /opt/ros/jazzy/setup.bash && (cd robot/ros2_ws/src/geraldo_description && python3 -m pytest test/ -q)`
 Expected: `9 passed`.
 
 - [ ] **Step 7: Compilar e rodar o teste de fumaça**
 
 ```bash
-docker compose -f docker/compose.yml run --rm ros bash -lc \
-  "cd /ws && colcon build --symlink-install --packages-select geraldo_description && source install/setup.bash && bash src/geraldo_description/test/smoke_sim.sh"
+source /opt/ros/jazzy/setup.bash
+cd robot/ros2_ws && colcon build --symlink-install --packages-select geraldo_description && source install/setup.bash && bash src/geraldo_description/test/smoke_sim.sh
 ```
 
-Expected: termina com `SMOKE OK`. Se falhar, `docker compose ... run --rm ros cat /tmp/sim.log` mostra o motivo. Causas conhecidas e onde mexer:
+Expected: termina com `SMOKE OK`. Se falhar, `cat /tmp/sim.log` mostra o motivo. Causas conhecidas e onde mexer:
+- GPU híbrida (Intel + NVIDIA) lenta ou LiDAR sem renderizar → rode com `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia`; com tela sob Wayland, use `QT_QPA_PLATFORM=xcb`.
 - `package://geraldo_description/...` não resolve → confira `GZ_SIM_RESOURCE_PATH` no `sim.launch.py`.
 - `/scan` não aparece → o LiDAR precisa de renderização; confira `--headless-rendering` e, no mundo, o plugin `gz-sim-sensors-system` (já gerado por `gen_hospital.py`).
 - Robô cai ou atravessa o chão → confira o `<pose>` do `ground` no mundo e o `-z 0.02` do `create`.
@@ -741,7 +759,7 @@ Expected: termina com `SMOKE OK`. Se falhar, `docker compose ... run --rm ros ca
 - [ ] **Step 8: Commit**
 
 ```bash
-git add ros2_ws/src/geraldo_description
+git add robot/ros2_ws/src/geraldo_description
 git commit -m "feat: simulacao no Gazebo com o hospital, ponte ROS e launch"
 ```
 
@@ -750,21 +768,21 @@ git commit -m "feat: simulacao no Gazebo com o hospital, ponte ROS e launch"
 ### Task 5: Nav2 básico no hospital
 
 **Files:**
-- Create: `ros2_ws/src/geraldo_nav/package.xml`, `ros2_ws/src/geraldo_nav/CMakeLists.txt`, `ros2_ws/src/geraldo_nav/launch/nav.launch.py`
-- Create: `tools/make_nav2_params.py`
-- Create (gerado): `ros2_ws/src/geraldo_nav/config/nav2_params.yaml`
-- Test: `tools/tests/test_make_nav2_params.py`
+- Create: `robot/ros2_ws/src/geraldo_nav/package.xml`, `robot/ros2_ws/src/geraldo_nav/CMakeLists.txt`, `robot/ros2_ws/src/geraldo_nav/launch/nav.launch.py`
+- Create: `robot/scripts/make_nav2_params.py`
+- Create (gerado): `robot/ros2_ws/src/geraldo_nav/config/nav2_params.yaml`
+- Test: `robot/scripts/tests/test_make_nav2_params.py`
 
 **Interfaces:**
 - Consumes: `maps/hospital.yaml` e `config/waypoints.yaml` (gerados na Tarefa 4 do plano de fundação, já dentro de `geraldo_nav`), simulação (Tarefa 4).
-- Produces: `ros2 launch geraldo_nav nav.launch.py` (map_server, AMCL, planejador, controlador, `/navigate_to_pose`); função `tools.make_nav2_params.patch_params(params: dict) -> dict`.
+- Produces: `ros2 launch geraldo_nav nav.launch.py` (map_server, AMCL, planejador, controlador, `/navigate_to_pose`); função `robot.scripts.make_nav2_params.patch_params(params: dict) -> dict`.
 
 - [ ] **Step 1: Escrever o teste (falha primeiro)**
 
-Create `tools/tests/test_make_nav2_params.py`:
+Create `robot/scripts/tests/test_make_nav2_params.py`:
 
 ```python
-from tools.make_nav2_params import FOOTPRINT, INITIAL_POSE, patch_params
+from robot.scripts.make_nav2_params import FOOTPRINT, INITIAL_POSE, patch_params
 
 
 def fake_defaults():
@@ -791,6 +809,28 @@ def test_amcl_starts_at_the_robot_base_and_uses_base_link():
     assert p["base_frame_id"] == "base_link"
 
 
+def test_amcl_trusts_the_simulated_odometry_and_the_lidar_range():
+    p = patch_params(fake_defaults())["amcl"]["ros__parameters"]
+    assert all(p[f"alpha{i}"] == 0.05 for i in range(1, 6))
+    assert p["laser_max_range"] == 12.0 and p["z_hit"] > p["z_rand"]
+
+
+def test_no_node_keeps_looking_for_base_footprint():
+    defaults = fake_defaults()
+    defaults["collision_monitor"] = {"ros__parameters": {"base_frame_id": "base_footprint", "nested": [{"frame": "base_footprint"}]}}
+    out = patch_params(defaults)
+    assert "base_footprint" not in str(out)
+    assert out["collision_monitor"]["ros__parameters"]["base_frame_id"] == "base_link"
+
+
+def test_global_costmap_ignores_lidar_marks_but_the_local_one_keeps_them():
+    defaults = fake_defaults()
+    defaults["global_costmap"]["global_costmap"]["ros__parameters"]["plugins"] = ["static_layer", "obstacle_layer", "inflation_layer"]
+    out = patch_params(defaults)
+    assert out["global_costmap"]["global_costmap"]["ros__parameters"]["plugins"] == ["static_layer", "inflation_layer"]
+    assert out["local_costmap"]["local_costmap"]["ros__parameters"]["plugins"] == ["voxel_layer"]
+
+
 def test_other_parameters_are_preserved():
     out = patch_params(fake_defaults())
     assert out["local_costmap"]["local_costmap"]["ros__parameters"]["plugins"] == ["voxel_layer"]
@@ -798,17 +838,17 @@ def test_other_parameters_are_preserved():
 
 - [ ] **Step 2: Rodar e ver falhar**
 
-Run: `python -m pytest tools/tests/test_make_nav2_params.py -q`
-Expected: FAIL (`tools.make_nav2_params` não existe).
+Run: `python -m pytest robot/scripts/tests/test_make_nav2_params.py -q`
+Expected: FAIL (`robot.scripts.make_nav2_params` não existe).
 
 - [ ] **Step 3: Implementar o gerador de parâmetros**
 
-Create `tools/make_nav2_params.py`:
+Create `robot/scripts/make_nav2_params.py`:
 
 ```python
-"""Gera ros2_ws/src/geraldo_nav/config/nav2_params.yaml a partir do padrão do nav2_bringup.
+"""Gera robot/ros2_ws/src/geraldo_nav/config/nav2_params.yaml a partir do padrão do nav2_bringup.
 
-Uso (dentro do container): python3 tools/make_nav2_params.py
+Uso: python3 robot/scripts/make_nav2_params.py
 Ajusta o footprint (0,70 x 0,50 m) e a pose inicial do AMCL (base do robô, na farmácia).
 """
 import sys
@@ -816,12 +856,20 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULTS = Path("/opt/ros/jazzy/share/nav2_bringup/params/nav2_params.yaml")
-OUT = ROOT / "ros2_ws/src/geraldo_nav/config/nav2_params.yaml"
+OUT = ROOT / "robot/ros2_ws/src/geraldo_nav/config/nav2_params.yaml"
 
 FOOTPRINT = "[[0.35, 0.25], [0.35, -0.25], [-0.35, -0.25], [-0.35, 0.25]]"
 INITIAL_POSE = {"x": 6.5, "y": 26.5, "z": 0.0, "yaw": -1.5708}
+# Corredores retos e paredes lisas confundem o AMCL: a odometria simulada é boa (alphas baixos), o LiDAR vai até 12 m
+# e o modelo de feixe confia mais no acerto (z_hit) do que no ruído (z_rand).
+AMCL_TUNING = {
+    "alpha1": 0.05, "alpha2": 0.05, "alpha3": 0.05, "alpha4": 0.05, "alpha5": 0.05,
+    "laser_max_range": 12.0, "laser_min_range": 0.12, "max_beams": 120,
+    "sigma_hit": 0.1, "z_hit": 0.9, "z_rand": 0.1,
+    "update_min_d": 0.1, "update_min_a": 0.1,
+}
 
 
 def patch_params(params: dict) -> dict:
@@ -829,11 +877,25 @@ def patch_params(params: dict) -> dict:
         p = params[name][name]["ros__parameters"]
         p.pop("robot_radius", None)
         p["footprint"] = FOOTPRINT
+    # O hospital é estático: uma marca do LiDAR num vão de 1,0 m fecha a porta para o planejador global.
+    # Obstáculos novos continuam no costmap local, que o controlador usa para desviar.
+    glob = params["global_costmap"]["global_costmap"]["ros__parameters"]
+    if "plugins" in glob:
+        glob["plugins"] = [x for x in glob["plugins"] if x != "obstacle_layer"]
     amcl = params["amcl"]["ros__parameters"]
     amcl["set_initial_pose"] = True
     amcl["initial_pose"] = dict(INITIAL_POSE)
     amcl["base_frame_id"] = "base_link"
-    return params
+    amcl.update(AMCL_TUNING)
+    return _rename_frame(params, "base_footprint", "base_link")  # o robô só tem base_link (collision_monitor, docking...)
+
+
+def _rename_frame(node, old: str, new: str):
+    if isinstance(node, dict):
+        return {k: _rename_frame(v, old, new) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_rename_frame(v, old, new) for v in node]
+    return new if node == old else node
 
 
 def main() -> None:
@@ -850,12 +912,12 @@ if __name__ == "__main__":
 
 - [ ] **Step 3b: Rodar e ver passar**
 
-Run: `python -m pytest tools/tests/test_make_nav2_params.py -q`
-Expected: `3 passed`.
+Run: `python -m pytest robot/scripts/tests/test_make_nav2_params.py -q`
+Expected: `6 passed`.
 
 - [ ] **Step 4: Criar o pacote `geraldo_nav` e o launch**
 
-`ros2_ws/src/geraldo_nav/package.xml`:
+`robot/ros2_ws/src/geraldo_nav/package.xml`:
 
 ```xml
 <?xml version="1.0"?>
@@ -874,7 +936,7 @@ Expected: `3 passed`.
 </package>
 ```
 
-`ros2_ws/src/geraldo_nav/CMakeLists.txt`:
+`robot/ros2_ws/src/geraldo_nav/CMakeLists.txt`:
 
 ```cmake
 cmake_minimum_required(VERSION 3.8)
@@ -888,7 +950,7 @@ install(DIRECTORY maps config launch
 ament_package()
 ```
 
-`ros2_ws/src/geraldo_nav/launch/nav.launch.py`:
+`robot/ros2_ws/src/geraldo_nav/launch/nav.launch.py`:
 
 ```python
 import os
@@ -917,38 +979,739 @@ def generate_launch_description():
 
 - [ ] **Step 5: Gerar os parâmetros, compilar e navegar**
 
-O gerador roda **no host** (ele grava em `ros2_ws/src/geraldo_nav/config/`), usando o arquivo padrão copiado do container:
-
 ```bash
-docker compose -f docker/compose.yml run --rm -T ros cat /opt/ros/jazzy/share/nav2_bringup/params/nav2_params.yaml > /tmp/nav2_default.yaml
-python tools/make_nav2_params.py /tmp/nav2_default.yaml
-ls ros2_ws/src/geraldo_nav/config/
-docker compose -f docker/compose.yml run --rm ros bash -lc "cd /ws && colcon build --symlink-install && echo BUILD_OK"
+source /opt/ros/jazzy/setup.bash
+python robot/scripts/make_nav2_params.py
+ls robot/ros2_ws/src/geraldo_nav/config/
+cd robot/ros2_ws && colcon build --symlink-install && echo BUILD_OK
 ```
 
 Expected: `nav2_params.yaml` e `waypoints.yaml` em `config/`, e `BUILD_OK`.
 
-Depois, em **três terminais** dentro do container (abra cada um com `docker compose -f docker/compose.yml run --rm ros bash`, ou use `tmux`):
+Depois, em **três terminais** (todos com `source /opt/ros/jazzy/setup.bash && source robot/ros2_ws/install/setup.bash`):
 
 ```bash
 # terminal 1
-source /ws/install/setup.bash && ros2 launch geraldo_description sim.launch.py headless:=true
+ros2 launch geraldo_description sim.launch.py headless:=true
 # terminal 2
-source /ws/install/setup.bash && ros2 launch geraldo_nav nav.launch.py
+ros2 launch geraldo_nav nav.launch.py
 # terminal 3: meta em frente ao balcão da farmácia (waypoint farmacia_balcao: x=7, y=24)
-source /ws/install/setup.bash && ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
+ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
   "{pose: {header: {frame_id: map}, pose: {position: {x: 7.0, y: 24.0, z: 0.0}, orientation: {z: -0.7071, w: 0.7071}}}}"
 ```
 
 Expected: o terminal 3 termina com `Goal finished with status: SUCCEEDED`. Em seguida, uma meta longa: `x: 29.0, y: 25.0` (centro cirúrgico) deve ser `SUCCEEDED` pelo corredor norte.
+O `make_nav2_params.py` já ajusta o AMCL para a simulação (alphas baixos, `laser_max_range` 12 m, `z_hit` alto): com os padrões do Nav2 ele se perdia nos corredores retos e as metas das alas leste falhavam. Para ver a pose real contra a do AMCL: `gz topic -e -n 1 -t /world/hospital/dynamic_pose/info`.
 Se o AMCL não localizar: confira que `/scan` e `/tf` chegam (`ros2 topic hz /scan`) e que a pose inicial do `nav2_params.yaml` é (6,5; 26,5; −1,5708), igual ao spawn.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tools/make_nav2_params.py tools/tests/test_make_nav2_params.py ros2_ws/src/geraldo_nav
+git add robot/scripts/make_nav2_params.py robot/scripts/tests/test_make_nav2_params.py robot/ros2_ws/src/geraldo_nav
 git commit -m "feat: Nav2 basico no hospital (mapa, footprint 70x50 e launch)"
-git push
 ```
 
-Marco M1 (qua 11/11) fica a um passo: o `geraldo_dispatcher` (semana 2) liga a API a esta ação `NavigateToPose`.
+As tarefas 6 e 7 fecham o marco M1 (qua 11/11): o teste dos pontos de parada valida as portas e o `geraldo_dispatcher` liga a API a esta ação `NavigateToPose`.
+
+---
+
+### Task 6: Teste dos 10 pontos de parada (valida as portas de 1,0 m)
+
+**Files:**
+- Create: `robot/scripts/nav_goal_sweep.py`
+- Test: `robot/scripts/tests/test_nav_goal_sweep.py`
+
+**Interfaces:**
+- Consumes: `robot/ros2_ws/src/geraldo_nav/config/waypoints.yaml` (gerado), simulação e Nav2 rodando (Tarefas 4 e 5).
+- Produces: `robot.scripts.nav_goal_sweep.load_stops(path=WAYPOINTS) -> list[tuple[str, float, float, float]]` (id, x, y, yaw em radianos; todos os pontos exceto `base_robo`), `yaw_to_quaternion(yaw) -> tuple[float, float]` (z, w) e o comando `python3 robot/scripts/nav_goal_sweep.py [--timeout 180]`, que sai com 0 só se **todos** os pontos forem alcançados.
+
+- [ ] **Step 1: Escrever os testes (falham primeiro)**
+
+Create `robot/scripts/tests/test_nav_goal_sweep.py`:
+
+```python
+import math
+from pathlib import Path
+
+import pytest
+
+from robot.scripts.nav_goal_sweep import WAYPOINTS, load_stops, yaw_to_quaternion
+
+
+def write_waypoints(path: Path) -> Path:
+    path.write_text(
+        "waypoints:\n"
+        "  base_robo: {room: farmacia, x: 6.5, y: 26.5, yaw: 270}\n"
+        "  farmacia_balcao: {room: farmacia, x: 7, y: 24, yaw: 270}\n"
+        "  cc_entrega: {room: centro_cirurgico, x: 29, y: 25, yaw: 90}\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_load_stops_skips_the_robot_base_and_converts_degrees(tmp_path):
+    stops = load_stops(write_waypoints(tmp_path / "w.yaml"))
+    assert [s[0] for s in stops] == ["farmacia_balcao", "cc_entrega"]
+    assert stops[0][1:3] == (7, 24)
+    assert all(isinstance(v, float) for s in stops for v in s[1:])  # o rclpy aborta com int
+    assert stops[1][3] == pytest.approx(math.pi / 2)
+
+
+def test_yaw_to_quaternion():
+    z, w = yaw_to_quaternion(0.0)
+    assert (z, w) == (0.0, 1.0)
+    z, w = yaw_to_quaternion(math.pi)
+    assert z == pytest.approx(1.0) and w == pytest.approx(0.0, abs=1e-9)
+
+
+@pytest.mark.skipif(not WAYPOINTS.exists(), reason="waypoints.yaml ainda não foi gerado")
+def test_generated_waypoints_have_the_ten_stops():
+    ids = {s[0] for s in load_stops()}
+    assert ids == {
+        "farmacia_balcao", "banco_sangue_retirada", "rouparia_coleta", "cc_entrega", "uti_entrega",
+        "ps_entrega", "cons1_entrega", "cons2_entrega", "enf214_entrega", "enf215_entrega",
+    }
+```
+
+- [ ] **Step 2: Rodar e ver falhar**
+
+Run: `python -m pytest robot/scripts/tests/test_nav_goal_sweep.py -q`
+Expected: FAIL (`robot.scripts.nav_goal_sweep` não existe).
+
+- [ ] **Step 3: Implementar**
+
+Create `robot/scripts/nav_goal_sweep.py`:
+
+```python
+#!/usr/bin/env python3
+"""Manda o robô a cada ponto de parada do hospital e confere se o Nav2 chega (valida as portas de 1,0 m).
+
+Uso (com a simulação e o Nav2 rodando, ROS carregado):
+  python3 robot/scripts/nav_goal_sweep.py [--timeout 180]
+Sai com 0 só se todos os pontos forem alcançados.
+"""
+import argparse
+import math
+import time
+from pathlib import Path
+
+import yaml
+
+ROOT = Path(__file__).resolve().parents[2]
+WAYPOINTS = ROOT / "robot/ros2_ws/src/geraldo_nav/config/waypoints.yaml"
+
+
+def load_stops(path=WAYPOINTS) -> list[tuple[str, float, float, float]]:
+    """(id, x, y, yaw em radianos) de todos os pontos, exceto a base do robô."""
+    data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))["waypoints"]
+    # float(): o YAML devolve int para "7" e as mensagens ROS exigem float (senão o rclpy aborta)
+    return [(wid, float(w["x"]), float(w["y"]), math.radians(w["yaw"])) for wid, w in data.items() if wid != "base_robo"]
+
+
+def yaw_to_quaternion(yaw: float) -> tuple[float, float]:
+    """(z, w) do quaternion de uma rotação em torno de Z."""
+    return math.sin(yaw / 2), math.cos(yaw / 2)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--timeout", type=float, default=180.0, help="segundos por ponto")
+    args = ap.parse_args()
+
+    import rclpy
+    from geometry_msgs.msg import PoseStamped
+    from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
+
+    rclpy.init()
+    nav = BasicNavigator()
+    # o AMCL já nasce na base (nav2_params.yaml): sem isto o BasicNavigator republica a pose (0, 0) e perde a localização
+    nav.initial_pose_received = True
+    nav.waitUntilNav2Active()
+    failed = []
+    for wid, x, y, yaw in load_stops():
+        goal = PoseStamped()
+        goal.header.frame_id = "map"
+        goal.header.stamp = nav.get_clock().now().to_msg()
+        goal.pose.position.x, goal.pose.position.y = x, y
+        goal.pose.orientation.z, goal.pose.orientation.w = yaw_to_quaternion(yaw)
+        nav.goToPose(goal)
+        start = time.monotonic()
+        while not nav.isTaskComplete():
+            if time.monotonic() - start > args.timeout:
+                nav.cancelTask()
+                break
+            time.sleep(0.5)
+        ok = nav.getResult() == TaskResult.SUCCEEDED
+        print(f"{'ok    ' if ok else 'FALHOU'} {wid:24s} {time.monotonic() - start:5.0f}s")
+        if not ok:
+            failed.append(wid)
+    rclpy.shutdown()
+    print("TODOS OS PONTOS OK" if not failed else f"FALHARAM: {failed}")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+```
+
+- [ ] **Step 4: Rodar e ver passar**
+
+Run: `python -m pytest robot/scripts/tests/test_nav_goal_sweep.py -q`
+Expected: `3 passed`.
+
+- [ ] **Step 5: Rodar com a simulação (precisa dos terminais 1 e 2 da Tarefa 5)**
+
+```bash
+source /opt/ros/jazzy/setup.bash && source robot/ros2_ws/install/setup.bash
+python3 robot/scripts/nav_goal_sweep.py
+```
+
+Expected: 10 linhas `ok` e `TODOS OS PONTOS OK`. O teste inteiro leva cerca de 10 minutos (validado em 08/11/2026: 10 de 10, de 32 s a 124 s por ponto). Reinicie a simulação e o Nav2 antes de repetir, para o robô nascer na base. Se alguma sala falhar, é quase sempre a porta: ajuste, nesta ordem, `inflation_radius` (de 0,55 para 0,35) e `cost_scaling_factor` (de 3,0 para 5,0) nos dois costmaps de `robot/scripts/make_nav2_params.py`, gere de novo e repita. Só se ainda falhar, avalie alargar `door_width` no `hospital.yaml` (plano B, exige avisar o grupo) ou trocar o controlador.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add robot/scripts/nav_goal_sweep.py robot/scripts/tests/test_nav_goal_sweep.py robot/scripts/make_nav2_params.py
+git commit -m "feat: teste dos 10 pontos de parada do hospital no Nav2"
+```
+
+---
+
+### Task 7: `geraldo_dispatcher` mínimo e API falsa
+
+**Files:**
+- Create: `robot/scripts/fake_backend.py`
+- Create: `robot/ros2_ws/src/geraldo_dispatcher/package.xml`, `setup.py`, `setup.cfg`, `resource/geraldo_dispatcher`
+- Create: `robot/ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/__init__.py`, `ports.py`, `api.py`, `waypoints.py`, `dispatcher.py`, `node.py`
+- Test: `robot/ros2_ws/src/geraldo_dispatcher/test/test_dispatcher.py`
+
+**Interfaces:**
+- Consumes: contrato `POST /auth/login` e `POST /robot/next-task` (`RobotTask`: `id`, `origin_waypoint`, `dest_waypoint`...) e `waypoints.yaml` (Tarefa 4 do plano de fundação).
+- Produces:
+  - `robot.scripts.fake_backend.FakeBackend(tasks=None, username="robo", password="robo-local", port=0)` com `start() -> self`, `stop()`, `url`, `calls`, `expire_token()`; CLI `python robot/scripts/fake_backend.py --port 8000`.
+  - `geraldo_dispatcher.ports.BackendPort` (`next_task() -> dict | None`) e `Navigator` (`go_to(pose) -> bool`): interfaces pequenas (ISP).
+  - `geraldo_dispatcher.api.BackendClient(base_url, username, password)`, um `BackendPort` com `login()` e `next_task()` (só biblioteca padrão; refaz o login uma vez se o token expirar).
+  - `geraldo_dispatcher.waypoints.Pose(x, y, yaw)` (`Pose.from_dict(d)` converte graus em radianos; `quaternion() -> (z, w)`) e `load_poses(path) -> dict[str, Pose]`.
+  - `geraldo_dispatcher.node.Nav2Navigator(BasicNavigator, timeout)`, o adapter que implementa `Navigator`.
+  - `geraldo_dispatcher.dispatcher.Dispatcher(backend, poses, navigator, log=print).run_once() -> dict | None`: `None` se a fila está vazia; senão a própria tarefa com o campo extra `result` (`"CHEGOU"` ou `"FALHOU"`; no segundo caso, também `failed_at`).
+  - Executável: `ros2 run geraldo_dispatcher dispatcher` (variáveis `GERALDO_API_URL`, `GERALDO_ROBOT_PASSWORD`).
+
+- [ ] **Step 1: Escrever a API falsa**
+
+Create `robot/scripts/fake_backend.py`:
+
+```python
+#!/usr/bin/env python3
+"""API falsa do robô para desenvolver o dispatcher sem o backend. Segue docs/contracts/openapi.yaml
+(somente POST /auth/login e POST /robot/next-task).
+
+Uso: python robot/scripts/fake_backend.py --port 8000     (usuário `robo`, senha `robo-local`)
+"""
+import argparse
+import json
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+DEMO_TASKS = [
+    {"id": 1, "origin_id": "farmacia", "dest_id": "consultorio1", "items": [{"item_id": "dipirona-500mg", "quantity": 5}],
+     "priority": "media", "status": "EM_ROTA", "requested_by": 1, "created_at": "2026-11-09T13:20:00Z",
+     "origin_waypoint": "farmacia_balcao", "dest_waypoint": "cons1_entrega"},
+    {"id": 2, "origin_id": "banco_sangue", "dest_id": "centro_cirurgico", "items": [{"item_id": "bolsa-sangue-o-neg", "quantity": 2}],
+     "priority": "critica", "status": "EM_ROTA", "requested_by": 1, "created_at": "2026-11-09T13:25:00Z",
+     "origin_waypoint": "banco_sangue_retirada", "dest_waypoint": "cc_entrega"},
+]
+
+
+class FakeBackend:
+    def __init__(self, tasks=None, username="robo", password="robo-local", port=0) -> None:
+        self.tasks = list(tasks or [])
+        self.username, self.password = username, password
+        self.token_number = 1
+        self.calls: list[str] = []
+        backend = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args):  # silencia o log do servidor
+                pass
+
+            def _send(self, code, body=None):
+                payload = json.dumps(body).encode() if body is not None else b""
+                self.send_response(code)
+                if body is not None:
+                    self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length") or 0)
+                raw = self.rfile.read(length) if length else b"{}"
+                backend.calls.append(self.path)
+                if self.path == "/auth/login":
+                    body = json.loads(raw)
+                    if body.get("username") == backend.username and body.get("password") == backend.password:
+                        return self._send(200, {"access_token": backend.token, "token_type": "bearer"})
+                    return self._send(401, {"detail": "Usuário ou senha incorretos. Tente de novo."})
+                if self.path == "/robot/next-task":
+                    if self.headers.get("Authorization") != f"Bearer {backend.token}":
+                        return self._send(401, {"detail": "Sessão inválida ou expirada. Entre de novo."})
+                    return self._send(200, backend.tasks.pop(0)) if backend.tasks else self._send(204)
+                return self._send(404, {"detail": "Não encontrado."})
+
+        self._server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+
+    @property
+    def token(self) -> str:
+        return f"fake-token-{self.token_number}"
+
+    @property
+    def url(self) -> str:
+        return f"http://127.0.0.1:{self._server.server_address[1]}"
+
+    def expire_token(self) -> None:
+        self.token_number += 1
+
+    def start(self) -> "FakeBackend":
+        self._thread.start()
+        return self
+
+    def stop(self) -> None:
+        self._server.shutdown()
+        self._server.server_close()
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--port", type=int, default=8000)
+    args = ap.parse_args()
+    backend = FakeBackend(DEMO_TASKS, port=args.port).start()
+    print(f"API falsa em {backend.url} (usuário robo, senha robo-local). Ctrl+C para sair.")
+    threading.Event().wait()
+
+
+if __name__ == "__main__":
+    main()
+```
+
+- [ ] **Step 2: Escrever os testes do dispatcher (falham primeiro)**
+
+Create `robot/ros2_ws/src/geraldo_dispatcher/test/test_dispatcher.py`:
+
+```python
+import math
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[5]
+sys.path.insert(0, str(ROOT))
+
+from geraldo_dispatcher.api import BackendClient  # noqa: E402
+from geraldo_dispatcher.dispatcher import Dispatcher  # noqa: E402
+from geraldo_dispatcher.ports import BackendPort, Navigator  # noqa: E402
+from geraldo_dispatcher.waypoints import Pose, load_poses  # noqa: E402
+from robot.scripts.fake_backend import DEMO_TASKS, FakeBackend  # noqa: E402
+
+POSES = {
+    "farmacia_balcao": Pose(7, 24, math.radians(270)),
+    "cons1_entrega": Pose(14.5, 4, math.radians(270)),
+    "banco_sangue_retirada": Pose(17, 25, math.radians(90)),
+    "cc_entrega": Pose(29, 25, math.radians(90)),
+}
+
+
+class FakeNavigator(Navigator):  # substituto de teste do Nav2 (LSP)
+    def __init__(self, reaches: bool = True) -> None:
+        self.visited: list[Pose] = []
+        self._reaches = reaches
+
+    def go_to(self, pose: Pose) -> bool:
+        self.visited.append(pose)
+        return self._reaches
+
+
+class ListBackend(BackendPort):  # substituto de teste do backend: sem HTTP
+    def __init__(self, tasks: list[dict]) -> None:
+        self._tasks = tasks
+
+    def next_task(self):
+        return self._tasks.pop(0) if self._tasks else None
+
+
+@pytest.fixture
+def backend():
+    server = FakeBackend([dict(t) for t in DEMO_TASKS]).start()
+    yield server
+    server.stop()
+
+
+def client_for(backend, password="robo-local"):
+    return BackendClient(backend.url, "robo", password)
+
+
+def test_load_poses_converts_degrees_to_radians(tmp_path):
+    path = tmp_path / "w.yaml"
+    path.write_text("waypoints:\n  a: {room: x, x: 1.5, y: 2.5, yaw: 90}\n", encoding="utf-8")
+    pose = load_poses(path)["a"]
+    assert (pose.x, pose.y) == (1.5, 2.5)
+    assert pose.yaw == pytest.approx(math.pi / 2)
+    z, w = pose.quaternion()
+    assert z == pytest.approx(math.sin(math.pi / 4)) and w == pytest.approx(math.cos(math.pi / 4))
+
+
+def test_pose_from_dict_converts_degrees_to_radians():
+    pose = Pose.from_dict({"x": 1, "y": 2, "yaw": 180})
+    assert (pose.x, pose.y) == (1.0, 2.0) and pose.yaw == pytest.approx(math.pi)
+    assert all(isinstance(v, float) for v in (pose.x, pose.y))  # o rclpy aborta com int
+
+
+def test_login_failure_has_a_clear_message(backend):
+    with pytest.raises(RuntimeError, match="Login do robô falhou"):
+        client_for(backend, "errada").login()
+
+
+def test_next_task_returns_tasks_in_order_then_none(backend):
+    client = client_for(backend)
+    client.login()
+    assert client.next_task()["id"] == 1
+    assert client.next_task()["id"] == 2
+    assert client.next_task() is None
+
+
+def test_client_logs_in_again_when_the_token_expires(backend):
+    client = client_for(backend)
+    client.login()
+    backend.expire_token()
+    assert client.next_task()["id"] == 1
+    assert backend.calls.count("/auth/login") == 2
+
+
+def test_dispatcher_goes_to_origin_then_destination(backend):
+    navigator = FakeNavigator()
+    client = client_for(backend)
+    client.login()
+    result = Dispatcher(client, POSES, navigator, log=lambda *_: None).run_once()
+    assert navigator.visited == [POSES["farmacia_balcao"], POSES["cons1_entrega"]]
+    assert result["id"] == 1 and result["result"] == "CHEGOU"
+
+
+def test_dispatcher_stops_when_the_robot_cannot_reach_the_origin(backend):
+    navigator = FakeNavigator(reaches=False)
+    client = client_for(backend)
+    client.login()
+    result = Dispatcher(client, POSES, navigator, log=lambda *_: None).run_once()
+    assert result["result"] == "FALHOU" and result["failed_at"] == "farmacia_balcao"
+    assert len(navigator.visited) == 1
+
+
+def test_dispatcher_returns_none_on_an_empty_queue(backend):
+    backend.tasks.clear()
+    client = client_for(backend)
+    client.login()
+    assert Dispatcher(client, POSES, FakeNavigator(), log=lambda *_: None).run_once() is None
+
+
+def test_unknown_waypoint_is_an_error_not_a_silent_skip(backend):
+    client = client_for(backend)
+    client.login()
+    with pytest.raises(KeyError, match="farmacia_balcao"):
+        Dispatcher(client, {}, FakeNavigator(), log=lambda *_: None).run_once()
+
+
+def test_dispatcher_works_with_any_backend_port_without_http():
+    task = {"id": 5, "origin_waypoint": "farmacia_balcao", "dest_waypoint": "cc_entrega"}
+    navigator = FakeNavigator()
+    result = Dispatcher(ListBackend([task]), POSES, navigator, log=lambda *_: None).run_once()
+    assert result["result"] == "CHEGOU" and navigator.visited == [POSES["farmacia_balcao"], POSES["cc_entrega"]]
+```
+
+- [ ] **Step 3: Rodar e ver falhar**
+
+Run: `source /opt/ros/jazzy/setup.bash && (cd robot/ros2_ws/src/geraldo_dispatcher && python3 -m pytest test -q)`
+Expected: FAIL (o pacote não existe).
+
+- [ ] **Step 4: Criar o pacote Python**
+
+`robot/ros2_ws/src/geraldo_dispatcher/package.xml`:
+
+```xml
+<?xml version="1.0"?>
+<package format="3">
+  <name>geraldo_dispatcher</name>
+  <version>0.1.0</version>
+  <description>Liga a fila do backend ao Nav2: pega a próxima entrega e leva o robô da origem ao destino.</description>
+  <maintainer email="geraldo@example.com">Samuel</maintainer>
+  <license>MIT</license>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav2_simple_commander</exec_depend>
+  <exec_depend>geraldo_nav</exec_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
+```
+
+`robot/ros2_ws/src/geraldo_dispatcher/setup.py`:
+
+```python
+from setuptools import find_packages, setup
+
+package_name = "geraldo_dispatcher"
+
+setup(
+    name=package_name,
+    version="0.1.0",
+    packages=find_packages(exclude=["test"]),
+    data_files=[
+        ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
+        ("share/" + package_name, ["package.xml"]),
+    ],
+    install_requires=["setuptools", "pyyaml"],
+    zip_safe=True,
+    maintainer="Samuel",
+    maintainer_email="geraldo@example.com",
+    description="Dispatcher do G.E.R.A.L.D.O.",
+    license="MIT",
+    entry_points={"console_scripts": ["dispatcher = geraldo_dispatcher.node:main"]},
+)
+```
+
+`robot/ros2_ws/src/geraldo_dispatcher/setup.cfg`:
+
+```ini
+[develop]
+script_dir=$base/lib/geraldo_dispatcher
+[install]
+install_scripts=$base/lib/geraldo_dispatcher
+```
+
+Crie `resource/geraldo_dispatcher` (arquivo vazio) e `geraldo_dispatcher/__init__.py` (vazio).
+
+`robot/ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/ports.py`:
+
+```python
+from abc import ABC, abstractmethod
+
+from .waypoints import Pose
+
+
+class BackendPort(ABC):  # porta: tudo o que o dispatcher precisa do backend (ISP)
+    @abstractmethod
+    def next_task(self) -> dict | None:
+        """Próxima entrega da fila, ou None se não há nenhuma."""
+
+
+class Navigator(ABC):  # porta: tudo o que o dispatcher precisa da navegação
+    @abstractmethod
+    def go_to(self, pose: Pose) -> bool:
+        """Leva o robô até a pose. True se chegou."""
+```
+
+`robot/ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/api.py`:
+
+```python
+import json
+import urllib.error
+import urllib.request
+
+from .ports import BackendPort
+
+
+class BackendClient(BackendPort):  # ADAPTER: traduz a API HTTP do backend para a porta que o dispatcher usa
+    """Cliente mínimo do backend (só biblioteca padrão): login do robô e próxima tarefa."""
+
+    def __init__(self, base_url: str, username: str, password: str, timeout: float = 10.0) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.username, self.password, self.timeout = username, password, timeout
+        self._token: str | None = None
+
+    def _post(self, path: str, body: dict | None = None):
+        headers = {"Content-Type": "application/json"}
+        if self._token:
+            headers["Authorization"] = f"Bearer {self._token}"
+        data = json.dumps(body).encode() if body is not None else b""
+        request = urllib.request.Request(self.base_url + path, data=data, headers=headers, method="POST")
+        return urllib.request.urlopen(request, timeout=self.timeout)
+
+    def login(self) -> None:
+        try:
+            with self._post("/auth/login", {"username": self.username, "password": self.password}) as response:
+                self._token = json.load(response)["access_token"]
+        except urllib.error.HTTPError as err:
+            raise RuntimeError(f"Login do robô falhou ({err.code}). Confira usuário e senha.") from err
+
+    def next_task(self) -> dict | None:
+        try:
+            return self._read_task()
+        except urllib.error.HTTPError as err:
+            if err.code != 401:
+                raise
+            self.login()  # o token expirou: entra de novo uma vez
+            return self._read_task()
+
+    def _read_task(self) -> dict | None:
+        with self._post("/robot/next-task") as response:
+            return None if response.status == 204 else json.load(response)
+```
+
+`robot/ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/waypoints.py`:
+
+```python
+import math
+from dataclasses import dataclass
+from pathlib import Path
+
+import yaml
+
+
+@dataclass(frozen=True)
+class Pose:
+    x: float
+    y: float
+    yaw: float  # radianos
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Pose":  # FACTORY: o waypoints.yaml guarda o yaw em graus
+        return cls(float(data["x"]), float(data["y"]), math.radians(data["yaw"]))
+
+    def quaternion(self) -> tuple[float, float]:
+        """(z, w) do quaternion de uma rotação em torno de Z."""
+        return math.sin(self.yaw / 2), math.cos(self.yaw / 2)
+
+
+def load_poses(path) -> dict[str, Pose]:
+    """Lê o waypoints.yaml gerado por robot/hospital/gen_hospital.py (yaw em graus) e devolve poses em radianos."""
+    data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))["waypoints"]
+    return {wid: Pose.from_dict(w) for wid, w in data.items()}
+```
+
+`robot/ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/dispatcher.py`:
+
+```python
+from .ports import BackendPort, Navigator
+from .waypoints import Pose
+
+
+class Dispatcher:
+    """Pega a próxima entrega da fila e leva o robô à origem e depois ao destino.
+
+    Só conhece as portas `BackendPort` e `Navigator` (DIP): o Nav2 e o HTTP entram pelo construtor.
+    """
+
+    def __init__(self, backend: BackendPort, poses: dict[str, Pose], navigator: Navigator, log=print) -> None:
+        self.backend, self.poses, self.navigator, self.log = backend, poses, navigator, log
+
+    def run_once(self) -> dict | None:
+        task = self.backend.next_task()
+        if task is None:
+            return None
+        for key in ("origin_waypoint", "dest_waypoint"):
+            waypoint = task[key]
+            if waypoint not in self.poses:
+                raise KeyError(f"Waypoint desconhecido: {waypoint}. Gere o hospital de novo (robot/hospital/gen_hospital.py).")
+            self.log(f"entrega {task['id']}: indo para {waypoint}")
+            if not self.navigator.go_to(self.poses[waypoint]):
+                self.log(f"entrega {task['id']}: não chegou a {waypoint}")
+                return {**task, "result": "FALHOU", "failed_at": waypoint}
+        self.log(f"entrega {task['id']}: chegou ao destino")
+        return {**task, "result": "CHEGOU"}
+```
+
+`robot/ros2_ws/src/geraldo_dispatcher/geraldo_dispatcher/node.py`:
+
+```python
+import os
+import time
+
+import rclpy
+from ament_index_python.packages import get_package_share_directory
+from geometry_msgs.msg import PoseStamped
+from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
+
+from .api import BackendClient
+from .dispatcher import Dispatcher
+from .ports import Navigator
+from .waypoints import Pose, load_poses
+
+
+class Nav2Navigator(Navigator):  # ADAPTER: traduz Pose para o NavigateToPose do Nav2 (BasicNavigator)
+    def __init__(self, nav: BasicNavigator, timeout: float = 300.0) -> None:
+        self._nav = nav
+        self._timeout = timeout
+
+    def go_to(self, pose: Pose) -> bool:
+        nav = self._nav
+        goal = PoseStamped()
+        goal.header.frame_id = "map"
+        goal.header.stamp = nav.get_clock().now().to_msg()
+        goal.pose.position.x, goal.pose.position.y = pose.x, pose.y
+        goal.pose.orientation.z, goal.pose.orientation.w = pose.quaternion()
+        nav.goToPose(goal)
+        start = time.monotonic()
+        while not nav.isTaskComplete():
+            if time.monotonic() - start > self._timeout:
+                nav.cancelTask()
+                break
+            time.sleep(0.5)
+        return nav.getResult() == TaskResult.SUCCEEDED
+
+
+def main() -> None:
+    password = os.environ.get("GERALDO_ROBOT_PASSWORD") or os.environ.get("GERALDO_DEMO_PASSWORD")
+    if not password:
+        raise SystemExit("Defina GERALDO_ROBOT_PASSWORD (ou GERALDO_DEMO_PASSWORD) com a senha do usuário do robô.")
+    api_url = os.environ.get("GERALDO_API_URL", "http://localhost:8000")
+
+    rclpy.init()
+    nav = BasicNavigator()
+    nav.initial_pose_received = True  # o AMCL já tem a pose inicial; não deixe o BasicNavigator republicar (0, 0)
+    nav.waitUntilNav2Active()
+    waypoints_file = os.path.join(get_package_share_directory("geraldo_nav"), "config", "waypoints.yaml")
+    client = BackendClient(api_url, "robo", password)
+    client.login()
+    dispatcher = Dispatcher(client, load_poses(waypoints_file), Nav2Navigator(nav, timeout=300))
+    try:
+        while rclpy.ok():
+            if dispatcher.run_once() is None:
+                time.sleep(2)
+    finally:
+        rclpy.shutdown()
+```
+
+- [ ] **Step 5: Rodar e ver passar**
+
+Run: `source /opt/ros/jazzy/setup.bash && (cd robot/ros2_ws/src/geraldo_dispatcher && python3 -m pytest test -q)`
+Expected: `10 passed`.
+
+- [ ] **Step 6: Compilar o pacote e conferir o executável**
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd robot/ros2_ws && colcon build --symlink-install --packages-select geraldo_nav geraldo_dispatcher && source install/setup.bash
+ros2 pkg executables geraldo_dispatcher
+```
+
+Expected: `geraldo_dispatcher dispatcher`.
+
+- [ ] **Step 7: Rodar de ponta a ponta com a API falsa (simulação e Nav2 nos terminais 1 e 2 da Tarefa 5)**
+
+```bash
+# terminal 3
+python robot/scripts/fake_backend.py --port 8000
+# terminal 4
+source /opt/ros/jazzy/setup.bash && source robot/ros2_ws/install/setup.bash
+GERALDO_ROBOT_PASSWORD=robo-local ros2 run geraldo_dispatcher dispatcher
+```
+
+Expected: no terminal 4, `entrega 1: indo para farmacia_balcao`, depois `... cons1_entrega` e `entrega 1: chegou ao destino`, e o mesmo para a entrega 2; depois o robô fica esperando a fila. Com o backend do Erik rodando no lugar da API falsa (`GERALDO_API_URL=http://localhost:8000` e a senha do usuário `robo`), este é o M1 de verdade.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add robot/scripts/fake_backend.py robot/ros2_ws/src/geraldo_dispatcher
+git commit -m "feat: geraldo_dispatcher minimo (portas, adapter do Nav2 e API falsa)"
+```

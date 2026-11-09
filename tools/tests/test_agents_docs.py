@@ -2,7 +2,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-AGENTS = ["AGENTS.md", "backend/AGENTS.md", "web/AGENTS.md", "ros2_ws/AGENTS.md", "security/AGENTS.md", "unity/AGENTS.md"]
+AGENTS = ["AGENTS.md", "backend/AGENTS.md", "web/AGENTS.md", "robot/AGENTS.md", "security/AGENTS.md", "unity/AGENTS.md"]
 PROMPTS = [f"docs/prompts/00-inicio-{n}.md" for n in ("samuel", "erik", "vieira", "pedro")]
 PLAN_FOR = {
     "samuel": ["semana1-samuel-fundacao", "semana1-samuel-robo"],

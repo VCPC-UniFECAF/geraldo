@@ -538,7 +538,7 @@ Create `backend/seeds/estoque.json` (o banco de sangue começa **abaixo do míni
 ]
 ```
 
-(O arquivo `backend/seeds/locais.json` é gerado pelo Samuel com `python tools/gen_hospital.py`; se ainda não existir no seu clone, rode o gerador ou peça o PR.)
+(O arquivo `backend/seeds/locais.json` é gerado pelo Samuel com `python robot/hospital/gen_hospital.py`; se ainda não existir no seu clone, rode o gerador ou peça o PR.)
 
 - [ ] **Step 5: Rodar e ver passar**
 

@@ -1,0 +1,56 @@
+waypoints:
+  base_robo:
+    room: farmacia
+    x: 6.5
+    y: 26.5
+    yaw: 270
+  farmacia_balcao:
+    room: farmacia
+    x: 7
+    y: 24
+    yaw: 270
+  banco_sangue_retirada:
+    room: banco_sangue
+    x: 17
+    y: 25
+    yaw: 90
+  rouparia_coleta:
+    room: apoio
+    x: 17
+    y: 18.5
+    yaw: 270
+  cc_entrega:
+    room: centro_cirurgico
+    x: 29
+    y: 25
+    yaw: 90
+  uti_entrega:
+    room: uti
+    x: 39
+    y: 25
+    yaw: 90
+  ps_entrega:
+    room: pronto_socorro
+    x: 12
+    y: 11
+    yaw: 90
+  cons1_entrega:
+    room: consultorio1
+    x: 14.5
+    y: 4
+    yaw: 270
+  cons2_entrega:
+    room: consultorio2
+    x: 19.5
+    y: 4
+    yaw: 270
+  enf214_entrega:
+    room: enfermaria214
+    x: 29
+    y: 12
+    yaw: 270
+  enf215_entrega:
+    room: enfermaria215
+    x: 39
+    y: 12
+    yaw: 270

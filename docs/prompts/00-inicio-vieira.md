@@ -13,7 +13,7 @@ Minha frente: sistema web responsivo (solicitar medicamento, acompanhar entregas
 Tarefa: execute o plano tarefa por tarefa, começando pela Tarefa 1. Cada tarefa é TDD.
 Use só cores e medidas dos tokens do design system (nada de hex solto). Mobile-first.
 Enquanto o backend não estiver pronto, use os handlers MSW. Não mude docs/contracts/ sem PR
-e aviso ao Samuel. Não toque em backend/, ros2_ws/ nem security/.
+e aviso ao Samuel. Não toque em backend/, robot/ros2_ws/ nem security/.
 
 Siga docs/padroes-de-projeto.md em todo código novo (SOLID, injeção pelo construtor,
 Strategy/Factory no lugar de if/elif por tipo, funções puras); padrão só onde há variação real.

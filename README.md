@@ -133,13 +133,17 @@ geraldo/
 │   ├── tokens/          # tokens.json (fonte única) e o gerador
 │   ├── dist/            # tokens.css, preset do Tailwind e cores do Unity (gerados)
 │   └── tests/           # testes dos tokens e do contraste
-├── tools/               # utilitários e testes da raiz
+├── robot/               # tudo do robô (Samuel)
+│   ├── hospital/        # hospital.yaml (fonte única) e o gerador do mundo, mapa e waypoints
+│   ├── scripts/         # ambiente, malha 3D, parâmetros do Nav2, teste dos 10 pontos, API falsa
+│   └── ros2_ws/src/     # geraldo_description, geraldo_nav e geraldo_dispatcher
+├── tools/               # utilitários e testes do repositório inteiro
 ├── docs/
 │   ├── img/             # imagens da documentação
 │   └── superpowers/
 │       ├── specs/       # especificações (plano de desenvolvimento e design system)
 │       └── plans/       # planos de implementação da semana 1, um por pessoa
-└── (a seguir)           # hospital/, ros2_ws/, backend/, web/, security/, unity/
+└── (a seguir)           # backend/, web/, security/, unity/
 ```
 
 # Documentação

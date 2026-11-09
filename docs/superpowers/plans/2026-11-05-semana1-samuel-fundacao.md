@@ -4,7 +4,7 @@
 
 **Goal:** Deixar o repositório pronto para as 4 pessoas trabalharem em paralelo: estrutura de pastas, modelo 3D no repo, guia das IAs, contratos da API e do ROS, o hospital gerado de um único YAML e os tokens do design system.
 
-**Architecture:** Tudo que é compartilhado vive em arquivos versionados com fonte única: `docs/contracts/` (contratos), `hospital/hospital.yaml` (planta; um script gera mundo do Gazebo, mapa do Nav2, locais do backend e waypoints) e `design-system/tokens/tokens.json` (um script gera CSS, preset do Tailwind e cores do Unity). Os geradores têm testes automáticos.
+**Architecture:** Tudo que é compartilhado vive em arquivos versionados com fonte única: `docs/contracts/` (contratos), `robot/hospital/hospital.yaml` (planta; um script gera mundo do Gazebo, mapa do Nav2, locais do backend e waypoints) e `design-system/tokens/tokens.json` (um script gera CSS, preset do Tailwind e cores do Unity). Os geradores têm testes automáticos.
 
 **Tech Stack:** Python 3.11+ (pytest, PyYAML, numpy), Node 20+ (`node:test`, sem dependências), Markdown e YAML.
 
@@ -19,19 +19,21 @@
 - Contratos em `docs/contracts/` travados até domingo, 08/11/2026 (spec §6).
 - Nenhum hex de cor fora de `design-system/tokens/tokens.json` e `design-system/dist/` (DS §2).
 - Nenhum segredo no repositório (spec §9).
-- Padrões de código (`docs/padroes-de-projeto.md`, adicionado em 08/11): `tools/gen_hospital.py` é feito de **funções puras** (`wall_segments`, `rasterize`, `inflate`, `distances`) e cada `write_*` escreve um arquivo só; `generate()` é o único ponto que junta tudo (SRP). Nenhuma função lê estado global.
+- Padrões de código (`docs/padroes-de-projeto.md`, adicionado em 08/11): `robot/hospital/gen_hospital.py` é feito de **funções puras** (`wall_segments`, `rasterize`, `inflate`, `distances`) e cada `write_*` escreve um arquivo só; `generate()` é o único ponto que junta tudo (SRP). Nenhuma função lê estado global.
 - Branch `feat/<frente>-<assunto>`; commits em português, curtos; nada direto na `main`.
 
 ---
 
 ### Task 1: Estrutura do repositório e modelo 3D
 
+> **Atualização 08/11:** depois desta tarefa, a frente do robô foi agrupada em `robot/` (`robot/hospital/`, `robot/scripts/`, `robot/ros2_ws/`), como `backend/` e `web/`. Os caminhos neste plano já refletem isso; vale o `tools/tests/test_repo_layout.py` do repositório.
+
 > **Já feito em 05/11/2026 (direto na `main`):** a pasta `modelos-3d/` com `geraldoV1.blend`, `geraldoV1.glb`, `build_geraldoV1.py` e `renders/`, o `README.md` da raiz e a imagem `docs/img/planta-hospital.png`. Os passos de copiar o modelo e de escrever os READMEs abaixo **não precisam ser repetidos**; falta criar as pastas vazias e o `.gitignore`. O teste de estrutura continua valendo.
 
 **Files:**
 - Create: `.gitignore`, `README.md` (substitui o atual), `modelos-3d/README.md`
 - Create (copiados): `modelos-3d/geraldoV1.blend`, `modelos-3d/geraldoV1.glb`, `modelos-3d/build_geraldoV1.py`, `modelos-3d/renders/*.png`
-- Create (vazios): `backend/.gitkeep`, `web/.gitkeep`, `security/.gitkeep`, `unity/.gitkeep`, `ros2_ws/src/.gitkeep`, `design-system/.gitkeep`, `hospital/.gitkeep`, `tools/.gitkeep`
+- Create (vazios): `backend/.gitkeep`, `web/.gitkeep`, `security/.gitkeep`, `unity/.gitkeep`, `robot/ros2_ws/src/.gitkeep`, `design-system/.gitkeep`, `robot/hospital/.gitkeep`, `robot/scripts/.gitkeep`, `tools/.gitkeep`
 
 **Interfaces:**
 - Consumes: o modelo já em `modelos-3d/` (`geraldoV1.blend`, `geraldoV1.glb`, `build_geraldoV1.py`, `renders/geraldoV1_<vista>.png`).
@@ -60,9 +62,10 @@ REQUIRED_DIRS = [
     "web",
     "security",
     "unity",
-    "ros2_ws/src",
+    "robot/ros2_ws/src",
     "design-system",
-    "hospital",
+    "robot/hospital",
+    "robot/scripts",
     "tools",
     "docs/contracts",
     "docs/prompts",
@@ -108,8 +111,8 @@ Expected: FAIL (pastas e arquivos faltando).
 
 ```bash
 cd /home/samuel/projects/fecaf/geraldo
-for d in backend web security unity ros2_ws/src design-system hospital tools docs/contracts docs/prompts modelos-3d/renders; do mkdir -p "$d"; done
-for d in backend web security unity ros2_ws/src design-system hospital; do touch "$d/.gitkeep"; done
+for d in backend web security unity robot/ros2_ws/src design-system robot/hospital robot/scripts tools docs/contracts docs/prompts modelos-3d/renders; do mkdir -p "$d"; done
+for d in backend web security unity robot/ros2_ws/src design-system hospital; do touch "$d/.gitkeep"; done
 ls modelos-3d modelos-3d/renders   # o modelo já está aqui
 ```
 
@@ -147,7 +150,7 @@ Create `modelos-3d/README.md`:
 
 Dimensões: chassi 0,70 × 0,50 m; rodas de tração de 0,20 m de diâmetro (eixo em x = +0,10 m, separação de 0,45 m); rodízio traseiro de 0,08 m; baú de 0,48 × 0,40 m; altura total de 0,47 m. Frente do robô = +X; eixo das rodas = Y; `base_link` no chão.
 
-O Gazebo **não** usa o `.blend`: usa a malha exportada pelo script `tools/export_blender_mesh.py` (ver o plano do robô).
+O Gazebo **não** usa o `.blend`: usa a malha exportada pelo script `robot/scripts/export_blender_mesh.py` (ver o plano do robô).
 ```
 
 Create `README.md`:
@@ -170,15 +173,14 @@ Robô hospitalar autônomo, simulado no Gazebo, que leva medicamentos e insumos 
 | Pasta | Conteúdo |
 |---|---|
 | `modelos-3d/` | Modelo 3D do robô |
-| `hospital/` | `hospital.yaml`: a planta do hospital (fonte única) |
-| `ros2_ws/` | Robô, simulação, Nav2 e `geraldo_dispatcher` |
+| `robot/` | Tudo do robô: `hospital/` (planta `hospital.yaml` e gerador), `scripts/` e `ros2_ws/` (simulação, Nav2 e `geraldo_dispatcher`) |
 | `backend/` | API FastAPI, estoque e gestão hospitalar |
 | `web/` | Sistema web responsivo para os profissionais |
 | `design-system/` | Tokens, componentes e guia visual |
 | `security/` | Ataques de teste e relatório do pentest |
 | `unity/` | Cockpit 3D (extra) |
 | `docs/` | Specs, planos, contratos e prompts |
-| `tools/` | Geradores e utilitários |
+| `tools/` | Testes e utilitários do repositório inteiro |
 
 ## Equipe
 
@@ -772,7 +774,7 @@ Avise o grupo: "Contratos v0 no PR de `feat/samuel-fundacao`; comentem até sáb
 
 **Files:**
 - Create: `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`
-- Create: `backend/AGENTS.md`, `web/AGENTS.md`, `ros2_ws/AGENTS.md`, `security/AGENTS.md`, `unity/AGENTS.md`
+- Create: `backend/AGENTS.md`, `web/AGENTS.md`, `robot/AGENTS.md`, `security/AGENTS.md`, `unity/AGENTS.md`
 - Create: `docs/prompts/00-inicio-samuel.md`, `docs/prompts/00-inicio-erik.md`, `docs/prompts/00-inicio-vieira.md`, `docs/prompts/00-inicio-pedro.md`
 - Test: `tools/tests/test_agents_docs.py`
 
@@ -789,7 +791,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-AGENTS = ["AGENTS.md", "backend/AGENTS.md", "web/AGENTS.md", "ros2_ws/AGENTS.md", "security/AGENTS.md", "unity/AGENTS.md"]
+AGENTS = ["AGENTS.md", "backend/AGENTS.md", "web/AGENTS.md", "robot/AGENTS.md", "security/AGENTS.md", "unity/AGENTS.md"]
 PROMPTS = [f"docs/prompts/00-inicio-{n}.md" for n in ("samuel", "erik", "vieira", "pedro")]
 PLAN_FOR = {
     "samuel": ["semana1-samuel-fundacao", "semana1-samuel-robo"],
@@ -863,8 +865,8 @@ Prioridades: `critica` (sangue, drogas de emergência; exige assinatura do farma
 | Pasta | Dono | Conteúdo | Guia |
 |---|---|---|---|
 | `modelos-3d/` | Samuel | Modelo 3D | — |
-| `hospital/`, `tools/` | Samuel | `hospital.yaml` e geradores | — |
-| `ros2_ws/` | Samuel | Robô, simulação, Nav2, dispatcher | `ros2_ws/AGENTS.md` |
+| `robot/` | Samuel | Tudo do robô: `hospital/` (planta e gerador), `scripts/` (ambiente, malha, Nav2, API falsa) e `ros2_ws/` (simulação, Nav2, dispatcher) | `robot/AGENTS.md` |
+| `tools/` | Samuel | Testes e utilitários do repositório inteiro (contratos, layout, AGENTS, design system) | — |
 | `backend/` | Erik | API, estoque, fila, JWT | `backend/AGENTS.md` |
 | `web/` | Vieira | Sistema web responsivo | `web/AGENTS.md` |
 | `design-system/` | Samuel (tokens) e Vieira (componentes) | Tokens e guia visual | — |
@@ -888,11 +890,11 @@ Prioridades: `critica` (sangue, drogas de emergência; exige assinatura do farma
 
 | Área | Comando |
 |---|---|
-| Geradores e testes da raiz | `python -m pytest tools -q` |
+| Geradores e testes da raiz | `python -m pytest tools robot -q` |
 | Backend | `cd backend && python -m pytest -q` e `uvicorn app.main:app --reload` |
 | Web | `cd web && npm test -- --run` e `npm run dev` |
 | Tokens do design system | `node design-system/tokens/build.mjs && (cd design-system && node --test)` |
-| Simulação | `source /opt/ros/jazzy/setup.bash && cd ros2_ws && colcon build --symlink-install` (ver `ros2_ws/AGENTS.md`) |
+| Simulação | `source /opt/ros/jazzy/setup.bash && cd robot/ros2_ws && colcon build --symlink-install` (ver `robot/AGENTS.md`) |
 
 ## Definição de pronto (qualquer tarefa)
 
@@ -991,19 +993,19 @@ npm run build
 Consuma só a API do contrato (`docs/contracts/openapi.yaml`). Enquanto o backend não estiver pronto, use os handlers MSW em `src/api/mocks/`.
 ````
 
-`ros2_ws/AGENTS.md`:
+`robot/AGENTS.md`:
 
 ````markdown
-# ros2_ws/AGENTS.md — robô e simulação (dono: Samuel)
+# robot/AGENTS.md — robô e simulação (dono: Samuel)
 
 Stack: ROS 2 Jazzy + Gazebo Harmonic 8 + Nav2, **nativos** na máquina do Samuel (Pop!_OS 24.04), que também é a máquina da demo. A versão final é confirmada com a disciplina. Docker é opcional (semana 2).
 
 ## Comandos
 
 ```bash
-bash tools/check_ros_env.sh                      # confere o ambiente (deve imprimir AMBIENTE OK)
+bash robot/scripts/check_ros_env.sh                      # confere o ambiente (deve imprimir AMBIENTE OK)
 source /opt/ros/jazzy/setup.bash
-cd ros2_ws && colcon build --symlink-install && source install/setup.bash
+cd robot/ros2_ws && colcon build --symlink-install && source install/setup.bash
 ros2 launch geraldo_description sim.launch.py headless:=true
 ```
 
@@ -1013,7 +1015,7 @@ ros2 launch geraldo_description sim.launch.py headless:=true
 - Rodas: `wheel_left_joint` e `wheel_right_joint` (eixo Y), separação de 0,45 m, raio de 0,10 m.
 - Footprint do Nav2: retângulo 0,70 × 0,50 m (+10 cm de inflação).
 - Tópicos e estados: `docs/contracts/ros-interfaces.md`. Não crie tópico novo sem PR no contrato.
-- O mundo, o mapa e os waypoints são **gerados** por `tools/gen_hospital.py`; não edite os arquivos gerados à mão.
+- O mundo, o mapa e os waypoints são **gerados** por `robot/hospital/gen_hospital.py`; não edite os arquivos gerados à mão.
 ````
 
 `security/AGENTS.md`:
@@ -1062,7 +1064,7 @@ Cole isto na sua IA no início da sessão:
 
 ```
 Você é minha assistente de desenvolvimento no projeto G.E.R.A.L.D.O.
-Leia, nesta ordem: AGENTS.md, ros2_ws/AGENTS.md, a spec em
+Leia, nesta ordem: AGENTS.md, robot/AGENTS.md, a spec em
 docs/superpowers/specs/2026-11-05-geraldo-plano-desenvolvimento-design.md e os planos
 docs/superpowers/plans/2026-11-05-semana1-samuel-fundacao.md e
 docs/superpowers/plans/2026-11-05-semana1-samuel-robo.md.
@@ -1094,7 +1096,7 @@ Minha frente: backend e gestão hospitalar (FastAPI, estoque, fila, JWT).
 
 Tarefa: execute o plano tarefa por tarefa, começando pela Tarefa 1. Cada tarefa é TDD:
 teste que falha, implementação mínima, teste que passa, commit.
-Não mude docs/contracts/ sem PR e aviso ao Samuel. Não toque em web/, ros2_ws/ nem security/.
+Não mude docs/contracts/ sem PR e aviso ao Samuel. Não toque em web/, robot/ros2_ws/ nem security/.
 Estoque só muda por Movimentacao.
 
 Antes de cada tarefa, diga o plano: o que vai fazer e quais arquivos vai tocar. Só então comece.
@@ -1120,7 +1122,7 @@ Minha frente: sistema web responsivo (solicitar medicamento, acompanhar entregas
 Tarefa: execute o plano tarefa por tarefa, começando pela Tarefa 1. Cada tarefa é TDD.
 Use só cores e medidas dos tokens do design system (nada de hex solto). Mobile-first.
 Enquanto o backend não estiver pronto, use os handlers MSW. Não mude docs/contracts/ sem PR
-e aviso ao Samuel. Não toque em backend/, ros2_ws/ nem security/.
+e aviso ao Samuel. Não toque em backend/, robot/ros2_ws/ nem security/.
 
 Antes de cada tarefa, diga o plano: o que vai fazer e quais arquivos vai tocar. Só então comece.
 Pare no commit de cada tarefa e me mostre os testes passando.
@@ -1158,7 +1160,7 @@ Expected: os testes de existência e de conteúdo passam. O teste `test_prompts_
 - [ ] **Step 8: Commit**
 
 ```bash
-git add AGENTS.md CLAUDE.md .github docs/prompts backend/AGENTS.md web/AGENTS.md ros2_ws/AGENTS.md security/AGENTS.md unity/AGENTS.md tools/tests/test_agents_docs.py
+git add AGENTS.md CLAUDE.md .github docs/prompts backend/AGENTS.md web/AGENTS.md robot/AGENTS.md security/AGENTS.md unity/AGENTS.md tools/tests/test_agents_docs.py
 git commit -m "docs: guia das IAs (AGENTS.md) e prompts por papel"
 ```
 
@@ -1167,21 +1169,21 @@ git commit -m "docs: guia das IAs (AGENTS.md) e prompts por papel"
 ### Task 4: Hospital gerado de `hospital.yaml`
 
 **Files:**
-- Create: `hospital/hospital.yaml`, `tools/gen_hospital.py`
-- Test: `tools/tests/test_gen_hospital.py`
-- Create (gerados): `ros2_ws/src/geraldo_description/worlds/hospital.sdf`, `ros2_ws/src/geraldo_nav/maps/hospital.pgm`, `ros2_ws/src/geraldo_nav/maps/hospital.yaml`, `ros2_ws/src/geraldo_nav/config/waypoints.yaml`, `backend/seeds/locais.json`
+- Create: `robot/hospital/hospital.yaml`, `robot/hospital/gen_hospital.py`
+- Test: `robot/hospital/tests/test_gen_hospital.py`
+- Create (gerados): `robot/ros2_ws/src/geraldo_description/worlds/hospital.sdf`, `robot/ros2_ws/src/geraldo_nav/maps/hospital.pgm`, `robot/ros2_ws/src/geraldo_nav/maps/hospital.yaml`, `robot/ros2_ws/src/geraldo_nav/config/waypoints.yaml`, `backend/seeds/locais.json`
 
 **Interfaces:**
 - Consumes: spec §3 (salas, portas, waypoints).
 - Produces (usados por outros planos):
-  - `tools.gen_hospital.load_spec(path) -> dict`
-  - `tools.gen_hospital.rasterize(spec, extra_obstacles=()) -> np.ndarray[bool]` (True = ocupado; linha 0 = y máximo)
-  - `tools.gen_hospital.inflate(occ, radius_cells) -> np.ndarray[bool]`
-  - `tools.gen_hospital.cell_of(x, y, spec) -> tuple[int, int]` (linha, coluna)
-  - `tools.gen_hospital.distances(blocked, start) -> np.ndarray[int32]` (−1 = inalcançável)
+  - `robot.hospital.gen_hospital.load_spec(path) -> dict`
+  - `robot.hospital.gen_hospital.rasterize(spec, extra_obstacles=()) -> np.ndarray[bool]` (True = ocupado; linha 0 = y máximo)
+  - `robot.hospital.gen_hospital.inflate(occ, radius_cells) -> np.ndarray[bool]`
+  - `robot.hospital.gen_hospital.cell_of(x, y, spec) -> tuple[int, int]` (linha, coluna)
+  - `robot.hospital.gen_hospital.distances(blocked, start) -> np.ndarray[int32]` (−1 = inalcançável)
   - `locais.json`: lista de `{id, name, kind, has_stock, waypoint}`; `waypoints.yaml`: `waypoints: {id: {room, x, y, yaw}}` com `yaw` em graus.
 
-- [ ] **Step 1: Escrever `hospital/hospital.yaml`**
+- [ ] **Step 1: Escrever `robot/hospital/hospital.yaml`**
 
 ```yaml
 version: 1
@@ -1299,7 +1301,7 @@ rooms:
 
 - [ ] **Step 2: Escrever os testes (falham primeiro)**
 
-Create `tools/tests/test_gen_hospital.py`:
+Create `robot/hospital/tests/test_gen_hospital.py`:
 
 ```python
 from pathlib import Path
@@ -1307,10 +1309,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from tools import gen_hospital as g
+from robot.hospital import gen_hospital as g
 
-ROOT = Path(__file__).resolve().parents[2]
-SPEC = g.load_spec(ROOT / "hospital" / "hospital.yaml")
+ROOT = Path(__file__).resolve().parents[3]
+SPEC = g.load_spec(ROOT / "robot" / "hospital" / "hospital.yaml")
 INFLATE_CELLS = round((SPEC["robot_inscribed_radius"] + SPEC["robot_margin"]) / SPEC["resolution"])
 NORTH_CORRIDOR_BLOCK = (22.0, 28.0, 24.0, 30.0)  # maca no cruzamento do corredor norte
 
@@ -1390,6 +1392,34 @@ def test_doors_are_open_at_their_center(grid):
             assert not grid[r, c], f"{room['id']} porta {d}"
 
 
+def free_run(grid, cells):
+    """Largura (em células) do trecho livre que contém o centro da lista de células."""
+    mid = len(cells) // 2
+    lo = hi = mid
+    while lo > 0 and not grid[cells[lo - 1]]:
+        lo -= 1
+    while hi < len(cells) - 1 and not grid[cells[hi + 1]]:
+        hi += 1
+    return hi - lo + 1
+
+
+def test_doors_open_a_passage_wider_than_the_robot(grid):
+    res = SPEC["resolution"]
+    ks = range(-30, 31)
+    for room in SPEC["rooms"]:
+        x0, y0, x1, y1 = room["rect"]
+        for d in room["doors"]:
+            at = d["at"]
+            if d["wall"] in ("N", "S"):
+                y = y1 if d["wall"] == "N" else y0
+                cells = [g.cell_of(at + k * res, y, SPEC) for k in ks]
+            else:
+                x = x1 if d["wall"] == "E" else x0
+                cells = [g.cell_of(x, at + k * res, SPEC) for k in ks]
+            width = free_run(grid, cells) * res
+            assert width >= SPEC["door_width"] - res, f"{room['id']} porta {d}: abertura de {width:.2f} m"
+
+
 def test_outputs_are_written(tmp_path):
     out = {
         "world": tmp_path / "hospital.sdf",
@@ -1397,7 +1427,7 @@ def test_outputs_are_written(tmp_path):
         "locais": tmp_path / "locais.json",
         "waypoints": tmp_path / "waypoints.yaml",
     }
-    g.generate(ROOT / "hospital" / "hospital.yaml", **out)
+    g.generate(ROOT / "robot" / "hospital" / "hospital.yaml", **out)
     assert out["world"].read_text().startswith("<?xml")
     pgm = (out["map_dir"] / "hospital.pgm").read_bytes()
     assert pgm.startswith(b"P5\n920 600\n255\n")
@@ -1415,14 +1445,14 @@ def test_outputs_are_written(tmp_path):
 
 - [ ] **Step 3: Rodar e ver falhar**
 
-Run: `python -m pip install numpy pyyaml pytest && python -m pytest tools/tests/test_gen_hospital.py -q`
-Expected: FAIL (`tools.gen_hospital` não existe).
+Run: `python -m pip install numpy pyyaml pytest && python -m pytest robot/hospital/tests/test_gen_hospital.py -q`
+Expected: FAIL (`robot.hospital.gen_hospital` não existe).
 
-- [ ] **Step 4: Implementar `tools/gen_hospital.py`**
+- [ ] **Step 4: Implementar `robot/hospital/gen_hospital.py`**
 
 ```python
 #!/usr/bin/env python3
-"""Gera mundo (SDF), mapa de ocupação, locais.json e waypoints.yaml a partir de hospital/hospital.yaml.
+"""Gera mundo (SDF), mapa de ocupação, locais.json e waypoints.yaml a partir de robot/hospital/hospital.yaml.
 
 Referencial: origem no canto sudoeste; x para leste, y para norte (metros).
 """
@@ -1436,7 +1466,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 Segment = tuple[float, float, float, float]  # x0, y0, x1, y1 (eixo alinhado)
 
 
@@ -1643,10 +1673,10 @@ def generate(spec_path, world, map_dir, locais, waypoints) -> None:
 
 
 def main() -> None:
-    desc = ROOT / "ros2_ws/src/geraldo_description"
-    nav = ROOT / "ros2_ws/src/geraldo_nav"
+    desc = ROOT / "robot/ros2_ws/src/geraldo_description"
+    nav = ROOT / "robot/ros2_ws/src/geraldo_nav"
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--spec", default=str(ROOT / "hospital/hospital.yaml"))
+    ap.add_argument("--spec", default=str(ROOT / "robot/hospital/hospital.yaml"))
     ap.add_argument("--world", default=str(desc / "worlds/hospital.sdf"))
     ap.add_argument("--map-dir", default=str(nav / "maps"))
     ap.add_argument("--locais", default=str(ROOT / "backend/seeds/locais.json"))
@@ -1662,15 +1692,15 @@ if __name__ == "__main__":
 
 - [ ] **Step 5: Rodar os testes e ver passar**
 
-Run: `python -m pytest tools/tests/test_gen_hospital.py -q`
+Run: `python -m pytest robot/hospital/tests/test_gen_hospital.py -q`
 Expected: `9 passed`. O teste `test_alternative_route_exists_when_north_corridor_is_blocked` roda 2 buscas em largura (≈ 2–4 s cada). Se alguma porta não abrir passagem, o teste `test_doors_open_a_passage_wider_than_the_robot` ou o de alcance mostra qual sala; ajuste o `at` no YAML e rode de novo.
 
 - [ ] **Step 6: Gerar os arquivos do hospital e conferir**
 
 ```bash
-python tools/gen_hospital.py
-ls -la ros2_ws/src/geraldo_description/worlds/hospital.sdf ros2_ws/src/geraldo_nav/maps/ ros2_ws/src/geraldo_nav/config/waypoints.yaml backend/seeds/locais.json
-head -c 15 ros2_ws/src/geraldo_nav/maps/hospital.pgm | head -2
+python robot/hospital/gen_hospital.py
+ls -la robot/ros2_ws/src/geraldo_description/worlds/hospital.sdf robot/ros2_ws/src/geraldo_nav/maps/ robot/ros2_ws/src/geraldo_nav/config/waypoints.yaml backend/seeds/locais.json
+head -c 15 robot/ros2_ws/src/geraldo_nav/maps/hospital.pgm | head -2
 ```
 
 Expected: os 5 arquivos existem; o PGM começa com `P5` e `920 600`.
@@ -1678,7 +1708,7 @@ Expected: os 5 arquivos existem; o PGM começa com `P5` e `920 600`.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add hospital tools ros2_ws backend/seeds
+git add robot backend/seeds
 git commit -m "feat: hospital gerado de hospital.yaml (mundo, mapa, locais e waypoints)"
 ```
 
