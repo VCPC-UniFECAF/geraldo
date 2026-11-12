@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import deque
 from pathlib import Path
 
@@ -14,6 +15,8 @@ import numpy as np
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))  # permite rodar como script (python3 robot/hospital/gen_hospital.py)
+from robot.hospital.pieces import MOBILIARIO, OBSTACULO, PIECES  # noqa: E402
 Segment = tuple[float, float, float, float]  # x0, y0, x1, y1 (eixo alinhado)
 
 
@@ -59,6 +62,76 @@ def wall_segments(spec: dict) -> list[Segment]:
         gaps = [e["at"] for e in spec["entrances"] if e["wall"] == wall]
         segs += _wall(wall, outer, gaps, door_w)
     return segs
+
+
+# ---------- peças (mobiliário, obstáculos, maca) ----------
+Rect = tuple[float, float, float, float]
+LANE_WIDTH = 1.2
+
+
+def _placed(item: dict, key: str, group: str | None, default_room: str) -> dict:
+    kind = item["type"]
+    if kind not in PIECES:
+        raise ValueError(f"peça desconhecida '{kind}'. Tipos válidos: {', '.join(sorted(PIECES))}")
+    piece = PIECES[kind]
+    if group and piece.group != group:
+        raise ValueError(f"peça '{kind}' é do grupo '{piece.group}' e não pode ficar em '{group}'")
+    yaw = item.get("yaw", 0)
+    if yaw % 90:
+        raise ValueError(f"peça '{kind}': yaw {yaw} precisa ser múltiplo de 90")
+    w, d, h = piece.size
+    if yaw % 180:
+        w, d = d, w
+    x, y = item["xy"]
+    return {
+        "id": key, "type": kind, "room": item.get("room", default_room), "xy": [x, y], "yaw": yaw,
+        "size": list(piece.size), "z": piece.z, "group": piece.group, "walkable": piece.walkable,
+        "rect": [x - w / 2, y - d / 2, x + w / 2, y + d / 2],
+    }
+
+
+def placed_pieces(spec: dict) -> list[dict]:
+    """Todas as peças do YAML (mobiliário, obstáculos e a maca) com tamanho, grupo e retângulo no chão."""
+    count: dict[str, int] = {}
+    out = []
+    for section, group in (("furniture", MOBILIARIO), ("obstacles", OBSTACULO)):
+        for item in spec.get(section, []):
+            n = count[item["type"]] = count.get(item["type"], 0) + 1
+            out.append(_placed(item, f"{item['type']}_{n}", group, "corredor"))
+    if "stretcher" in spec:
+        stretcher = _placed(spec["stretcher"], "maca", None, "corredor")
+        stretcher["group"] = "maca"
+        out.append(stretcher)
+    return out
+
+
+def obstacle_rects(spec: dict) -> list[Rect]:
+    return [tuple(p["rect"]) for p in placed_pieces(spec) if p["group"] == OBSTACULO]
+
+
+def stretcher_rect(spec: dict) -> Rect:
+    return tuple(next(p for p in placed_pieces(spec) if p["group"] == "maca")["rect"])
+
+
+def _door_points(room: dict) -> list[tuple[float, float]]:
+    x0, y0, x1, y1 = room["rect"]
+    return [{"N": (d["at"], y1), "S": (d["at"], y0), "W": (x0, d["at"]), "E": (x1, d["at"])}[d["wall"]] for d in room["doors"]]
+
+
+def lanes(spec: dict) -> dict[str, list[Rect]]:
+    """Faixas que ficam livres de móveis: de cada porta até o ponto de parada (ou o centro da sala) e dos outros pontos até ele."""
+    r = LANE_WIDTH / 2
+    out = {}
+    for room in spec["rooms"]:
+        x0, y0, x1, y1 = room["rect"]
+        stops = {wp["id"]: wp["xy"] for wp in room["waypoints"]}
+        target = stops[room["stop"]] if room.get("stop") else [(x0 + x1) / 2, (y0 + y1) / 2]
+        starts = _door_points(room) + [xy for xy in stops.values() if xy != target]
+        out[room["id"]] = [
+            (min(a[0], target[0]) - r, min(a[1], target[1]) - r, max(a[0], target[0]) + r, max(a[1], target[1]) + r)
+            for a in starts
+        ]
+    return out
 
 
 # ---------- mapa de ocupação ----------
@@ -212,7 +285,7 @@ def generate(spec_path, world, map_dir, locais, waypoints) -> None:
     for p in (Path(world), Path(map_dir) / "x", Path(locais), Path(waypoints)):
         p.parent.mkdir(parents=True, exist_ok=True)
     write_sdf(spec, Path(world))
-    occ = rasterize(spec)
+    occ = rasterize(spec, extra_obstacles=obstacle_rects(spec))
     write_pgm(occ, Path(map_dir) / "hospital.pgm")
     write_map_yaml(spec, Path(map_dir) / "hospital.yaml")
     write_locais(spec, Path(locais))

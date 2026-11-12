@@ -135,3 +135,101 @@ def test_outputs_are_written(tmp_path):
     import yaml
     wps = yaml.safe_load(out["waypoints"].read_text(encoding="utf-8"))["waypoints"]
     assert wps["cc_entrega"] == {"room": "centro_cirurgico", "x": 29, "y": 25, "yaw": 90}
+
+
+def overlaps(a, b):
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
+def z_overlaps(p, q):
+    return p["z"] < q["z"] + q["size"][2] and q["z"] < p["z"] + p["size"][2]
+
+
+@pytest.fixture(scope="module")
+def pieces():
+    return g.placed_pieces(SPEC)
+
+
+def test_every_room_has_furniture_and_the_hospital_has_four_fixed_obstacles(pieces):
+    rooms_with_pieces = {p["room"] for p in pieces}
+    assert {r["id"] for r in SPEC["rooms"]} <= rooms_with_pieces
+    assert len([p for p in pieces if p["group"] == "obstaculo"]) >= 4
+    assert g.stretcher_rect(SPEC)
+
+
+def test_furniture_is_inside_its_room_with_a_margin(pieces):
+    rooms = {r["id"]: r["rect"] for r in SPEC["rooms"]}
+    half = SPEC["wall_thickness"] / 2 - 1e-9
+    for p in pieces:
+        if p["room"] == "corredor":
+            continue
+        x0, y0, x1, y1 = rooms[p["room"]]
+        a, b, c, d = p["rect"]
+        assert x0 + half <= a and y0 + half <= b and c <= x1 - half and d <= y1 - half, p["id"]
+
+
+def test_corridor_pieces_stay_outside_the_rooms_and_inside_the_building(pieces):
+    w, h = SPEC["size"]
+    for p in pieces:
+        if p["room"] != "corredor":
+            continue
+        a, b, c, d = p["rect"]
+        assert 0 <= a and 0 <= b and c <= w and d <= h, p["id"]
+        assert not any(overlaps(p["rect"], r["rect"]) for r in SPEC["rooms"]), p["id"]
+
+
+def test_door_to_waypoint_lanes_are_free_of_furniture(pieces):
+    lanes = g.lanes(SPEC)
+    for p in pieces:
+        if p["room"] == "corredor" or p["walkable"]:
+            continue
+        for lane in lanes[p["room"]]:
+            assert not overlaps(p["rect"], lane), f"{p['id']} bloqueia a faixa de {p['room']}"
+
+
+def test_pieces_do_not_overlap_each_other(pieces):
+    solid = [p for p in pieces if not p["walkable"]]
+    for i, p in enumerate(solid):
+        for q in solid[i + 1:]:
+            assert not (overlaps(p["rect"], q["rect"]) and z_overlaps(p, q)), f"{p['id']} x {q['id']}"
+
+
+def test_fixed_obstacles_keep_every_waypoint_reachable():
+    blocked = g.inflate(g.rasterize(SPEC, extra_obstacles=g.obstacle_rects(SPEC)), INFLATE_CELLS)
+    wps = all_waypoints()
+    dist = g.distances(blocked, g.cell_of(*wps["base_robo"][1]["xy"], SPEC))
+    unreachable = [w for w, (_, wp) in wps.items() if dist[g.cell_of(*wp["xy"], SPEC)] < 0]
+    assert not unreachable, unreachable
+
+
+def test_stretcher_still_leaves_a_longer_alternative_route():
+    fixed = g.obstacle_rects(SPEC)
+    free = g.inflate(g.rasterize(SPEC, extra_obstacles=fixed), INFLATE_CELLS)
+    blocked = g.inflate(g.rasterize(SPEC, extra_obstacles=fixed + [g.stretcher_rect(SPEC)]), INFLATE_CELLS)
+    wps = all_waypoints()
+    src = g.cell_of(*wps["banco_sangue_retirada"][1]["xy"], SPEC)
+    dst = g.cell_of(*wps["cc_entrega"][1]["xy"], SPEC)
+    normal, detour = g.distances(free, src)[dst], g.distances(blocked, src)[dst]
+    assert normal > 0 and detour > 2 * normal, (normal, detour)
+
+
+def test_unknown_piece_type_fails_with_a_clear_message():
+    spec = {**SPEC, "furniture": [{"room": "recepcao", "type": "sofa", "xy": [5, 5]}]}
+    with pytest.raises(ValueError, match="sofa.*Tipos válidos"):
+        g.placed_pieces(spec)
+
+
+def test_obstacle_types_cannot_be_used_as_furniture():
+    spec = {**SPEC, "furniture": [{"room": "recepcao", "type": "cadeira_rodas", "xy": [5, 5]}]}
+    with pytest.raises(ValueError, match="cadeira_rodas"):
+        g.placed_pieces(spec)
+
+
+def test_fixed_obstacles_are_black_in_the_generated_map(tmp_path):
+    out = {"world": tmp_path / "w.sdf", "map_dir": tmp_path / "maps", "locais": tmp_path / "l.json", "waypoints": tmp_path / "w.yaml"}
+    g.generate(ROOT / "robot" / "hospital" / "hospital.yaml", **out)
+    pgm = (out["map_dir"] / "hospital.pgm").read_bytes()
+    pixels = pgm[len(b"P5\n920 600\n255\n"):]
+    first = next(p for p in g.placed_pieces(SPEC) if p["group"] == "obstaculo")
+    r, c = g.cell_of(*first["xy"], SPEC)
+    assert pixels[r * 920 + c] == 0
