@@ -173,8 +173,8 @@ furniture:
   # UTI
   - { room: uti, type: leito, xy: [35.3, 19.0] }
   - { room: uti, type: leito, xy: [35.3, 22.5] }
-  - { room: uti, type: leito, xy: [42.7, 19.0] }
-  - { room: uti, type: leito, xy: [42.7, 22.5] }
+  - { room: uti, type: leito, xy: [42.7, 19.0], yaw: 180 }
+  - { room: uti, type: leito, xy: [42.7, 22.5], yaw: 180 }
   - { room: uti, type: monitor, xy: [34.45, 20.3] }
   - { room: uti, type: monitor, xy: [34.45, 23.7] }
   - { room: uti, type: monitor, xy: [43.55, 20.3] }
@@ -183,9 +183,9 @@ furniture:
   - { room: enfermaria214, type: leito, xy: [25.3, 4.0] }
   - { room: enfermaria214, type: leito, xy: [25.3, 7.0] }
   - { room: enfermaria214, type: leito, xy: [25.3, 10.0] }
-  - { room: enfermaria214, type: leito, xy: [32.7, 4.0] }
-  - { room: enfermaria214, type: leito, xy: [32.7, 7.0] }
-  - { room: enfermaria214, type: leito, xy: [32.7, 10.0] }
+  - { room: enfermaria214, type: leito, xy: [32.7, 4.0], yaw: 180 }
+  - { room: enfermaria214, type: leito, xy: [32.7, 7.0], yaw: 180 }
+  - { room: enfermaria214, type: leito, xy: [32.7, 10.0], yaw: 180 }
   - { room: enfermaria214, type: mesa_cabeceira, xy: [24.55, 4.85] }
   - { room: enfermaria214, type: mesa_cabeceira, xy: [24.55, 7.85] }
   - { room: enfermaria214, type: mesa_cabeceira, xy: [24.55, 10.85] }
@@ -197,9 +197,9 @@ furniture:
   - { room: enfermaria215, type: leito, xy: [35.3, 4.0] }
   - { room: enfermaria215, type: leito, xy: [35.3, 7.0] }
   - { room: enfermaria215, type: leito, xy: [35.3, 10.0] }
-  - { room: enfermaria215, type: leito, xy: [42.7, 4.0] }
-  - { room: enfermaria215, type: leito, xy: [42.7, 7.0] }
-  - { room: enfermaria215, type: leito, xy: [42.7, 10.0] }
+  - { room: enfermaria215, type: leito, xy: [42.7, 4.0], yaw: 180 }
+  - { room: enfermaria215, type: leito, xy: [42.7, 7.0], yaw: 180 }
+  - { room: enfermaria215, type: leito, xy: [42.7, 10.0], yaw: 180 }
   - { room: enfermaria215, type: mesa_cabeceira, xy: [34.55, 4.85] }
   - { room: enfermaria215, type: mesa_cabeceira, xy: [34.55, 7.85] }
   - { room: enfermaria215, type: mesa_cabeceira, xy: [34.55, 10.85] }

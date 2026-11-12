@@ -19,15 +19,16 @@ from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from hospital_pecas import Forma  # noqa: E402
+from hospital_pecas import PECAS, Forma  # noqa: E402
 
 ROOT = os.path.dirname(HERE)
 LAYOUT = os.path.join(ROOT, "robot", "hospital", "hospital_layout.json")
 BLEND = os.environ.get("HOSPITAL_BLEND", os.path.join(HERE, "hospital.blend"))
 RENDERS = os.path.join(HERE, "renders")
+COLECAO_DO_GRUPO = {"mobiliario": "mobiliario", "obstaculo": "obstaculos", "maca": "maca"}
 PISO = {"reception": "piso_madeira"}   # demais salas: porcelanato; corredores: vinílico
 VISTAS = {   # nome: (posição da câmera, alvo, lente em mm)
-    "aerea": ((23, -34, 40), (23, 12, 0), 30),
+    "aerea": ((23, -27, 34), (23, 12, 0), 30),
     "topo": ((23, 15, 62), (23, 15, 0), 35),
     "corredor": ((2.5, 15, 1.5), (40, 15, 0.9), 28),
     "recepcao": ((11.5, 2.5, 2.2), (4, 6.5, 0.5), 24),
@@ -83,6 +84,16 @@ def estrutura(layout, col):
     return f.objeto("estrutura", col)
 
 
+def pecas(layout, cols):
+    """Uma malha por peça do layout, no tamanho do catálogo, no lugar e com o giro do YAML."""
+    for p in layout["pieces"]:
+        w, d, h = p["size"]
+        f = Forma()
+        PECAS[p["type"]](f, w, d, h)
+        x, y = p["xy"]
+        f.objeto(p["id"], cols[COLECAO_DO_GRUPO[p["group"]]], (x, y, p["z"]), p["yaw"])
+
+
 def luz_e_mundo(layout):
     w, d = layout["size"]
     sol = bpy.data.lights.new("sol", "SUN")
@@ -122,6 +133,7 @@ def main():
         layout = json.load(fh)
     cols = {nome: colecao(f"HOSPITAL_{nome}") for nome in ("estrutura", "mobiliario", "obstaculos", "maca")}
     estrutura(layout, cols["estrutura"])
+    pecas(layout, cols)
     luz_e_mundo(layout)
     bpy.ops.wm.save_as_mainfile(filepath=BLEND)
     if os.environ.get("NO_RENDER") != "1":
