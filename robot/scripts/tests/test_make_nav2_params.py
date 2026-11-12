@@ -1,4 +1,4 @@
-from robot.scripts.make_nav2_params import FOOTPRINT, INITIAL_POSE, patch_params
+from robot.scripts.make_nav2_params import CRUISE_SPEED, FOOTPRINT, INITIAL_POSE, patch_params
 
 
 def fake_defaults():
@@ -6,6 +6,8 @@ def fake_defaults():
         "amcl": {"ros__parameters": {"set_initial_pose": False, "base_frame_id": "base_footprint"}},
         "local_costmap": {"local_costmap": {"ros__parameters": {"robot_radius": 0.22, "plugins": ["voxel_layer"]}}},
         "global_costmap": {"global_costmap": {"ros__parameters": {"robot_radius": 0.22}}},
+        "controller_server": {"ros__parameters": {"FollowPath": {"vx_max": 0.5, "vx_min": -0.35, "wz_max": 1.9}}},
+        "velocity_smoother": {"ros__parameters": {"max_velocity": [0.5, 0.0, 2.0], "min_velocity": [-0.5, 0.0, -2.0]}},
     }
 
 
@@ -45,6 +47,20 @@ def test_global_costmap_ignores_lidar_marks_but_the_local_one_keeps_them():
     out = patch_params(defaults)
     assert out["global_costmap"]["global_costmap"]["ros__parameters"]["plugins"] == ["static_layer", "inflation_layer"]
     assert out["local_costmap"]["local_costmap"]["ros__parameters"]["plugins"] == ["voxel_layer"]
+
+
+def test_robot_cruises_at_0_8_m_s_in_both_the_controller_and_the_velocity_smoother():
+    out = patch_params(fake_defaults())
+    assert out["controller_server"]["ros__parameters"]["FollowPath"]["vx_max"] == CRUISE_SPEED == 0.8
+    assert out["velocity_smoother"]["ros__parameters"]["max_velocity"][0] == CRUISE_SPEED
+
+
+def test_reverse_and_turn_rate_stay_as_they_were():
+    out = patch_params(fake_defaults())
+    follow = out["controller_server"]["ros__parameters"]["FollowPath"]
+    assert (follow["vx_min"], follow["wz_max"]) == (-0.35, 1.9)
+    smoother = out["velocity_smoother"]["ros__parameters"]
+    assert smoother["max_velocity"][1:] == [0.0, 2.0] and smoother["min_velocity"] == [-0.5, 0.0, -2.0]
 
 
 def test_other_parameters_are_preserved():
