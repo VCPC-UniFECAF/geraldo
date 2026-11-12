@@ -233,3 +233,18 @@ def test_fixed_obstacles_are_black_in_the_generated_map(tmp_path):
     first = next(p for p in g.placed_pieces(SPEC) if p["group"] == "obstaculo")
     r, c = g.cell_of(*first["xy"], SPEC)
     assert pixels[r * 920 + c] == 0
+
+
+def test_layout_json_describes_walls_doors_rooms_and_pieces(tmp_path):
+    layout = g.build_layout(SPEC)
+    assert layout["size"] == [46, 30]
+    assert len(layout["walls"]) == len(g.wall_segments(SPEC))
+    assert {r["id"] for r in layout["rooms"]} == {r["id"] for r in SPEC["rooms"]}
+    assert len(layout["doors"]) == sum(len(r["doors"]) for r in SPEC["rooms"]) + len(SPEC["entrances"])
+    assert {"x": 7.0, "y": 16.0, "axis": "x"} in layout["doors"]       # porta sul da farmácia
+    assert {p["id"] for p in layout["pieces"]} == {p["id"] for p in g.placed_pieces(SPEC)}
+    out = tmp_path / "layout.json"
+    g.generate(ROOT / "robot" / "hospital" / "hospital.yaml", world=tmp_path / "w.sdf", map_dir=tmp_path / "m",
+               locais=tmp_path / "l.json", waypoints=tmp_path / "w.yaml", layout=out)
+    import json
+    assert json.loads(out.read_text(encoding="utf-8")) == json.loads(json.dumps(layout))

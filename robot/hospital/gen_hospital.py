@@ -134,6 +134,33 @@ def lanes(spec: dict) -> dict[str, list[Rect]]:
     return out
 
 
+def door_centers(spec: dict) -> list[dict]:
+    """Centro de cada vão (portas das salas e entradas); `axis` é a direção em que a parede corre."""
+    doors = []
+    for room in spec["rooms"]:
+        for (x, y), d in zip(_door_points(room), room["doors"]):
+            doors.append({"x": float(x), "y": float(y), "axis": "x" if d["wall"] in ("N", "S") else "y"})
+    w, h = spec["size"]
+    for e in spec["entrances"]:
+        x, y = {"N": (e["at"], h), "S": (e["at"], 0), "W": (0, e["at"]), "E": (w, e["at"])}[e["wall"]]
+        doors.append({"x": float(x), "y": float(y), "axis": "x" if e["wall"] in ("N", "S") else "y"})
+    return doors
+
+
+def build_layout(spec: dict) -> dict:
+    """Tudo que o Blender precisa (ele não tem PyYAML): paredes, vãos, salas e peças."""
+    return {
+        "size": spec["size"],
+        "wall_thickness": spec["wall_thickness"],
+        "wall_height": spec["wall_height"],
+        "door_width": spec["door_width"],
+        "walls": [list(s) for s in wall_segments(spec)],
+        "doors": door_centers(spec),
+        "rooms": [{"id": r["id"], "kind": r["kind"], "rect": r["rect"]} for r in spec["rooms"]],
+        "pieces": placed_pieces(spec),
+    }
+
+
 # ---------- mapa de ocupação ----------
 def grid_shape(spec: dict) -> tuple[int, int]:
     res = spec["resolution"]
@@ -280,7 +307,11 @@ def write_waypoints(spec: dict, path: Path) -> None:
     path.write_text(yaml.safe_dump({"waypoints": wps}, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
 
-def generate(spec_path, world, map_dir, locais, waypoints) -> None:
+def write_layout(spec: dict, path: Path) -> None:
+    path.write_text(json.dumps(build_layout(spec), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+
+
+def generate(spec_path, world, map_dir, locais, waypoints, layout=None) -> None:
     spec = load_spec(spec_path)
     for p in (Path(world), Path(map_dir) / "x", Path(locais), Path(waypoints)):
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -290,6 +321,9 @@ def generate(spec_path, world, map_dir, locais, waypoints) -> None:
     write_map_yaml(spec, Path(map_dir) / "hospital.yaml")
     write_locais(spec, Path(locais))
     write_waypoints(spec, Path(waypoints))
+    if layout:
+        Path(layout).parent.mkdir(parents=True, exist_ok=True)
+        write_layout(spec, Path(layout))
 
 
 def main() -> None:
@@ -301,8 +335,9 @@ def main() -> None:
     ap.add_argument("--map-dir", default=str(nav / "maps"))
     ap.add_argument("--locais", default=str(ROOT / "backend/seeds/locais.json"))
     ap.add_argument("--waypoints", default=str(nav / "config/waypoints.yaml"))
+    ap.add_argument("--layout", default=str(ROOT / "robot/hospital/hospital_layout.json"))
     a = ap.parse_args()
-    generate(a.spec, a.world, a.map_dir, a.locais, a.waypoints)
+    generate(a.spec, a.world, a.map_dir, a.locais, a.waypoints, a.layout)
     print("hospital gerado")
 
 
