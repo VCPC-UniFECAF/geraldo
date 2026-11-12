@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from collections import deque
 from pathlib import Path
@@ -247,7 +248,18 @@ def write_map_yaml(spec: dict, path: Path) -> None:
     )
 
 
+MESH_URI = "package://geraldo_description/meshes/hospital"
+
+
+def _box_model(name: str, cx: float, cy: float, sx: float, sy: float, h: float) -> str:
+    return (
+        f'    <model name="{name}"><static>true</static><pose>{cx:.3f} {cy:.3f} {h / 2:.3f} 0 0 0</pose>'
+        f'<link name="link"><collision name="c"><geometry><box><size>{sx:.3f} {sy:.3f} {h:.3f}</size></box></geometry></collision></link></model>'
+    )
+
+
 def write_sdf(spec: dict, path: Path) -> None:
+    """Mundo do Gazebo: o visual vem das malhas do Blender; as paredes e os obstáculos fixos só têm colisão em caixa."""
     t, h = spec["wall_thickness"], spec["wall_height"]
     models = []
     for i, (x0, y0, x1, y1) in enumerate(wall_segments(spec)):
@@ -256,13 +268,15 @@ def write_sdf(spec: dict, path: Path) -> None:
         if length < 1e-6:
             continue
         sx, sy = (length + t, t) if horizontal else (t, length + t)
-        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-        models.append(
-            f'    <model name="wall_{i}"><static>true</static><pose>{cx:.3f} {cy:.3f} {h / 2:.3f} 0 0 0</pose>'
-            f'<link name="link"><collision name="c"><geometry><box><size>{sx:.3f} {sy:.3f} {h}</size></box></geometry></collision>'
-            f'<visual name="v"><geometry><box><size>{sx:.3f} {sy:.3f} {h}</size></box></geometry>'
-            f'<material><ambient>0.85 0.87 0.9 1</ambient><diffuse>0.85 0.87 0.9 1</diffuse></material></visual></link></model>'
-        )
+        models.append(_box_model(f"wall_{i}", (x0 + x1) / 2, (y0 + y1) / 2, sx, sy, h))
+    for p in placed_pieces(spec):
+        if p["group"] == OBSTACULO:
+            a, b, c, d = p["rect"]
+            models.append(_box_model(f"obs_{p['id']}", (a + c) / 2, (b + d) / 2, c - a, d - b, p["size"][2]))
+    visuals = "".join(
+        f'<visual name="{n}"><geometry><mesh><uri>{MESH_URI}/{n}.obj</uri></mesh></geometry></visual>'
+        for n in ("hospital_estrutura", "hospital_mobiliario", "hospital_obstaculos")
+    )
     w, d = spec["size"]
     xml = f"""<?xml version="1.0"?>
 <sdf version="1.9">
@@ -275,13 +289,34 @@ def write_sdf(spec: dict, path: Path) -> None:
       <diffuse>0.9 0.9 0.9 1</diffuse><specular>0.2 0.2 0.2 1</specular><direction>-0.3 0.2 -1</direction></light>
     <model name="ground"><static>true</static><pose>{w / 2} {d / 2} 0 0 0 0</pose>
       <link name="link"><collision name="c"><geometry><plane><normal>0 0 1</normal><size>{w + 4} {d + 4}</size></plane></geometry></collision>
-      <visual name="v"><geometry><plane><normal>0 0 1</normal><size>{w + 4} {d + 4}</size></plane></geometry>
-      <material><ambient>0.7 0.72 0.76 1</ambient><diffuse>0.7 0.72 0.76 1</diffuse></material></visual></link></model>
+      <visual name="v"><pose>0 0 -0.02 0 0 0</pose><geometry><plane><normal>0 0 1</normal><size>{w + 4} {d + 4}</size></plane></geometry>
+      <material><ambient>0.35 0.4 0.35 1</ambient><diffuse>0.35 0.4 0.35 1</diffuse></material></visual></link></model>
+    <model name="hospital_visual"><static>true</static><link name="link">{visuals}</link></model>
 {chr(10).join(models)}
   </world>
 </sdf>
 """
     path.write_text(xml, encoding="utf-8")
+
+
+def write_maca_sdf(spec: dict, path: Path) -> None:
+    """Modelo da maca que bloqueia o corredor norte; entra no mundo em tempo de execução (robot/scripts/spawn_stretcher.sh)."""
+    s = next(p for p in placed_pieces(spec) if p["group"] == "maca")
+    (x, y), yaw = s["xy"], math.radians(s["yaw"])
+    w, d, h = s["size"]
+    path.write_text(
+        f"""<?xml version="1.0"?>
+<sdf version="1.9">
+  <model name="maca"><static>true</static><pose>{x:.3f} {y:.3f} 0 0 0 {yaw:.4f}</pose>
+    <link name="link">
+      <collision name="c"><pose>0 0 {h / 2:.3f} 0 0 0</pose><geometry><box><size>{w:.3f} {d:.3f} {h:.3f}</size></box></geometry></collision>
+      <visual name="v"><geometry><mesh><uri>{MESH_URI}/maca.obj</uri></mesh></geometry></visual>
+    </link>
+  </model>
+</sdf>
+""",
+        encoding="utf-8",
+    )
 
 
 def write_locais(spec: dict, path: Path) -> None:
@@ -311,7 +346,7 @@ def write_layout(spec: dict, path: Path) -> None:
     path.write_text(json.dumps(build_layout(spec), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
 
 
-def generate(spec_path, world, map_dir, locais, waypoints, layout=None) -> None:
+def generate(spec_path, world, map_dir, locais, waypoints, layout=None, maca=None) -> None:
     spec = load_spec(spec_path)
     for p in (Path(world), Path(map_dir) / "x", Path(locais), Path(waypoints)):
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -324,6 +359,8 @@ def generate(spec_path, world, map_dir, locais, waypoints, layout=None) -> None:
     if layout:
         Path(layout).parent.mkdir(parents=True, exist_ok=True)
         write_layout(spec, Path(layout))
+    if maca:
+        write_maca_sdf(spec, Path(maca))
 
 
 def main() -> None:
@@ -336,8 +373,9 @@ def main() -> None:
     ap.add_argument("--locais", default=str(ROOT / "backend/seeds/locais.json"))
     ap.add_argument("--waypoints", default=str(nav / "config/waypoints.yaml"))
     ap.add_argument("--layout", default=str(ROOT / "robot/hospital/hospital_layout.json"))
+    ap.add_argument("--maca", default=str(desc / "worlds/maca.sdf"))
     a = ap.parse_args()
-    generate(a.spec, a.world, a.map_dir, a.locais, a.waypoints, a.layout)
+    generate(a.spec, a.world, a.map_dir, a.locais, a.waypoints, a.layout, a.maca)
     print("hospital gerado")
 
 

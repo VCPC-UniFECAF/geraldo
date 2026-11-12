@@ -248,3 +248,32 @@ def test_layout_json_describes_walls_doors_rooms_and_pieces(tmp_path):
                locais=tmp_path / "l.json", waypoints=tmp_path / "w.yaml", layout=out)
     import json
     assert json.loads(out.read_text(encoding="utf-8")) == json.loads(json.dumps(layout))
+
+
+def test_sdf_has_mesh_visuals_wall_collisions_and_obstacle_collisions(tmp_path):
+    import xml.etree.ElementTree as ET
+    out = tmp_path / "w.sdf"
+    g.write_sdf(SPEC, out)
+    world = ET.parse(out).getroot().find("world")
+    models = {m.get("name"): m for m in world.findall("model")}
+    walls = [m for n, m in models.items() if n.startswith("wall_")]
+    assert walls and all(m.find(".//collision") is not None and m.find(".//visual") is None for m in walls)
+    visual = models["hospital_visual"]
+    uris = {u.text for u in visual.findall(".//mesh/uri")}
+    assert uris == {f"package://geraldo_description/meshes/hospital/{n}.obj" for n in ("hospital_estrutura", "hospital_mobiliario", "hospital_obstaculos")}
+    assert visual.find(".//collision") is None
+    obstacles = [p for p in g.placed_pieces(SPEC) if p["group"] == "obstaculo"]
+    for p in obstacles:
+        assert models[f"obs_{p['id']}"].find(".//collision") is not None
+    assert "maca" not in models      # a maca só entra pelo spawn
+
+
+def test_maca_sdf_has_the_stretcher_pose_collision_and_mesh(tmp_path):
+    import xml.etree.ElementTree as ET
+    out = tmp_path / "maca.sdf"
+    g.write_maca_sdf(SPEC, out)
+    model = ET.parse(out).getroot().find("model")
+    assert model.get("name") == "maca"
+    assert model.find("pose").text.split() == ["23.000", "29.000", "0", "0", "0", "1.5708"]
+    assert model.find(".//collision//size").text.split() == ["2.000", "0.800", "0.900"]
+    assert model.find(".//visual//mesh/uri").text == "package://geraldo_description/meshes/hospital/maca.obj"
