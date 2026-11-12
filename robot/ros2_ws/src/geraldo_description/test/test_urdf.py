@@ -83,7 +83,7 @@ def test_diff_drive_allows_the_nav2_cruise_speed_and_turn_rate(robot):
     plugin = next(
         p for g in robot.findall("gazebo") for p in g.findall("plugin") if p.get("filename") == "gz-sim-diff-drive-system"
     )
-    assert float(plugin.find("max_linear_velocity").text) >= 0.8     # velocidade de cruzeiro pedida ao Nav2
+    assert float(plugin.find("max_linear_velocity").text) >= 1.0     # velocidade de cruzeiro pedida ao Nav2
     assert float(plugin.find("max_angular_velocity").text) >= 1.9    # giro máximo pedido ao Nav2
 
 

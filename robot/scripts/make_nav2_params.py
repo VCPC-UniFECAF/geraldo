@@ -22,8 +22,8 @@ AMCL_TUNING = {
     "sigma_hit": 0.1, "z_hit": 0.9, "z_rand": 0.1,
     "update_min_d": 0.1, "update_min_a": 0.1,
 }
-# m/s: antes 0,5. É o teto do plugin de movimento do URDF e ainda cabe nos corredores de 2 m e nas portas de 1 m.
-CRUISE_SPEED = 0.8
+# m/s: antes 0,5 e depois 0,8. É o teto do plugin de movimento do URDF e ainda cabe nos corredores de 2 m e nas portas de 1 m.
+CRUISE_SPEED = 1.0
 
 
 def patch_params(params: dict) -> dict:

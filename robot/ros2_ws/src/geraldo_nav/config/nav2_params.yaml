@@ -99,7 +99,7 @@ controller_server:
       vx_std: 0.2
       vy_std: 0.2
       wz_std: 0.4
-      vx_max: 0.8
+      vx_max: 1.0
       vx_min: -0.35
       vy_max: 0.5
       wz_max: 1.9
@@ -352,7 +352,7 @@ velocity_smoother:
     scale_velocities: false
     feedback: OPEN_LOOP
     max_velocity:
-    - 0.8
+    - 1.0
     - 0.0
     - 2.0
     min_velocity:

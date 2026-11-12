@@ -42,7 +42,7 @@ Padrões de código (SOLID, Adapter, injeção): [`docs/padroes-de-projeto.md`](
 - Referencial: `map` → `odom` → `base_link` (no chão; frente = +X). Unidades em metros e radianos.
 - Rodas: `wheel_left_joint` e `wheel_right_joint` (eixo Y), separação de 0,45 m, raio de 0,10 m.
 - Rodízio articulado: `caster_swivel_joint` (eixo Z, pino em x = −0,25 e z = 0,09) e `caster_wheel_joint` (eixo Y), com a roda 1,5 cm atrás do pino (trail) e encostada no chão. Se ele vibrar na simulação, o plano B é voltar à esfera sem atrito (junta fixa).
-- Velocidade: o Nav2 cruza a 0,8 m/s (`CRUISE_SPEED` em `make_nav2_params.py`, no controlador e no suavizador) e o plugin de movimento do URDF aceita 0,8 m/s e 2,0 rad/s. Não suba dos 1,0 m/s sem rever as portas de 1 m e o raio de inflação.
+- Velocidade: o Nav2 cruza a 1,0 m/s (`CRUISE_SPEED` em `make_nav2_params.py`, no controlador e no suavizador) e o plugin de movimento do URDF aceita 1,0 m/s e 2,0 rad/s. Esse já é o teto: não suba mais sem rever as portas de 1 m e o raio de inflação.
 - Malhas: 5 arquivos em `geraldo_description/meshes/` (`geraldo_body`, `roda_esq`, `roda_dir`, `rodizio_garfo`, `rodizio_roda`), um por link do URDF, exportadas do `GeraldoV3.blend` em coordenadas do `base_link` (frente = +X). O visual de cada link desfaz o deslocamento da sua junta. Para exportar de novo: `blender -b modelos-3d/geraldoV3.blend --python robot/scripts/export_blender_mesh.py`. O `.blend` está em `modelos-3d/geraldoV3.blend`; `test_export_meshes.py` regenera as malhas dele e compara com as salvas, e `test_meshes.py` confere os `.obj` sem Blender.
 - Footprint do Nav2: retângulo 0,70 × 0,50 m (+10 cm de inflação).
 - Tópicos e estados: `docs/contracts/ros-interfaces.md`. Não crie tópico novo sem PR no contrato.

@@ -51,7 +51,7 @@ def test_global_costmap_ignores_lidar_marks_but_the_local_one_keeps_them():
 
 def test_robot_cruises_at_0_8_m_s_in_both_the_controller_and_the_velocity_smoother():
     out = patch_params(fake_defaults())
-    assert out["controller_server"]["ros__parameters"]["FollowPath"]["vx_max"] == CRUISE_SPEED == 0.8
+    assert out["controller_server"]["ros__parameters"]["FollowPath"]["vx_max"] == CRUISE_SPEED == 1.0
     assert out["velocity_smoother"]["ros__parameters"]["max_velocity"][0] == CRUISE_SPEED
 
 
