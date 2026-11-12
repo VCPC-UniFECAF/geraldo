@@ -32,18 +32,20 @@ Novos blocos, todos opcionais para não quebrar quem lê a v1:
 ```yaml
 furniture:            # só visual
   - { room: enfermaria214, type: leito, xy: [26, 4], yaw: 90 }
-obstacles:            # colisão em caixa; entram no mapa do Nav2
-  - { type: cadeira_rodas, xy: [20, 26.5], yaw: 0, size: [0.7, 0.7] }
-stretcher: { xy: [23, 29], yaw: 0, size: [2.0, 0.8] }   # pose de spawn da maca
+obstacles:            # colisão em caixa; entram no mapa do Nav2 (o tamanho vem do catálogo)
+  - { type: cadeira_rodas, xy: [20, 15.55] }
+stretcher: { type: maca, xy: [23, 29], yaw: 90 }   # pose de spawn da maca
 ```
 
-`type` precisa existir no registro de peças do `build_hospital.py`; tipo desconhecido falha com mensagem em português que diz o tipo e os válidos.
+`type` precisa existir no catálogo `robot/hospital/pieces.py` (tamanho, grupo, altura do pé) e ter desenho registrado em `modelos-3d/hospital_pecas.py`; tipo desconhecido falha com mensagem em português que diz o tipo e os válidos.
 
 ### Peças e arquivos
 
 | Arquivo | Papel |
 |---|---|
-| `modelos-3d/build_hospital.py` | Registro `tipo → função` (Factory, sem `if/elif`), `PALETA`, posicionamento a partir do JSON; gera `hospital.blend` e as vistas de render |
+| `robot/hospital/pieces.py` | Catálogo das peças: tamanho, grupo, altura do pé, `walkable` |
+| `modelos-3d/hospital_pecas.py`, `hospital_paleta.py` | Registro `tipo → função` (Factory, sem `if/elif`) e a `PALETA` |
+| `modelos-3d/build_hospital.py` | Posicionamento a partir do JSON; gera `hospital.blend` e as vistas de render |
 | `modelos-3d/hospital.blend`, `modelos-3d/renders/hospital_*.png` | Cena editável e renders de referência (aérea e por zona) |
 | `robot/scripts/export_hospital_mesh.py` | Exporta OBJ + MTL: `hospital_estrutura` (piso, paredes, rodapés, portas), `hospital_mobiliario`, `hospital_obstaculos` e `maca` (separada). Mesmas convenções do `export_blender_mesh.py` (Z para cima, metros) |
 | `robot/hospital/gen_hospital.py` | SDF com o visual por malha (`package://geraldo_description/meshes/hospital/...`), paredes com colisão invisível em caixa, obstáculos com colisão e entrada no mapa, `maca.sdf` spawnável |
