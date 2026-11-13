@@ -71,3 +71,8 @@ def test_login_is_the_only_public_operation():
 def test_ros_and_jwt_docs_exist():
     for name in ("ros-interfaces.md", "jwt.md"):
         assert (ROOT / "docs/contracts" / name).stat().st_size > 500, name
+
+
+def test_the_robot_may_read_a_delivery_to_wait_for_the_receipt():
+    operation = load()["paths"]["/deliveries/{id}"]["get"]
+    assert "robo" in operation["description"] and "somente leitura" in operation["description"]
