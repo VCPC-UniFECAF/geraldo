@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -78,3 +79,16 @@ class MovementOut(BaseModel):
     location_id: str
     quantity: int
     created_at: datetime
+
+
+class RobotEventType(str, Enum):
+    LOADED = "LOADED"
+    ARRIVED = "ARRIVED"
+    UNLOCKED = "UNLOCKED"
+    FAILED = "FAILED"
+
+
+class RobotEventIn(BaseModel):
+    delivery_id: int
+    event: RobotEventType
+    reason: str | None = Field(default=None, max_length=200)
