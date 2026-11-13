@@ -81,3 +81,10 @@ def spy(client):
     app.dependency_overrides[get_events] = lambda: subject
     yield observer
     app.dependency_overrides.pop(get_events, None)
+
+
+@pytest.fixture(autouse=True)
+def always_off_peak(monkeypatch):
+    """Por padrão os testes rodam "em baixo pico", para não depender da hora da máquina."""
+    monkeypatch.setattr(settings, "off_peak_start", 0)
+    monkeypatch.setattr(settings, "off_peak_end", 24)

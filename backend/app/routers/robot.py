@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlmodel import Session, select
+from fastapi import APIRouter, Depends, Response
+from sqlmodel import Session
 
+from app.clock import Clock, OffPeakWindow, get_clock, get_off_peak
+from app.commands.next_task import NextTask
 from app.db import get_session
 from app.deps import require_roles
-from app.models import Delivery, DeliveryStatus, Location, Role, User
-from app.priority import policy_for
+from app.events import Subject, get_events
+from app.models import Role, User
 from app.queries import delivery_out
 from app.schemas import RobotTaskOut
 
@@ -12,16 +14,18 @@ router = APIRouter()
 
 
 @router.post("/robot/next-task", response_model=RobotTaskOut, responses={204: {"description": "Fila vazia"}})
-def next_task(_: User = Depends(require_roles(Role.robo)), session: Session = Depends(get_session)):
-    queued = session.exec(select(Delivery).where(Delivery.status == DeliveryStatus.NA_FILA)).all()
-    if not queued:
+def next_task(
+    user: User = Depends(require_roles(Role.robo)),
+    session: Session = Depends(get_session),
+    clock: Clock = Depends(get_clock),
+    off_peak: OffPeakWindow = Depends(get_off_peak),
+    events: Subject = Depends(get_events),
+):
+    dispatch = NextTask(session, clock, off_peak, events=events, actor=user.username).execute()
+    if dispatch is None:
         return Response(status_code=204)
-    delivery = min(queued, key=lambda d: (policy_for(d.priority).rank, d.id))
-    origin, dest = session.get(Location, delivery.origin_id), session.get(Location, delivery.dest_id)
-    if origin is None or dest is None or origin.waypoint is None or dest.waypoint is None:
-        raise HTTPException(status_code=409, detail="A entrega aponta para um local sem ponto de parada. Corrija os locais.")
-    delivery.status = DeliveryStatus.EM_ROTA
-    session.add(delivery)
-    session.commit()
-    session.refresh(delivery)
-    return RobotTaskOut(**delivery_out(session, delivery).model_dump(), origin_waypoint=origin.waypoint, dest_waypoint=dest.waypoint)
+    return RobotTaskOut(
+        **delivery_out(session, dispatch.delivery).model_dump(),
+        origin_waypoint=dispatch.origin_waypoint,
+        dest_waypoint=dispatch.dest_waypoint,
+    )

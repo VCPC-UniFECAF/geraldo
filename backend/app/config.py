@@ -13,6 +13,8 @@ class Settings:
         self.demo_password = os.environ.get("GERALDO_DEMO_PASSWORD", "demo-only-change-me")
         self.password_iterations = 200_000
         self.auto_seed = os.environ.get("GERALDO_AUTO_SEED", "1") == "1"
+        # janela de baixo pico, "início-fim" em horas (padrão 20-6; "0-24" libera a rotina o dia todo, útil na demo)
+        self.off_peak_start, self.off_peak_end = (int(h) for h in os.environ.get("GERALDO_OFF_PEAK_HOURS", "20-6").split("-"))
 
 
 settings = Settings()

@@ -17,6 +17,9 @@ class PriorityPolicy(ABC):  # STRATEGY: cada prioridade sabe sua posição na fi
     @abstractmethod
     def initial_status(self) -> DeliveryStatus: ...
 
+    off_peak_only: bool = False
+    """Só sai da fila em horário de baixo pico (a rotina)."""
+
     @property
     def needs_approval(self) -> bool:
         """Exige a assinatura do farmacêutico antes de entrar na fila."""
@@ -39,6 +42,7 @@ class Routine(PriorityPolicy):
     priority = Priority.rotina
     rank = 2
     initial_status = DeliveryStatus.NA_FILA
+    off_peak_only = True
 
 
 _POLICIES = {policy.priority: policy for policy in (Critical(), Standard(), Routine())}

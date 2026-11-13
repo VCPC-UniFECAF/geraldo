@@ -1,6 +1,6 @@
 from sqlmodel import Session, select
 
-from app.models import Delivery, DeliveryItem, Item, Location, Role, Stock, User
+from app.models import Delivery, DeliveryItem, DeliveryStatus, Item, Location, Role, Stock, User
 from app.schemas import DeliveryItemIn, DeliveryOut, StockOut
 
 SEE_ALL = (Role.admin, Role.farmaceutico)
@@ -54,3 +54,12 @@ def list_stock(session: Session, location_id: str | None = None) -> list[StockOu
 
 def find_user_by_username(session: Session, username: str) -> User | None:
     return session.exec(select(User).where(User.username == username)).first()
+
+
+def list_queued_deliveries(session: Session) -> list[Delivery]:
+    return list(session.exec(select(Delivery).where(Delivery.status == DeliveryStatus.NA_FILA).order_by(Delivery.id)).all())
+
+
+def waypoint_of(session: Session, location_id: str) -> str | None:
+    location = session.get(Location, location_id)
+    return location.waypoint if location else None
