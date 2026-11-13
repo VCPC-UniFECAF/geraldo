@@ -36,6 +36,14 @@ def success_codes(op: dict) -> list[str]:
 
 CONTRACT = operations(SPEC)
 
+FORMATS = jsonschema.FormatChecker()
+
+
+@FORMATS.checks("date-time")
+def _is_rfc3339(value) -> bool:
+    """date-time do contrato = RFC 3339: precisa de offset (Z ou +hh:mm); hora sem fuso o navegador lê como local."""
+    return not isinstance(value, str) or bool(re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|[+-]\d\d:\d\d)", value))
+
 
 def to_jsonschema(node, strict: bool = True):
     """OpenAPI 3.0 -> JSON Schema: resolve $ref, trata nullable e proíbe campos que o contrato não lista."""
@@ -97,7 +105,7 @@ class Probe:
         if expect == 204:
             assert response.content == b"", f"{method.upper()} {url}: o contrato prevê 204 sem corpo, mas veio {response.text!r}"
         else:  # resposta sem schema próprio no contrato (ex.: o 422 do telemetry) segue o schema Error
-            jsonschema.Draft7Validator(schema or to_jsonschema(SPEC["components"]["schemas"]["Error"])).validate(response.json())
+            jsonschema.Draft7Validator(schema or to_jsonschema(SPEC["components"]["schemas"]["Error"]), format_checker=FORMATS).validate(response.json())
         self.seen.add((method, norm(template), expect))
         return response
 

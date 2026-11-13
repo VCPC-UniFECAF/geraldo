@@ -1,10 +1,18 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StrictBool
 
 from app.models import DeliveryStatus, MovementType, Priority, Role
+
+
+def _as_utc(value: datetime) -> datetime:
+    """Hora sem fuso é tratada como UTC (é como o banco guarda); com fuso, converte. A API sempre sai com offset."""
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+
+UtcDatetime = Annotated[datetime, AfterValidator(_as_utc)]
 
 
 class LoginRequest(BaseModel):
@@ -62,7 +70,7 @@ class DeliveryOut(BaseModel):
     priority: Priority
     status: DeliveryStatus
     requested_by: int
-    created_at: datetime
+    created_at: UtcDatetime
 
 
 class RobotTaskOut(DeliveryOut):
@@ -78,7 +86,7 @@ class MovementOut(BaseModel):
     item_id: str
     location_id: str
     quantity: int
-    created_at: datetime
+    created_at: UtcDatetime
 
 
 class RobotEventType(str, Enum):
