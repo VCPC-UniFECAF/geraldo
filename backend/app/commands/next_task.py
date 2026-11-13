@@ -6,6 +6,7 @@ from sqlmodel import Session
 from app.clock import Clock, OffPeakWindow
 from app.events import DeliveryChanged, Subject
 from app.models import Delivery, DeliveryStatus, Priority
+from app.stock_lock import serialized, stock_lock
 from app.priority import PriorityPolicy, policy_for
 from app.queries import list_queued_deliveries, waypoint_of
 
@@ -34,6 +35,7 @@ class NextTask:
         policy_for: Callable[[Priority], PriorityPolicy] = policy_for,
         events: Subject | None = None,
         actor: str = "robo",
+        lock=stock_lock,
     ) -> None:
         self._session = session
         self._clock = clock
@@ -41,7 +43,9 @@ class NextTask:
         self._policy_for = policy_for
         self._events = events if events is not None else Subject()
         self._actor = actor
+        self._lock = lock
 
+    @serialized
     def execute(self) -> Dispatch | None:
         off_peak_now = self._off_peak.contains(self._clock.now())
         candidates = []

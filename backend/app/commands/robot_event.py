@@ -6,6 +6,7 @@ from app.commands.common import notify_stocks, release_reservation
 from app.commands.errors import InvalidState, NotFound
 from app.events import DeliveryChanged, Subject
 from app.models import Delivery, DeliveryStatus
+from app.stock_lock import serialized, stock_lock
 from app.movements import EstornoCreator, MovementCreator
 from app.schemas import RobotEventIn, RobotEventType
 
@@ -40,13 +41,16 @@ class RegisterRobotEvent:
         estorno: MovementCreator | None = None,
         events: Subject | None = None,
         actor: str = "robo",
+        lock=stock_lock,
     ) -> None:
         self._session = session
         self._payload = payload
         self._estorno = estorno or EstornoCreator()
         self._events = events if events is not None else Subject()
         self._actor = actor
+        self._lock = lock
 
+    @serialized
     def execute(self) -> Delivery:
         delivery = self._session.get(Delivery, self._payload.delivery_id)
         if delivery is None:

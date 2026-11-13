@@ -4,6 +4,7 @@ from app.commands.common import load_visible, notify_stocks
 from app.commands.errors import InvalidState, NotAllowed
 from app.events import DeliveryChanged, Subject
 from app.models import Delivery, DeliveryStatus, Role, Stock, User
+from app.stock_lock import serialized, stock_lock
 from app.movements import BaixaCreator, CreditoCreator, MovementCreator
 from app.queries import delivery_lines
 
@@ -25,6 +26,7 @@ class ConfirmReceipt:
         baixa: MovementCreator | None = None,
         credito: MovementCreator | None = None,
         events: Subject | None = None,
+        lock=stock_lock,
     ) -> None:
         self._session = session
         self._user = user
@@ -32,7 +34,9 @@ class ConfirmReceipt:
         self._baixa = baixa or BaixaCreator()
         self._credito = credito or CreditoCreator()
         self._events = events if events is not None else Subject()
+        self._lock = lock
 
+    @serialized
     def execute(self) -> Delivery:
         delivery = load_visible(self._session, self._user, self._delivery_id)
         if self._user.role != Role.admin and delivery.requested_by != self._user.id:

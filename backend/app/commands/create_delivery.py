@@ -3,6 +3,7 @@ from sqlmodel import Session
 from app.commands.errors import InsufficientStock, SameLocation, UnknownItem, UnknownLocation
 from app.events import DeliveryChanged, StockChanged, Subject
 from app.models import Delivery, DeliveryItem, Item, Location, Stock, User
+from app.stock_lock import serialized, stock_lock
 from app.movements import MovementCreator, ReservaCreator
 from app.priority import policy_for
 from app.schemas import DeliveryCreate
@@ -25,6 +26,7 @@ class CreateDelivery:
         policy_for=policy_for,
         reserva: MovementCreator | None = None,
         events: Subject | None = None,
+        lock=stock_lock,
     ) -> None:
         self._session = session
         self._user = user
@@ -32,7 +34,9 @@ class CreateDelivery:
         self._policy_for = policy_for
         self._reserva = reserva or ReservaCreator()
         self._events = events if events is not None else Subject()
+        self._lock = lock
 
+    @serialized
     def execute(self) -> Delivery:
         dest_id = self._destination()
         self._check_locations(dest_id)

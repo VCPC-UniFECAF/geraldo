@@ -39,6 +39,11 @@ class ReservaCreator(MovementCreator):
     type = MovementType.RESERVA
 
     def apply(self, stock: Stock, quantity: int) -> None:
+        available = stock.quantity - stock.reserved
+        if quantity > available:
+            raise ValueError(
+                f"Só há {available} disponível de {stock.item_id} em {stock.location_id}; não dá para reservar {quantity}. Reduza a quantidade."
+            )
         stock.reserved += quantity
 
 
@@ -49,6 +54,10 @@ class BaixaCreator(MovementCreator):
 
     def apply(self, stock: Stock, quantity: int) -> None:
         _must_have_reserved(stock, quantity)
+        if stock.quantity < quantity:
+            raise ValueError(
+                f"O saldo de {stock.item_id} em {stock.location_id} é {stock.quantity}; não dá para dar baixa de {quantity}. Confira o estoque."
+            )
         stock.reserved -= quantity
         stock.quantity -= quantity
 
