@@ -29,3 +29,21 @@ test("local sem itens mostra a mensagem de vazio", async () => {
   await userEvent.selectOptions(screen.getByLabelText("Local"), "consultorio1");
   expect(await screen.findByText("Nenhum item neste local.")).toBeInTheDocument();
 });
+
+test("a aba Histórico lista as movimentações, a mais recente primeiro", async () => {
+  render(<EstoquePage api={new HttpApiClient()} />);
+  await userEvent.click(await screen.findByRole("tab", { name: "Histórico" }));
+  const linhas = await screen.findAllByRole("listitem");
+  expect(linhas).toHaveLength(4);
+  expect(linhas[0]).toHaveTextContent("Estorno");
+  expect(linhas[0]).toHaveTextContent("Bolsa de sangue O negativo · Banco de sangue · Entrega #3");
+  expect(linhas[3]).toHaveTextContent("Reserva");
+});
+
+test("voltar para a aba Saldos mostra o estoque de novo", async () => {
+  render(<EstoquePage api={new HttpApiClient()} />);
+  await userEvent.click(await screen.findByRole("tab", { name: "Histórico" }));
+  await screen.findAllByRole("listitem");
+  await userEvent.click(screen.getByRole("tab", { name: "Saldos" }));
+  expect(await screen.findByLabelText("Local")).toBeInTheDocument();
+});

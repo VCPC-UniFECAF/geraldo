@@ -1,4 +1,4 @@
-import { DELIVERY, LOCATIONS, STOCK } from "../api/mocks/fixtures";
+import { DELIVERY, LOCATIONS, MOVEMENTS, STOCK } from "../api/mocks/fixtures";
 import { abaixoDoMinimo, abaixoDoMinimoPrimeiro, aguardandoRecebimento, filtrarComSaldo, locaisComEstoque, locaisComParada, maisRecentesPrimeiro, rotularEstoque, saldo } from "./operacoes";
 
 test("saldo é quantidade menos reservado", () => {
@@ -43,4 +43,9 @@ test("abaixoDoMinimoPrimeiro põe os críticos na frente sem alterar a lista ori
   const copia = [...STOCK];
   expect(abaixoDoMinimoPrimeiro(STOCK).map((e) => e.item_id)).toEqual(["bolsa-sangue-o-neg", "dipirona-500mg", "amoxicilina-500mg"]);
   expect(STOCK).toEqual(copia);
+});
+
+test("maisRecentesPrimeiro também ordena movimentações", () => {
+  const ordenadas = maisRecentesPrimeiro(MOVEMENTS);
+  expect(ordenadas.map((m) => m.id)).toEqual([4, 3, 2, 1]);
 });

@@ -1,10 +1,8 @@
 import type { ReactNode } from "react";
+import { horario } from "../apresentacao/formato";
 import type { Entrega } from "../domain/EntregaAdapter";
 import { PriorityBadge } from "./PriorityBadge";
 import { StatusBadge } from "./StatusBadge";
-
-const horario = (data: Date) =>
-  data.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
 export function DeliveryQueueRow({ entrega, acao }: { entrega: Entrega; acao?: ReactNode }) {
   const itens = entrega.itens.map((i) => `${i.quantidade} × ${i.nome}`).join(", ");

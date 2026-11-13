@@ -11,7 +11,7 @@ export interface Entrega {
   solicitadaEm: Date;
 }
 
-const legivel = (id: string): string => {
+export const legivel = (id: string): string => {
   const texto = id.replace(/-/g, " ");
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 };
