@@ -49,14 +49,18 @@ export function PainelPage({ api, telemetria: cliente, role }: Props) {
   const estado = telemetria?.robot_state;
   const entregaId = telemetria?.delivery_id ?? null;
   const robotParado = estado === "PARADA_EMERGENCIA";
-  const emergenciaAtiva = solicitado ?? robotParado;
+  // A telemetria manda: só um pedido de ACIONAR ainda não confirmado liga o alerta sozinho; desligar nunca esconde a parada contra a telemetria.
+  const emergenciaAtiva = robotParado || solicitado === true;
 
   // Recarrega a fila quando o robô muda de estado ou de entrega (é o que muda a fila de verdade).
   useEffect(() => {
     let ativo = true;
     Promise.all([api.deliveries(), api.locations()])
       .then(([entregas, locais]) => {
-        if (ativo) setDados({ entregas, locais });
+        if (ativo) {
+          setDados({ entregas, locais });
+          setErro(null);
+        }
       })
       .catch((err: Error) => {
         if (ativo) setErro(err.message);
@@ -76,7 +80,7 @@ export function PainelPage({ api, telemetria: cliente, role }: Props) {
     setErroEstop(null);
     try {
       await api.setEstop(ativar);
-      setSolicitado(ativar);
+      setSolicitado(ativar ? true : null);
     } catch (err) {
       setErroEstop(err instanceof Error ? err.message : "Não foi possível acionar a parada de emergência. Tente de novo.");
     } finally {

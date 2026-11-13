@@ -131,6 +131,7 @@ test("desligar a parada manda {active: false} e o alerta some", async () => {
   await within(cartaoDoRobo()).findByText("Livre");
   await userEvent.click(screen.getByRole("button", { name: "Parada de emergência" }));
   await userEvent.click(await screen.findByRole("button", { name: "Desligar parada de emergência" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Confirmar" }));
   expect(await screen.findByRole("button", { name: "Parada de emergência" })).toBeInTheDocument();
   expect(corpos).toEqual([{ active: true }, { active: false }]);
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -156,4 +157,76 @@ test("erro da API ao acionar aparece em alerta e o botão volta ao normal", asyn
   await userEvent.click(screen.getByRole("button", { name: "Parada de emergência" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Só administrador e farmacêutico acionam a parada de emergência.");
   expect(screen.getByRole("button", { name: "Parada de emergência" })).toBeEnabled();
+});
+
+test("depois de Desligar (204), se a telemetria segue em PARADA_EMERGENCIA o alerta e o botão Desligar continuam", async () => {
+  server.use(http.post("http://localhost:8000/robot/estop", () => new HttpResponse(null, { status: 204 })));
+  const { sockets } = await montar("farmaceutico");
+  await within(cartaoDoRobo()).findByText("Livre");
+  act(() => {
+    sockets[0].receber(TELEMETRIAS.PARADA_EMERGENCIA);
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Desligar parada de emergência" }));
+  await userEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Confirmar" })).not.toBeInTheDocument());
+  act(() => {
+    sockets[0].receber(TELEMETRIAS.PARADA_EMERGENCIA);
+  });
+  expect(screen.getByRole("alert")).toHaveTextContent("Parada de emergência ativa");
+  expect(screen.getByRole("button", { name: "Desligar parada de emergência" })).toBeInTheDocument();
+});
+
+test("cancelar a confirmação não chama a API; confirmar chama", async () => {
+  const corpos: unknown[] = [];
+  server.use(
+    http.post("http://localhost:8000/robot/estop", async ({ request }) => {
+      corpos.push(await request.json());
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  const { sockets } = await montar("admin");
+  await within(cartaoDoRobo()).findByText("Livre");
+  act(() => {
+    sockets[0].receber(TELEMETRIAS.PARADA_EMERGENCIA);
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Desligar parada de emergência" }));
+  expect(screen.getByText("Desligar a parada de emergência religa o robô. Confirmar?")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+  expect(corpos).toEqual([]);
+  expect(screen.getByRole("button", { name: "Desligar parada de emergência" })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Desligar parada de emergência" }));
+  await userEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+  await waitFor(() => expect(corpos).toEqual([{ active: false }]));
+});
+
+test("o erro das entregas some quando a recarga seguinte dá certo", async () => {
+  let chamadas = 0;
+  server.use(
+    http.get("http://localhost:8000/deliveries", () => {
+      chamadas += 1;
+      return chamadas === 1 ? HttpResponse.json({ detail: "Falhou ao carregar." }, { status: 500 }) : HttpResponse.json([]);
+    }),
+  );
+  const { sockets } = await montar();
+  expect(await screen.findByRole("alert")).toHaveTextContent("Falhou ao carregar.");
+  act(() => {
+    sockets[0].receber(TELEMETRIAS.A_CAMINHO);
+  });
+  await waitFor(() => expect(screen.queryByText("Falhou ao carregar.")).not.toBeInTheDocument());
+});
+
+test("o erro da parada some quando a ação seguinte dá certo", async () => {
+  let chamadas = 0;
+  server.use(
+    http.post("http://localhost:8000/robot/estop", () => {
+      chamadas += 1;
+      return chamadas === 1 ? HttpResponse.json({ detail: "Robô sem resposta." }, { status: 500 }) : new HttpResponse(null, { status: 204 });
+    }),
+  );
+  await montar("farmaceutico");
+  await within(cartaoDoRobo()).findByText("Livre");
+  await userEvent.click(screen.getByRole("button", { name: "Parada de emergência" }));
+  expect(await screen.findByText("Robô sem resposta.")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Parada de emergência" }));
+  await waitFor(() => expect(screen.queryByText("Robô sem resposta.")).not.toBeInTheDocument());
 });
