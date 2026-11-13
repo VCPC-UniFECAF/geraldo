@@ -1,6 +1,8 @@
 import os
 import secrets
 
+DEFAULT_DEMO_PASSWORD = "demo-only-change-me"  # valor público: serve só para a demonstração local
+
 
 class Settings:
     """Configuração lida do ambiente. Atributos mutáveis para os testes."""
@@ -10,7 +12,7 @@ class Settings:
         # sem segredo no ambiente, gera um aleatório (tokens deixam de valer ao reiniciar)
         self.jwt_secret = os.environ.get("GERALDO_JWT_SECRET") or secrets.token_hex(32)
         self.jwt_minutes = int(os.environ.get("GERALDO_JWT_MINUTES", "60"))
-        self.demo_password = os.environ.get("GERALDO_DEMO_PASSWORD", "demo-only-change-me")
+        self.demo_password = os.environ.get("GERALDO_DEMO_PASSWORD", DEFAULT_DEMO_PASSWORD)
         # senha do usuário "robo" no seed; sem ela, vale a mesma senha de demonstração dos outros usuários
         self.robot_password = os.environ.get("GERALDO_ROBOT_PASSWORD") or None
         self.password_iterations = 200_000
