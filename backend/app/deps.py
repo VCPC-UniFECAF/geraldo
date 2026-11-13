@@ -1,0 +1,43 @@
+import jwt
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlmodel import Session
+
+from app.db import get_session
+from app.models import Role, User
+from app.security import decode_token
+
+bearer = HTTPBearer(auto_error=False)
+
+
+def user_from_token(token: str, session: Session) -> User | None:
+    """O usuário dono do token, ou None se o token for inválido, expirado ou de usuário que não existe."""
+    try:
+        claims = decode_token(token)
+        user = session.get(User, int(claims["sub"]))
+    except (jwt.PyJWTError, TypeError, ValueError, OverflowError):  # assinatura/algoritmo/claims ruins, sub que não é número ou grande demais para o banco
+        return None
+    if user is None or user.role.value != claims["role"]:  # o papel do token precisa ser o papel atual do usuário
+        return None
+    return user
+
+
+def get_current_user(
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer),
+    session: Session = Depends(get_session),
+) -> User:
+    if creds is None:
+        raise HTTPException(status_code=401, detail="Faça login para continuar.")
+    user = user_from_token(creds.credentials, session)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Sessão inválida ou expirada. Entre de novo.")
+    return user
+
+
+def require_roles(*roles: Role):
+    def checker(user: User = Depends(get_current_user)) -> User:
+        if user.role not in roles:
+            raise HTTPException(status_code=403, detail="Seu perfil não tem permissão para isso.")
+        return user
+
+    return checker
