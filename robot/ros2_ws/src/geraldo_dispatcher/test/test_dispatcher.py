@@ -38,6 +38,12 @@ class ListBackend(BackendPort):  # substituto de teste do backend: sem HTTP
     def next_task(self):
         return self._tasks.pop(0) if self._tasks else None
 
+    def send_event(self, delivery_id, event, reason=None):
+        return True
+
+    def delivery_status(self, delivery_id):
+        return "ENTREGUE"
+
 
 @pytest.fixture
 def backend():
