@@ -193,10 +193,20 @@ def test_it_returns_none_on_an_empty_queue():
 
 
 @pytest.mark.parametrize("missing", ["farmacia_balcao", "cc_entrega", "base_robo"])
-def test_a_waypoint_missing_from_the_map_is_an_error_not_a_silent_skip(missing):
+def test_a_waypoint_missing_from_the_map_fails_the_task_instead_of_crashing(missing):
     poses = {k: v for k, v in POSES.items() if k != missing}
-    with pytest.raises(KeyError, match=missing):
-        run(ScriptedBackend([TASK]), poses=poses)
+    scripted, navigator = ScriptedBackend([TASK]), FakeNavigator()
+    result, history, _ = run(scripted, navigator, poses=poses)
+    assert result["result"] == "FALHOU" and f"waypoint desconhecido: {missing}" in result["reason"]
+    assert scripted.events == [("FAILED", result["reason"])] and navigator.visited == [] and history == []
+
+
+@pytest.mark.parametrize("key", ["origin_waypoint", "dest_waypoint"])
+def test_a_location_without_a_stop_fails_the_task_and_says_so(key):
+    scripted, navigator = ScriptedBackend([{**TASK, key: None}]), FakeNavigator()
+    result, history, _ = run(scripted, navigator)
+    assert result["result"] == "FALHOU" and "sem ponto de parada" in result["reason"]
+    assert scripted.events == [("FAILED", result["reason"])] and navigator.visited == [] and history == []
 
 
 def test_the_whole_flow_works_against_the_http_backend(backend):
@@ -277,11 +287,11 @@ def test_each_delivery_applies_its_priority_profile_and_goes_back_to_the_default
     assert tuner.applied == [PROFILES["critica"], DEFAULT_PROFILE]
 
 
-def test_an_unknown_priority_is_an_error_before_the_robot_moves():
-    navigator = FakeNavigator()
-    with pytest.raises(ValueError, match="Prioridade desconhecida"):
-        run(ScriptedBackend([{**TASK, "priority": "urgente"}]), navigator, tuner=RecordingTuner())
-    assert navigator.visited == []
+def test_an_unknown_priority_fails_the_task_before_the_robot_moves():
+    scripted, navigator = ScriptedBackend([{**TASK, "priority": "urgente"}]), FakeNavigator()
+    result, _, _ = run(scripted, navigator, tuner=RecordingTuner())
+    assert result["result"] == "FALHOU" and "Prioridade desconhecida: urgente" in result["reason"]
+    assert scripted.events == [("FAILED", result["reason"])] and navigator.visited == []
 
 
 class FlakyEvents(ScriptedBackend):  # send_event falha `fails` vezes

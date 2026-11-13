@@ -33,8 +33,11 @@ class Dispatcher:
         task = self.backend.next_task()
         if task is None:
             return None
-        for waypoint in (task["origin_waypoint"], task["dest_waypoint"], self.home):
-            self._pose(waypoint)
+        problem = self._problem_with(task)
+        if problem is not None:  # tarefa que o robô não consegue fazer: avisa o backend em vez de deixá-la presa em EM_ROTA
+            self.log(f"entrega {task['id']}: {problem}")
+            self._notify(task["id"], "FAILED", problem)
+            return {**task, "result": "FALHOU", "failed_at": None, "reason": problem}
         if self.tuner is not None:
             self.tuner.apply(profile_for(task["priority"]))
         self.delivery_id = task["id"]
@@ -69,6 +72,20 @@ class Dispatcher:
         if reason is not None:
             return dest, reason
         self._notify(task["id"], "UNLOCKED")
+        return None
+
+    def _problem_with(self, task: dict) -> str | None:
+        """Motivo pelo qual o robô não consegue fazer a tarefa (waypoint ou prioridade inválidos), ou None."""
+        for waypoint in (task.get("origin_waypoint"), task.get("dest_waypoint"), self.home):
+            if waypoint is None:
+                return "local sem ponto de parada (waypoint nulo): o backend não deveria mandar entrega para ele."
+            if waypoint not in self.poses:
+                return f"waypoint desconhecido: {waypoint}. Gere o hospital de novo (robot/hospital/gen_hospital.py)."
+        if self.tuner is not None:
+            try:
+                profile_for(task["priority"])
+            except ValueError as err:
+                return str(err)
         return None
 
     def _notify(self, delivery_id: int, event: str, reason: str | None = None) -> None:

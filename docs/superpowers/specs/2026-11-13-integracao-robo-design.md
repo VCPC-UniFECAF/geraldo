@@ -24,13 +24,12 @@
 |---|---|
 | 1 | Contrato: `GET /deliveries/{id}` ganha a regra "o papel `robo` pode consultar qualquer entrega (somente leitura)". Aviso ao Erik no protocolo. Commit isolado `docs(contratos)` para virar PR de contrato |
 | 2 | `BackendError` (herda de `RuntimeError`) é o único erro que o `BackendClient` deixa subir: HTTP diferente de 401/409 e backend fora do ar. O dispatcher reenvia evento até 3 vezes (1 s entre as tentativas) e segue com a entrega; a espera do recebimento trata erro de consulta como "ainda não" até o timeout; o laço do nó e o login inicial esperam o backend voltar. Senha errada (401 no login) continua sendo erro fatal |
-| 3 | Teste: todo `waypoint` das seeds existe em `waypoints.yaml` e todo waypoint (menos `base_robo`) tem um local |
+| 3 | Teste: todo `waypoint` não nulo das seeds existe em `waypoints.yaml` e todo waypoint (menos `base_robo`) tem um local; a recepção é o único local sem ponto de parada. **Achado na execução:** o plano do Erik já proíbe entrega para local sem waypoint, mas se uma tarefa assim (ou com waypoint/prioridade desconhecidos) chegar, o dispatcher agora **não cai**: manda `FAILED` com o motivo e devolve `FALHOU`, em vez de levantar erro e deixar a entrega presa em `EM_ROTA` |
 | 4 | Exemplos em `docs/contracts/examples/robot-telemetry.json` (um por estado) e `robot-events.json` (4 cenários), **gerados do código** por `robot/scripts/contract_examples.py` e validados contra o OpenAPI por um validador mínimo (`robot/scripts/openapi_check.py`, sem dependência nova). Teste falha se os arquivos ficarem velhos |
 | 5 | `docs/contracts/robot-protocol.md`: sequência, cadências, falhas, emergência e os avisos para Erik, Vieira e Pedro |
 
 ## 4. Fora do escopo
 
 - `obstacles` da telemetria segue `[]` (o robô ainda não detecta obstáculos por conta própria); o campo existe para o cockpit e fica para a semana 3.
-- Tarefa inválida (waypoint ou prioridade desconhecida) continua levantando erro; o contrato fixa os valores e as seeds são geradas.
 - Reenvio de eventos perdidos depois das 3 tentativas.
 - Botão de emergência no painel (precisa de contrato novo, semana 3).
