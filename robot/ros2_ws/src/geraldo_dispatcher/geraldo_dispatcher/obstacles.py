@@ -11,6 +11,7 @@ STATIC_TOLERANCE = 0.25  # m: um ponto a menos disso de uma parede do mapa é a 
 CLUSTER_GAP = 0.35       # m: pontos a menos disso um do outro formam o mesmo obstáculo
 MAX_OBSTACLES = 20       # contrato: Telemetry.obstacles
 MIN_RADIUS = 0.10        # m
+DETECT_RANGE = 4.0       # m: mais longe, 2° de erro do AMCL tiram a parede do lugar (0,35 m a 9 m) e ela vira obstáculo
 
 
 class StaticMap:
@@ -33,6 +34,17 @@ class StaticMap:
             chunk = pixels[row * width:(row + 1) * width]
             rows.append(bytes(1 if _occupancy(p / maxval, negate) > threshold else 0 for p in chunk))
         return cls(width, height, float(meta["resolution"]), (float(meta["origin"][0]), float(meta["origin"][1])), b"".join(rows))
+
+    def with_rects(self, rects) -> "StaticMap":
+        """Cópia com os retângulos (x0, y0, x1, y1) marcados como ocupados: o mobiliário que o mapa do Nav2 não tem."""
+        cells = bytearray(self._occupied)
+        for x0, y0, x1, y1 in rects:
+            c0, c1 = math.floor((x0 - self.origin[0]) / self.resolution), math.ceil((x1 - self.origin[0]) / self.resolution)
+            r0, r1 = math.floor((y0 - self.origin[1]) / self.resolution), math.ceil((y1 - self.origin[1]) / self.resolution)
+            c0, c1 = max(0, c0), min(self.width, c1)
+            for r in range(max(0, r0), min(self.height, r1)):
+                cells[r * self.width + c0:r * self.width + c1] = b"\x01" * max(0, c1 - c0)
+        return StaticMap(self.width, self.height, self.resolution, self.origin, bytes(cells))
 
     def occupied_near(self, x: float, y: float, radius: float) -> bool:
         """True se há célula ocupada a até `radius` m de (x, y). Fora do mapa conta como ocupado (não é um obstáculo novo)."""
@@ -76,7 +88,7 @@ def _occupancy(brightness: float, negate: int) -> float:
 def detect_obstacles(ranges: list[float], angle_min: float, angle_increment: float, pose: Pose,
                      is_static: Callable[[float, float], bool], range_min: float = 0.12, range_max: float = 12.0,
                      lidar_x: float = LIDAR_X, cluster_gap: float = CLUSTER_GAP,
-                     max_obstacles: int = MAX_OBSTACLES) -> list[tuple[float, float, float]]:
+                     max_obstacles: int = MAX_OBSTACLES, max_distance: float = DETECT_RANGE) -> list[tuple[float, float, float]]:
     """Obstáculos que o LiDAR vê e o mapa não tem, como círculos (x, y, raio) em metros no referencial `map`.
 
     Cada feixe com retorno vira um ponto no `map` (pela pose do AMCL); o que `is_static` reconhece como parede é
@@ -85,7 +97,7 @@ def detect_obstacles(ranges: list[float], angle_min: float, angle_increment: flo
     cos_yaw, sin_yaw = math.cos(pose.yaw), math.sin(pose.yaw)
     points = []
     for i, r in enumerate(ranges):
-        if not (math.isfinite(r) and range_min <= r < range_max - 0.01):
+        if not (math.isfinite(r) and range_min <= r < min(range_max - 0.01, max_distance)):
             continue
         angle = angle_min + i * angle_increment
         bx, by = lidar_x + r * math.cos(angle), r * math.sin(angle)  # no base_link

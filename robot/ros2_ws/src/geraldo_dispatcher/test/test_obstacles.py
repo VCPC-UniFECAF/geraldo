@@ -1,3 +1,4 @@
+import json
 import math
 import sys
 from pathlib import Path
@@ -7,7 +8,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(ROOT))
 
-from geraldo_dispatcher.obstacles import StaticMap, detect_obstacles  # noqa: E402
+from geraldo_dispatcher.obstacles import STATIC_TOLERANCE, StaticMap, detect_obstacles  # noqa: E402
 from geraldo_dispatcher.waypoints import Pose  # noqa: E402
 
 HOSPITAL_MAP = ROOT / "robot/ros2_ws/src/geraldo_nav/maps/hospital.yaml"
@@ -62,11 +63,17 @@ def test_neighbouring_points_form_one_obstacle_whose_radius_covers_them():
 
 
 def test_far_apart_objects_stay_separate_and_the_closest_comes_first():
-    ranges = scan_with({beam_at(-0.8): 5.0, beam_at(0.0): 2.0, beam_at(0.8): 8.0})
+    ranges = scan_with({beam_at(-0.8): 3.0, beam_at(0.0): 1.5, beam_at(0.8): 3.8})
     obstacles = detect(ranges)
     assert len(obstacles) == 3
     distances = [math.hypot(x, y) for x, y, _ in obstacles]
     assert distances == sorted(distances)
+
+
+def test_only_obstacles_within_4_m_are_reported():
+    # longe, 2° de erro do AMCL (medido no Gazebo) já tiram a parede do lugar e ela vira obstáculo fantasma
+    assert detect(scan_with({beam_at(0.0): 5.0})) == []
+    assert len(detect(scan_with({beam_at(0.0): 3.5}))) == 1
 
 
 def test_at_most_20_obstacles_are_reported():
@@ -104,3 +111,18 @@ def test_a_toy_map_flips_the_image_so_row_zero_is_the_bottom():
     # 3x2 células, 1 m cada: só a célula (col 2, linha de baixo) ocupada
     static = StaticMap(3, 2, 1.0, (0.0, 0.0), bytes([0, 0, 1, 0, 0, 0]))
     assert static.occupied_near(2.5, 0.5, 0.1) and not static.occupied_near(2.5, 1.5, 0.1)
+
+
+def test_furniture_rects_count_as_static():
+    # o mapa do Nav2 só tem paredes; estantes e balcões ficam de fora e não são obstáculo novo
+    static = StaticMap(4, 4, 1.0, (0.0, 0.0), bytes(16)).with_rects([(1.0, 1.0, 2.0, 3.0)])
+    assert static.occupied_near(1.5, 2.5, 0.0)
+    assert not static.occupied_near(3.5, 0.5, 0.0)
+
+
+def test_hospital_static_map_knows_the_pharmacy_shelves_and_counter():
+    furniture = HOSPITAL_MAP.parent / "furniture.json"
+    static = StaticMap.from_yaml(HOSPITAL_MAP).with_rects(json.loads(furniture.read_text(encoding="utf-8")))
+    assert static.occupied_near(11.3, 20.1, STATIC_TOLERANCE)  # frente das estantes da farmácia
+    assert static.occupied_near(8.18, 25.4, STATIC_TOLERANCE)  # ponta do balcão
+    assert not static.occupied_near(6.2, 25.0, STATIC_TOLERANCE)  # corredor livre diante da doca

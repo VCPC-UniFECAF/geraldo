@@ -1,3 +1,4 @@
+import json
 import os
 import threading
 import time
@@ -66,7 +67,8 @@ class GeraldoStateNode(Node):
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self._state_pub = self.create_publisher(String, "/geraldo/state", latched)
         self._battery_pub = self.create_publisher(BatteryState, "/geraldo/battery", 10)
-        self.create_subscription(PoseWithCovarianceStamped, "/amcl_pose", self._on_pose, 10)
+        # o AMCL guarda a última pose (TRANSIENT_LOCAL): sem isso, quem sobe com o robô parado não tem pose nem telemetria
+        self.create_subscription(PoseWithCovarianceStamped, "/amcl_pose", self._on_pose, latched)
         self.create_subscription(Path, "/plan", self._on_plan, 10)
         self.create_subscription(Bool, "/geraldo/estop", self._on_estop, 10)
         self.create_subscription(LaserScan, "/scan", self._on_scan, qos_profile_sensor_data)
@@ -154,7 +156,9 @@ def main() -> None:
     _login_when_available(client, "dispatcher")
     machine, estop = StateMachine(), EmergencyStop()
 
-    static_map = StaticMap.from_yaml(os.path.join(get_package_share_directory("geraldo_nav"), "maps", "hospital.yaml"))
+    maps = os.path.join(get_package_share_directory("geraldo_nav"), "maps")
+    with open(os.path.join(maps, "furniture.json"), encoding="utf-8") as furniture:
+        static_map = StaticMap.from_yaml(os.path.join(maps, "hospital.yaml")).with_rects(json.load(furniture))
     state_node = GeraldoStateNode(estop, static_map)
     machine.subscribe(state_node.publish_state)
     state_node.publish_state(machine.state)

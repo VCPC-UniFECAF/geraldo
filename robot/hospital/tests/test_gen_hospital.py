@@ -128,6 +128,9 @@ def test_outputs_are_written(tmp_path):
     assert len(pgm) == len(b"P5\n920 600\n255\n") + 920 * 600
     assert "resolution: 0.05" in (out["map_dir"] / "hospital.yaml").read_text()
     import json
+    furniture = json.loads((out["map_dir"] / "furniture.json").read_text(encoding="utf-8"))
+    assert [8.3, 25.25] in [[round(r[0], 2), round(r[1], 2)] for r in furniture]  # balcão da farmácia
+    assert len(furniture) == len([p for p in g.placed_pieces(SPEC) if p["group"] == "mobiliario" and not p["walkable"]])
     locais = json.loads(out["locais"].read_text(encoding="utf-8"))
     assert {l["id"] for l in locais} == {r["id"] for r in SPEC["rooms"]}
     assert next(l for l in locais if l["id"] == "farmacia")["waypoint"] == "farmacia_balcao"
