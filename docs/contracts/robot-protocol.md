@@ -60,6 +60,7 @@ Regra de junção: com **qualquer** fonte ligada, o robô cancela a meta, para e
 - Evento que não chega: 3 tentativas, 1 s entre elas; depois o robô segue sem ele (a carga está com ele).
 - Consulta do status que falha conta como "ainda não" até o timeout.
 - Backend fora do ar entre entregas ou no começo: o robô espera 5 s e tenta de novo. `uvicorn --reload` não derruba o robô.
+- `401` em chamada autenticada: o robô faz login de novo uma vez e repete a chamada.
 - Usuário ou senha errados no login (`401`/`403`) é erro fatal: o nó encerra dizendo o motivo.
 
 ## 7. O que cada frente precisa fazer
