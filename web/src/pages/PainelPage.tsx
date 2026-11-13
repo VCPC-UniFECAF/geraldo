@@ -38,7 +38,9 @@ function Secao({ titulo, entregas, vazio }: { titulo: string; entregas: Entrega[
 
 export function PainelPage({ api, telemetria: cliente, role }: Props) {
   const snapshot = useCallback(() => api.telemetry(), [api]);
-  const { telemetria, conexao } = useTelemetria(cliente, snapshot);
+  const { telemetria: ultima, conexao, semSinal } = useTelemetria(cliente, snapshot);
+  // Sem sinal, o último corpo é velho (ou o 1970 do backend): nada dele vale para estado, bateria ou emergência.
+  const telemetria = semSinal ? null : ultima;
   const [dados, setDados] = useState<{ entregas: Delivery[]; locais: Location[] } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   // `solicitado` é o que este painel acabou de pedir; null = sem pedido pendente, vale o que a telemetria diz.

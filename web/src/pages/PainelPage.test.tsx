@@ -1,4 +1,5 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { HttpApiClient } from "../api/HttpApiClient";
@@ -9,6 +10,10 @@ import type { Role } from "../api/types";
 import { TelemetriaCliente } from "../domain/TelemetriaCliente";
 import { fabricaDeSockets } from "../test/SocketFalso";
 import { PainelPage } from "./PainelPage";
+
+// Só o relógio é falso: a telemetria de exemplo tem data fixa e "sem sinal" depende do agora.
+beforeEach(() => vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-13T12:00:05+00:00") }));
+afterEach(() => vi.useRealTimers());
 
 async function montar(role: Role = "medico") {
   const { criar, sockets } = fabricaDeSockets();
@@ -254,4 +259,25 @@ test("desistir de reconectar mostra a mensagem em português", async () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("o corpo de antes do primeiro POST do robô (bateria 0, 1970) mostra sem sinal e nenhum alerta", async () => {
+  const { sockets } = await montar("farmaceutico");
+  await within(cartaoDoRobo()).findByText("Livre");
+  act(() => {
+    sockets[0].receber({ ...TELEMETRIAS.IDLE, battery: 0, updated_at: "1970-01-01T00:00:00+00:00" });
+  });
+  expect(within(cartaoDoRobo()).getByText("Sem sinal do robô. Confira se a simulação está ligada.")).toBeInTheDocument();
+  expect(screen.queryByText(/Bateria abaixo de 20%/)).not.toBeInTheDocument();
+  expect(screen.queryByText("Bateria baixa")).not.toBeInTheDocument();
+});
+
+test("telemetria de parada de emergência velha não liga o alerta de emergência", async () => {
+  const { sockets } = await montar();
+  await within(cartaoDoRobo()).findByText("Livre");
+  act(() => {
+    sockets[0].receber({ ...TELEMETRIAS.PARADA_EMERGENCIA, updated_at: "2026-11-13T11:00:00+00:00" });
+  });
+  expect(screen.queryByText(/Parada de emergência ativa/)).not.toBeInTheDocument();
+  expect(within(cartaoDoRobo()).getByText(/Sem sinal do robô/)).toBeInTheDocument();
 });

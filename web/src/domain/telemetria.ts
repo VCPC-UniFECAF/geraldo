@@ -44,3 +44,10 @@ export function segundosAteChegar(rota: Ponto[] | undefined, velocidade: number 
 }
 
 export const bateriaBaixa = (bateria: number): boolean => bateria < LIMITE_DA_BATERIA_BAIXA;
+
+// O backend responde 1970 antes do primeiro POST do robô; um robô que parou de postar fica com a data velha.
+const ANO_2000 = Date.parse("2000-01-01T00:00:00Z");
+export function semSinal(t: Telemetry, agora: number, limiteMs = 10_000): boolean {
+  const quando = Date.parse(t.updated_at);
+  return Number.isNaN(quando) || quando < ANO_2000 || agora - quando > limiteMs;
+}

@@ -1,5 +1,5 @@
 import { TELEMETRIAS } from "../api/mocks/fixtures";
-import { atrasoDeReconexao, bateriaBaixa, comprimentoDaRota, lerTelemetria, segundosAteChegar } from "./telemetria";
+import { atrasoDeReconexao, bateriaBaixa, comprimentoDaRota, lerTelemetria, segundosAteChegar, semSinal } from "./telemetria";
 
 test("lerTelemetria aceita o corpo do contrato", () => {
   expect(lerTelemetria(JSON.stringify(TELEMETRIAS.IDLE))).toEqual(TELEMETRIAS.IDLE);
@@ -40,4 +40,22 @@ test("segundosAteChegar usa 3 m/s e arredonda para cima; sem rota não há estim
 test("bateriaBaixa vale abaixo de 20", () => {
   expect(bateriaBaixa(19.9)).toBe(true);
   expect(bateriaBaixa(20)).toBe(false);
+});
+
+describe("semSinal", () => {
+  const agora = Date.parse("2026-11-13T12:00:30+00:00");
+  const com = (updated_at: string) => ({ ...TELEMETRIAS.IDLE, updated_at });
+
+  test("telemetria de agora tem sinal", () => {
+    expect(semSinal(com("2026-11-13T12:00:25+00:00"), agora)).toBe(false);
+  });
+  test("mais velha que o limite não tem sinal, e o limite é injetável", () => {
+    expect(semSinal(com("2026-11-13T12:00:00+00:00"), agora)).toBe(true);
+    expect(semSinal(com("2026-11-13T12:00:00+00:00"), agora, 60_000)).toBe(false);
+  });
+  test("o corpo de antes do primeiro POST do robô (1970) e datas inválidas não têm sinal", () => {
+    expect(semSinal(com("1970-01-01T00:00:00+00:00"), agora)).toBe(true);
+    expect(semSinal(com(""), agora)).toBe(true);
+    expect(semSinal(com("ontem"), agora)).toBe(true);
+  });
 });
