@@ -10,7 +10,7 @@ const TAMANHO_DA_SETA = 14;
 const metros = (valor: number) => valor.toFixed(1).replace(".", ",");
 const graus = (radianos: number) => Math.round((radianos * 180) / Math.PI);
 
-// Mapa simples (a visão 2D do hospital inteiro é do app instalável): robô, rota em azul e obstáculos em vermelho.
+// Mapa simples (a visão 2D do hospital inteiro é do app instalável): robô, rota em azul e obstáculos em aviso.
 export function TelemetryPanel({ telemetria }: { telemetria: Telemetry | null }) {
   return (
     <Card role="region" aria-label="Mapa e posição do robô" className="grid content-start gap-3">
@@ -41,7 +41,7 @@ function Conteudo({ telemetria }: { telemetria: Telemetry }) {
           />
         )}
         {vista.obstaculos.map((o, i) => (
-          <circle key={i} data-obstaculo cx={o.x} cy={o.y} r={o.raio} className="fill-vermelho-100 stroke-vermelho-500" strokeWidth={1.5} />
+          <circle key={i} data-obstaculo cx={o.x} cy={o.y} r={o.raio} className="fill-aviso-50 stroke-aviso-500" strokeWidth={1.5} />
         ))}
         <line
           x1={vista.robo.x}

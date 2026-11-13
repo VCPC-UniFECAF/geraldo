@@ -12,6 +12,7 @@ export abstract class EstadoRoboStrategy {
   }
 }
 
+// STRATEGY: estado Livre.
 class Livre extends EstadoRoboStrategy {
   readonly valor = "IDLE";
   readonly rotulo = "Livre";
@@ -19,6 +20,7 @@ class Livre extends EstadoRoboStrategy {
   readonly Icone = Bot;
 }
 
+// STRATEGY: estado Carregando.
 class Carregando extends EstadoRoboStrategy {
   readonly valor = "CARREGANDO";
   readonly rotulo = "Carregando";
@@ -26,6 +28,7 @@ class Carregando extends EstadoRoboStrategy {
   readonly Icone = PackagePlus;
 }
 
+// STRATEGY: estado ACaminho.
 class ACaminho extends EstadoRoboStrategy {
   readonly valor = "A_CAMINHO";
   readonly rotulo = "A caminho";
@@ -33,6 +36,7 @@ class ACaminho extends EstadoRoboStrategy {
   readonly Icone = Navigation;
 }
 
+// STRATEGY: estado Chegou.
 class Chegou extends EstadoRoboStrategy {
   readonly valor = "CHEGOU";
   readonly rotulo = "Chegou ao destino";
@@ -40,6 +44,7 @@ class Chegou extends EstadoRoboStrategy {
   readonly Icone = PackageCheck;
 }
 
+// STRATEGY: estado AguardandoRetirada.
 class AguardandoRetirada extends EstadoRoboStrategy {
   readonly valor = "AGUARDANDO_RETIRADA";
   readonly rotulo = "Aguardando retirada";
@@ -47,6 +52,7 @@ class AguardandoRetirada extends EstadoRoboStrategy {
   readonly Icone = PackageCheck;
 }
 
+// STRATEGY: estado Voltando.
 class Voltando extends EstadoRoboStrategy {
   readonly valor = "VOLTANDO";
   readonly rotulo = "Voltando à base";
@@ -54,6 +60,7 @@ class Voltando extends EstadoRoboStrategy {
   readonly Icone = Undo2;
 }
 
+// STRATEGY: estado ParadaEmergencia.
 class ParadaEmergencia extends EstadoRoboStrategy {
   readonly valor = "PARADA_EMERGENCIA";
   readonly rotulo = "Parada de emergência";
@@ -65,6 +72,7 @@ class ParadaEmergencia extends EstadoRoboStrategy {
 }
 
 // Fallback neutro para um estado que o contrato ainda não tem aqui (ex.: snapshot de uma versão nova do backend).
+// STRATEGY: estado Desconhecido.
 class Desconhecido extends EstadoRoboStrategy {
   readonly valor = "DESCONHECIDO";
   readonly rotulo = "Estado desconhecido";

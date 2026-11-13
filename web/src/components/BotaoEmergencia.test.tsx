@@ -65,3 +65,12 @@ test("ocupado desabilita o botão", () => {
   render(<BotaoEmergencia role="admin" ativo={false} ocupado onAlternar={vi.fn()} />);
   expect(screen.getByRole("button", { name: "Parada de emergência" })).toBeDisabled();
 });
+
+test("se a parada é desligada por fora com o diálogo aberto, ele fecha e não reabre quando a parada volta", async () => {
+  const props = { role: "admin" as const, ocupado: false, onAlternar: vi.fn() };
+  const { rerender } = render(<BotaoEmergencia {...props} ativo />);
+  await userEvent.click(screen.getByRole("button", { name: "Desligar parada de emergência" }));
+  rerender(<BotaoEmergencia {...props} ativo={false} />);
+  rerender(<BotaoEmergencia {...props} ativo />);
+  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+});

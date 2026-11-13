@@ -6,6 +6,8 @@ test.each([
   [12, 10, "atencao"],
   [13, 10, "ok"],
   [420, 100, "ok"],
+  [0, 0, "ok"],
+  [5, 0, "ok"],
 ])("quantidade %s com mínimo %s é nível %s", (quantidade, minimo, esperado) => {
   expect(nivelDe(quantidade, minimo).valor).toBe(esperado);
 });

@@ -7,6 +7,7 @@ import { Card } from "../components/Card";
 import { DeliveryQueueRow } from "../components/DeliveryQueueRow";
 import { RobotStatusCard } from "../components/RobotStatusCard";
 import { TelemetryPanel } from "../components/TelemetryPanel";
+import { estadoRoboDe } from "../apresentacao/estadoRobo";
 import { EntregaAdapter, type Entrega } from "../domain/EntregaAdapter";
 import { emAndamento, filaDeEspera } from "../domain/operacoes";
 import { bateriaBaixa } from "../domain/telemetria";
@@ -50,7 +51,7 @@ export function PainelPage({ api, telemetria: cliente, role }: Props) {
 
   const estado = telemetria?.robot_state;
   const entregaId = telemetria?.delivery_id ?? null;
-  const robotParado = estado === "PARADA_EMERGENCIA";
+  const robotParado = telemetria !== null && estadoRoboDe(telemetria.robot_state).emEmergencia;
   // A telemetria manda: só um pedido de ACIONAR ainda não confirmado liga o alerta sozinho; desligar nunca esconde a parada contra a telemetria.
   const emergenciaAtiva = robotParado || solicitado === true;
 

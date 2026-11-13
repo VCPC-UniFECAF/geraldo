@@ -11,6 +11,7 @@ export abstract class NivelEstoqueStrategy {
   abstract readonly Icone: LucideIcon | null;
 }
 
+// STRATEGY: nível Normal.
 class Normal extends NivelEstoqueStrategy {
   readonly valor = "ok";
   readonly barra = "bg-azul-500";
@@ -19,6 +20,7 @@ class Normal extends NivelEstoqueStrategy {
   readonly Icone = null;
 }
 
+// STRATEGY: nível PertoDoMinimo.
 class PertoDoMinimo extends NivelEstoqueStrategy {
   readonly valor = "atencao";
   readonly barra = "bg-aviso-500";
@@ -27,6 +29,7 @@ class PertoDoMinimo extends NivelEstoqueStrategy {
   readonly Icone = CircleAlert;
 }
 
+// STRATEGY: nível AbaixoDoMinimo.
 class AbaixoDoMinimo extends NivelEstoqueStrategy {
   readonly valor = "abaixo";
   readonly barra = "bg-vermelho-500";
@@ -41,6 +44,7 @@ const ABAIXO = new AbaixoDoMinimo();
 
 // FACTORY: acima de 120% do mínimo = normal; de 100% a 120% = perto; abaixo do mínimo = abaixo.
 export function nivelDe(quantidade: number, minimo: number): NivelEstoqueStrategy {
+  if (minimo <= 0) return NORMAL; // sem mínimo configurado, nada a avisar
   if (quantidade < minimo) return ABAIXO;
   if (quantidade <= minimo * 1.2) return PERTO;
   return NORMAL;

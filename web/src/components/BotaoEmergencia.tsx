@@ -29,6 +29,11 @@ export function BotaoEmergencia({ role, ativo, ocupado, onAlternar }: Props) {
     }
   }, [confirmando]);
 
+  // Se a parada some por fora com o diálogo aberto, ele fecha de vez (não reabre quando voltar).
+  useEffect(() => {
+    if (!ativo) setConfirmando(false);
+  }, [ativo]);
+
   if (!podeAcionarEstop(role)) return null;
   if (ativo && confirmando) {
     return (
