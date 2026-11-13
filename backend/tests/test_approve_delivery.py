@@ -56,7 +56,7 @@ def test_unknown_delivery_is_404(client, auth):
 
 def test_command_uses_the_injected_policy(session):
     medico = session.exec(select(User).where(User.username == "medico1")).one()
-    pharmacist = session.exec(select(User).where(User.role == Role.farmaceutico)).one()
+    pharmacist = session.exec(select(User).where(User.username == "farmaceutico1")).one()
     payload = DeliveryCreate(origin_id="farmacia", items=[DeliveryItemIn(item_id="dipirona-500mg", quantity=1)], priority=Priority.critica)
     delivery = CreateDelivery(session, medico, payload).execute()
 

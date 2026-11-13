@@ -15,6 +15,7 @@ DEMO_USERS = [
     ("medico2", Role.medico, "consultorio2"),
     ("enfermeiro1", Role.enfermeiro, "enfermaria214"),
     ("farmaceutico1", Role.farmaceutico, "farmacia"),
+    ("farmaceutico2", Role.farmaceutico, "farmacia"),  # a assinatura dupla precisa de uma segunda pessoa
     ("admin", Role.admin, None),
     ("robo", Role.robo, None),
 ]

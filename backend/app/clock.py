@@ -8,12 +8,12 @@ class Clock(Protocol):  # a hora entra pelo construtor/dependência; o teste pas
     def now(self) -> datetime: ...
 
 
-class SystemClock:
+class SystemClock:  # STRATEGY: relógio de verdade (fuso da máquina; em contêiner defina TZ)
     def now(self) -> datetime:
         return datetime.now().astimezone()  # hora local do hospital
 
 
-class FixedClock:
+class FixedClock:  # STRATEGY: relógio fixo para os testes
     def __init__(self, moment: datetime) -> None:
         self._moment = moment
 

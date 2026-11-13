@@ -29,5 +29,13 @@ def test_seed_is_idempotent_and_never_overwrites_stock(session):
     session.commit()
     seed(session, FIXTURES)
     assert session.get(Stock, ("farmacia", "dipirona-500mg")).quantity == 7
-    assert len(session.exec(select(User)).all()) == 6
+    assert len(session.exec(select(User)).all()) == 7
     assert len(session.exec(select(Location)).all()) == 6
+
+
+def test_a_critical_delivery_from_one_pharmacist_can_be_approved_by_the_other(client, auth):
+    body = {"origin_id": "banco_sangue", "items": [{"item_id": "bolsa-sangue-o-neg", "quantity": 1}], "priority": "critica"}
+    created = client.post("/deliveries", headers=auth("farmaceutico1"), json=body)
+    assert created.status_code == 201 and created.json()["status"] == "PENDENTE_APROVACAO"
+    approved = client.post(f"/deliveries/{created.json()['id']}/approve", headers=auth("farmaceutico2"))
+    assert approved.status_code == 200 and approved.json()["status"] == "NA_FILA"
