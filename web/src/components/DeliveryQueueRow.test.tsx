@@ -26,3 +26,12 @@ test("é uma linha arredondada de fundo claro que quebra em duas linhas no celul
   );
   expect(screen.getByRole("listitem")).toHaveClass("rounded-controle", "bg-fundo", "flex-col", "md:flex-row");
 });
+
+test("mostra a ação recebida ao lado dos selos", () => {
+  render(
+    <ul>
+      <DeliveryQueueRow entrega={entrega} acao={<button type="button">Fazer algo</button>} />
+    </ul>,
+  );
+  expect(screen.getByRole("button", { name: "Fazer algo" })).toBeInTheDocument();
+});

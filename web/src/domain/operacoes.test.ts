@@ -1,5 +1,5 @@
 import { DELIVERY, LOCATIONS, STOCK } from "../api/mocks/fixtures";
-import { filtrarComSaldo, locaisComEstoque, locaisComParada, maisRecentesPrimeiro, rotularEstoque, saldo } from "./operacoes";
+import { aguardandoRecebimento, filtrarComSaldo, locaisComEstoque, locaisComParada, maisRecentesPrimeiro, rotularEstoque, saldo } from "./operacoes";
 
 test("saldo é quantidade menos reservado", () => {
   expect(saldo(STOCK[0])).toBe(420);
@@ -27,4 +27,10 @@ test("maisRecentesPrimeiro ordena por data sem mutar a entrada", () => {
   const entrada = [antiga, nova];
   expect(maisRecentesPrimeiro(entrada).map((d) => d.id)).toEqual([2, 1]);
   expect(entrada.map((d) => d.id)).toEqual([1, 2]);
+});
+
+test("aguardandoRecebimento só vale para o status AGUARDANDO_RECEBIMENTO", () => {
+  expect(aguardandoRecebimento({ status: "AGUARDANDO_RECEBIMENTO" })).toBe(true);
+  expect(aguardandoRecebimento({ status: "EM_ROTA" })).toBe(false);
+  expect(aguardandoRecebimento({ status: "ENTREGUE" })).toBe(false);
 });

@@ -1,5 +1,5 @@
 // PROGRAMAÇÃO FUNCIONAL: funções puras com filter / map / sort, sem alterar a lista original.
-import type { Delivery, Location, StockEntry } from "../api/types";
+import type { Delivery, DeliveryStatus, Location, StockEntry } from "../api/types";
 
 export const saldo = (e: StockEntry): number => e.quantity - e.reserved;
 
@@ -19,3 +19,5 @@ export const locaisComEstoque = (locais: Location[]): Location[] => locaisComPar
 
 export const maisRecentesPrimeiro = (entregas: Delivery[]): Delivery[] =>
   [...entregas].sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+export const aguardandoRecebimento = (e: { status: DeliveryStatus }): boolean => e.status === "AGUARDANDO_RECEBIMENTO";
