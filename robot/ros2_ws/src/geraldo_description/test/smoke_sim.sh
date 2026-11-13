@@ -9,6 +9,9 @@ trap 'kill -INT -- -$LAUNCH_PID 2>/dev/null || true; sleep 3; kill -KILL -- -$LA
 
 timeout 120 bash -c 'until ros2 topic list | grep -q "^/scan$"; do sleep 2; done'
 timeout 30 ros2 topic echo --once /scan --field ranges > /dev/null
+for sensor in front_c front_l45 front_r45 rear_l135 rear_r135; do
+  timeout 30 ros2 topic echo --once "/range/$sensor" --field ranges > /dev/null
+done
 timeout 30 ros2 topic echo --once /odom --field pose.pose.position > /tmp/odom0.txt
 
 ros2 topic pub -t 30 -r 10 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.3}}" > /dev/null

@@ -47,6 +47,7 @@ Padrões de código (SOLID, Adapter, injeção): [`docs/padroes-de-projeto.md`](
 - Footprint do Nav2: retângulo 0,70 × 0,50 m (+10 cm de inflação).
 - Tópicos e estados: `docs/contracts/ros-interfaces.md`. Não crie tópico novo sem PR no contrato.
 - Dispatcher: `Dispatcher.run_once()` leva a entrega por `A_CAMINHO → CARREGANDO → A_CAMINHO → CHEGOU → AGUARDANDO_RETIRADA → VOLTANDO → IDLE` (`StateMachine` em `states.py`), avisa o backend com `LOADED`, `ARRIVED`, `UNLOCKED` ou `FAILED` e, em `AGUARDANDO_RETIRADA`, consulta `GET /deliveries/{id}` até virar `ENTREGUE`. `node.py` publica `/geraldo/state` e `/geraldo/battery` (bateria virtual) e manda `POST /robot/telemetry` a cada 1 s. Para rodar sem o backend: `python3 robot/scripts/fake_backend.py --port 8000` e `GERALDO_ROBOT_PASSWORD=robo-local ros2 run geraldo_dispatcher dispatcher`.
+- Sensores de alcance: `range_front_c`, `range_front_l45`, `range_front_r45`, `range_rear_l135` e `range_rear_r135` (macro `range_sensor` no URDF; 5 feixes de ±5° e até 2 m) saem em `/range/<nome>` (`LaserScan`, ponte em `config/bridge.yaml`). Nenhum a 180°. O Nav2 ainda não usa esses tópicos.
 - O mundo, o mapa e os waypoints são **gerados** por `robot/hospital/gen_hospital.py`; não edite os arquivos gerados à mão.
 
 ## Hospital 3D (maquete)
