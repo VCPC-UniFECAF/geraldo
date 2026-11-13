@@ -22,6 +22,12 @@ cd robot/ros2_ws && colcon build --symlink-install && source install/setup.bash
 ros2 launch geraldo_description sim.launch.py headless:=true
 ```
 
+### Demo com um comando
+
+`bash robot/scripts/demo.sh` sobe backend (porta 8000), web (http://localhost:5173), Gazebo com janela, Nav2 e dispatcher, com `ROS_DOMAIN_ID=77` e `GZ_PARTITION=verif`. Peça na web como `medico1` (senha `GERALDO_DEMO_PASSWORD`, padrão `demo`) e veja o robô andar no Gazebo e no Painel. Cada execução recomeça o banco e o estoque do seed; logs em `${TMPDIR:-/tmp}/geraldo-demo/`; Ctrl+C derruba tudo (por grupo de processo, com `kill -9`). `--headless` tira a janela do Gazebo; `STACK_ROOT=<checkout>` usa o backend e a web de outro checkout. Precisa de `backend/.venv`, `npm install` em `web/` e do `colcon build`.
+
+Obstáculos da telemetria: `detect_obstacles` descarta o que o `hospital.pgm` tem e o mobiliário de `geraldo_nav/maps/furniture.json` (escrito pelo `gen_hospital.py`; o mapa do Nav2 só tem paredes e as peças de obstáculo), e só olha até 4 m, porque o AMCL erra uns 2° e paredes distantes saem do lugar.
+
 ## Rodar pelo Cursor / VS Code (sem digitar comando)
 
 Abra a pasta `geraldo` (a raiz deste repositório) no Cursor. Depois: `Ctrl+Shift+P` → **Tasks: Run Task** e escolha (definidas em `.vscode/tasks.json`):
