@@ -2,7 +2,7 @@ import json
 import urllib.error
 import urllib.request
 
-from .ports import BackendPort, TelemetryPort
+from .ports import BackendError, BackendPort, TelemetryPort
 
 
 class BackendClient(BackendPort, TelemetryPort):  # ADAPTER: traduz a API HTTP do backend para as portas do robô
@@ -28,22 +28,32 @@ class BackendClient(BackendPort, TelemetryPort):  # ADAPTER: traduz a API HTTP d
         """Chama o backend e devolve o JSON da resposta (None se vier 204). Se o token expirou, entra de novo uma vez."""
         try:
             return self._read(method, path, body)
-        except urllib.error.HTTPError as err:
-            if err.code != 401:
+        except BackendError as err:
+            if err.status != 401:
                 raise
             self.login()
             return self._read(method, path, body)
 
     def _read(self, method: str, path: str, body: dict | None):
-        with self._request(method, path, body) as response:
-            return None if response.status == 204 else json.load(response)
+        try:
+            with self._request(method, path, body) as response:
+                return None if response.status == 204 else json.load(response)
+        except urllib.error.HTTPError as err:
+            raise BackendError(f"O backend respondeu {err.code} em {method} {path}.", err.code) from err
+        except (urllib.error.URLError, OSError) as err:  # HTTPError já foi tratado acima (é um URLError)
+            raise BackendError(self._down(err)) from err
+
+    def _down(self, err: Exception) -> str:
+        return f"Backend fora do ar ou sem resposta ({self.base_url}): {err}. Confira se ele está rodando."
 
     def login(self) -> None:
         try:
             with self._request("POST", "/auth/login", {"username": self.username, "password": self.password}) as response:
                 self._token = json.load(response)["access_token"]
         except urllib.error.HTTPError as err:
-            raise RuntimeError(f"Login do robô falhou ({err.code}). Confira usuário e senha.") from err
+            raise BackendError(f"Login do robô falhou ({err.code}). Confira usuário e senha.", err.code) from err
+        except (urllib.error.URLError, OSError) as err:
+            raise BackendError(self._down(err)) from err
 
     def next_task(self) -> dict | None:
         return self._json("POST", "/robot/next-task")
@@ -52,8 +62,8 @@ class BackendClient(BackendPort, TelemetryPort):  # ADAPTER: traduz a API HTTP d
         try:
             self._json("POST", "/robot/events", {"delivery_id": delivery_id, "event": event, "reason": reason})
             return True
-        except urllib.error.HTTPError as err:
-            if err.code == 409:
+        except BackendError as err:
+            if err.status == 409:
                 return False
             raise
 

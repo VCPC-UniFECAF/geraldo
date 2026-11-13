@@ -31,6 +31,7 @@ class FakeBackend:
         self.polls: dict[int, int] = {}
         self.receipt_after = receipt_after  # quantas consultas a entrega fica em AGUARDANDO_RECEBIMENTO
         self.reject_events = False          # responde 409 a todo evento
+        self.delivery_status_code = 200     # outro valor: a consulta da entrega responde esse código
         self.verbose = verbose
         backend = self
 
@@ -58,6 +59,8 @@ class FakeBackend:
                 backend.calls.append(self.path)
                 if self._unauthorized():
                     return
+                if backend.delivery_status_code != 200:
+                    return self._send(backend.delivery_status_code, {"detail": "Entrega não encontrada."})
                 match = re.fullmatch(r"/deliveries/(\d+)", self.path)
                 if not match:
                     return self._send(404, {"detail": "Não encontrado."})

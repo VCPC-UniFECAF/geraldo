@@ -4,6 +4,14 @@ from .profiles import NavProfile
 from .waypoints import Pose
 
 
+class BackendError(RuntimeError):
+    """O backend recusou o pedido (status HTTP em `.status`) ou não respondeu (`.status` é None)."""
+
+    def __init__(self, message: str, status: int | None = None) -> None:
+        super().__init__(message)
+        self.status = status
+
+
 class BackendPort(ABC):  # porta: tudo o que o dispatcher precisa do backend (ISP)
     @abstractmethod
     def next_task(self) -> dict | None:
