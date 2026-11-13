@@ -6,3 +6,6 @@ export const horario = (data: Date): string =>
 
 export const dataCurta = (data: Date): string =>
   data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: FUSO });
+
+// "5 s" até 59 s; depois minutos, arredondando para cima ("3 min").
+export const duracao = (segundos: number): string => (segundos < 60 ? `${segundos} s` : `${Math.ceil(segundos / 60)} min`);

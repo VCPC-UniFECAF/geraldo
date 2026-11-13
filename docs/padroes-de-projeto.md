@@ -20,7 +20,7 @@ Este é o padrão de código de **todo mundo** (Samuel, Erik, Vieira, Pedro e as
 | Situação | Padrão | No Geraldo |
 |---|---|---|
 | Uma ação do domínio com validação e efeitos | **Command** | `CreateDelivery` (backend), uma classe por ação em `app/commands/` |
-| Comportamento que muda conforme um tipo | **Strategy** | `PriorityPolicy` (backend), `PrioridadeStrategy`, `StatusStrategy` e `NivelEstoqueStrategy` (web: nível do estoque, sem `if/elif` por nível na tela), política de navegação por prioridade (robô, semana 2) |
+| Comportamento que muda conforme um tipo | **Strategy** | `PriorityPolicy` (backend), `PrioridadeStrategy`, `StatusStrategy` e `NivelEstoqueStrategy` (web: nível do estoque, sem `if/elif` por nível na tela), `EstadoRoboStrategy` (web: texto, cor e ícone de cada estado do robô em `apresentacao/estadoRobo.ts`; a emergência é uma classe própria, sem `if` no card), política de navegação por prioridade (robô, semana 2) |
 | Criar o objeto certo para o tipo recebido | **Factory Method** | `policy_for(priority)`, `MovementCreator` por tipo de movimentação, `Pose.from_dict` |
 | Montar um objeto aos poucos e validar no fim | **Builder** | `SolicitacaoBuilder` (web); em testes, para montar payloads |
 | Avisar vários interessados quando algo acontece | **Observer** | `Sessao` e `TokenObserver` (web); eventos de entrega e telemetria (backend e robô, semana 2) |
