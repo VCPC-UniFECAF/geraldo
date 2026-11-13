@@ -25,11 +25,55 @@ class MovementCreator(ABC):  # FACTORY METHOD + TEMPLATE METHOD: o único lugar 
         )
 
 
+def _must_have_reserved(stock: Stock, quantity: int) -> None:
+    if stock.reserved < quantity:
+        raise ValueError(
+            f"Só há {stock.reserved} reservado de {stock.item_id} em {stock.location_id}; não dá para liberar {quantity}. "
+            "Confira as movimentações da entrega."
+        )
+
+
 class ReservaCreator(MovementCreator):
+    """Separa a quantidade para uma entrega: o saldo continua, o disponível diminui."""
+
     type = MovementType.RESERVA
 
     def apply(self, stock: Stock, quantity: int) -> None:
         stock.reserved += quantity
 
 
-# Semana 2: BaixaCreator, CreditoCreator e EstornoCreator entram como classes novas, sem mexer nas existentes (OCP).
+class BaixaCreator(MovementCreator):
+    """A mercadoria saiu da origem: consome a reserva e o saldo."""
+
+    type = MovementType.BAIXA
+
+    def apply(self, stock: Stock, quantity: int) -> None:
+        _must_have_reserved(stock, quantity)
+        stock.reserved -= quantity
+        stock.quantity -= quantity
+
+
+class CreditoCreator(MovementCreator):
+    """A mercadoria chegou ao destino: soma ao saldo."""
+
+    type = MovementType.CREDITO
+
+    def apply(self, stock: Stock, quantity: int) -> None:
+        stock.quantity += quantity
+
+
+class EstornoCreator(MovementCreator):
+    """Desfaz a reserva (entrega cancelada ou que falhou): o saldo não muda."""
+
+    type = MovementType.ESTORNO
+
+    def apply(self, stock: Stock, quantity: int) -> None:
+        _must_have_reserved(stock, quantity)
+        stock.reserved -= quantity
+
+
+_CREATORS = {creator.type: creator for creator in (ReservaCreator(), BaixaCreator(), CreditoCreator(), EstornoCreator())}
+
+
+def creator_for(type: MovementType) -> MovementCreator:  # FACTORY: tipo novo = classe nova + uma linha acima
+    return _CREATORS[type]
