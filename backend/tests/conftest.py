@@ -6,6 +6,7 @@ from sqlmodel import Session
 
 from app.config import settings
 from app.db import create_db, get_session, make_engine
+from app.events import Subject, get_events
 from app.main import app
 from app.seed import seed
 
@@ -62,3 +63,21 @@ def auth(client):
         return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
     return login
+
+
+class SpyObserver:
+    def __init__(self) -> None:
+        self.events = []
+
+    def update(self, event) -> None:
+        self.events.append(event)
+
+
+@pytest.fixture
+def spy(client):
+    """Troca o Subject de eventos do app por um próprio e devolve o observador que anota tudo."""
+    subject, observer = Subject(), SpyObserver()
+    subject.add_observer(observer)
+    app.dependency_overrides[get_events] = lambda: subject
+    yield observer
+    app.dependency_overrides.pop(get_events, None)

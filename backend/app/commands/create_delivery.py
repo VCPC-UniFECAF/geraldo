@@ -27,6 +27,7 @@ class InsufficientStock(DeliveryError):
     status_code = 409
 
 
+# COMMAND
 class CreateDelivery:
     """Comando CriarEntrega: valida, reserva o estoque na origem e registra a movimentação.
 
