@@ -26,3 +26,29 @@ test("as abas têm alvo de toque de 44 px", () => {
   render(<Tabs abas={ABAS} ativa="a" onChange={vi.fn()} rotulo="Seções" />);
   for (const aba of screen.getAllByRole("tab")) expect(aba).toHaveClass("min-h-controle");
 });
+
+test("segue o padrão ARIA: id, aria-controls e tabindex móvel", () => {
+  render(<Tabs abas={ABAS} ativa="b" onChange={vi.fn()} rotulo="Seções" />);
+  const saldos = screen.getByRole("tab", { name: "Saldos" });
+  const historico = screen.getByRole("tab", { name: "Histórico" });
+  expect(saldos).toHaveAttribute("id", "aba-a");
+  expect(saldos).toHaveAttribute("aria-controls", "painel-a");
+  expect(saldos).toHaveAttribute("tabindex", "-1");
+  expect(historico).toHaveAttribute("tabindex", "0");
+});
+
+test.each([
+  ["{ArrowRight}", "a", "b"],
+  ["{ArrowRight}", "b", "a"],
+  ["{ArrowLeft}", "a", "b"],
+  ["{ArrowLeft}", "b", "a"],
+  ["{Home}", "b", "a"],
+  ["{End}", "a", "b"],
+])("a tecla %s na aba %s seleciona e foca a aba %s", async (tecla, de, para) => {
+  const onChange = vi.fn();
+  render(<Tabs abas={ABAS} ativa={de} onChange={onChange} rotulo="Seções" />);
+  screen.getByRole("tab", { selected: true }).focus();
+  await userEvent.keyboard(tecla);
+  expect(onChange).toHaveBeenCalledWith(para);
+  expect(document.getElementById(`aba-${para}`)).toHaveFocus();
+});

@@ -47,3 +47,11 @@ test("voltar para a aba Saldos mostra o estoque de novo", async () => {
   await userEvent.click(screen.getByRole("tab", { name: "Saldos" }));
   expect(await screen.findByLabelText("Local")).toBeInTheDocument();
 });
+
+test("o conteúdo fica num tabpanel ligado à aba ativa", async () => {
+  render(<EstoquePage api={new HttpApiClient()} />);
+  const aba = await screen.findByRole("tab", { name: "Saldos" });
+  const painel = await screen.findByRole("tabpanel");
+  expect(painel).toHaveAttribute("id", aba.getAttribute("aria-controls"));
+  expect(painel).toHaveAccessibleName("Saldos");
+});
