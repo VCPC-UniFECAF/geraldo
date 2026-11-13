@@ -43,12 +43,14 @@ class Nav2Navigator(Navigator):  # ADAPTER: traduz Pose para o NavigateToPose do
         goal.pose.orientation.z, goal.pose.orientation.w = pose.quaternion()
         nav.goToPose(goal)
         start = time.monotonic()
+        cancelled = False
         while not nav.isTaskComplete():
-            if self._estop.active or time.monotonic() - start > self._timeout:
+            if not cancelled and (self._estop.active or time.monotonic() - start > self._timeout):
                 nav.cancelTask()  # o controlador para o robô ao cancelar
-                break
+                cancelled = True
             time.sleep(0.5)
-        return nav.getResult() == TaskResult.SUCCEEDED
+        # Sem esperar a conclusão, getResult() devolveria o resultado da meta anterior (SUCCEEDED) e a meta cancelada contaria como chegada.
+        return not cancelled and nav.getResult() == TaskResult.SUCCEEDED
 
 
 class GeraldoStateNode(Node):
