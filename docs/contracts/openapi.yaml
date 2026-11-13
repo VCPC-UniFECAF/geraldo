@@ -422,18 +422,20 @@ components:
           type: object
           required: [x, y, yaw]
           properties:
-            x: { type: number }
-            y: { type: number }
-            yaw: { type: number, description: radianos }
+            x: { type: number, minimum: -1000, maximum: 1000 }
+            y: { type: number, minimum: -1000, maximum: 1000 }
+            yaw: { type: number, minimum: -10, maximum: 10, description: radianos }
         battery: { type: number, minimum: 0, maximum: 100 }
         delivery_id: { type: integer, nullable: true }
         route:
           type: array
+          maxItems: 50
           items:
             type: object
+            required: [x, y]
             properties:
-              x: { type: number }
-              y: { type: number }
+              x: { type: number, minimum: -1000, maximum: 1000 }
+              y: { type: number, minimum: -1000, maximum: 1000 }
         obstacles:
           type: array
           maxItems: 20
@@ -442,7 +444,7 @@ components:
             type: object
             required: [x, y, radius]
             properties:
-              x: { type: number }
-              y: { type: number }
-              radius: { type: number }
+              x: { type: number, minimum: -1000, maximum: 1000 }
+              y: { type: number, minimum: -1000, maximum: 1000 }
+              radius: { type: number, minimum: 0, maximum: 50 }
         updated_at: { type: string, format: date-time }
