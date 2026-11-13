@@ -200,6 +200,22 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /robot/telemetry:
+    post:
+      summary: O robô informa o estado atual (estado, pose, bateria, rota, obstáculos)
+      description: >
+        Papel robo, a cada 1 s. O backend guarda o último corpo, repassa no GET /telemetry e no WebSocket
+        /ws/telemetry, e ignora o updated_at enviado: ele grava a hora em que recebeu.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Telemetry' }
+      responses:
+        '204': { description: Telemetria recebida }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: Corpo inválido (estado fora do enum, bateria fora de 0 a 100) }
   /telemetry:
     get:
       summary: Último estado do robô (o mesmo corpo sai no WebSocket /ws/telemetry)

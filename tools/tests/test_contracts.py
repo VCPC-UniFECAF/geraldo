@@ -19,6 +19,7 @@ EXPECTED_OPERATIONS = {
     ("get", "/movements"),
     ("post", "/robot/next-task"),
     ("post", "/robot/events"),
+    ("post", "/robot/telemetry"),
     ("get", "/telemetry"),
 }
 

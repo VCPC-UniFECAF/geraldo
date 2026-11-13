@@ -19,6 +19,7 @@ Referencial: `map` (origem do hospital, x leste, y norte), `odom`, `base_link` (
 | `/camera/depth/image_raw` | `sensor_msgs/msg/Image` | câmera RGB-D | extra |
 | `/geraldo/state` | `std_msgs/msg/String` | estado da máquina de estados | 2 |
 | `/geraldo/battery` | `sensor_msgs/msg/BatteryState` | bateria | 2 |
+| `/geraldo/estop` | `std_msgs/msg/Bool` | quem aciona → `geraldo_dispatcher` (`true` para, `false` libera) | 2 |
 
 Não há sensor a 180° (a traseira fica livre para o painel de manutenção).
 
@@ -33,3 +34,7 @@ Não há sensor a 180° (a traseira fica livre para o painel de manutenção).
 ## Estados (`/geraldo/state`)
 
 `IDLE`, `CARREGANDO`, `A_CAMINHO`, `CHEGOU`, `AGUARDANDO_RETIRADA`, `VOLTANDO`, `PARADA_EMERGENCIA`.
+
+Significado dos estados na entrega: `CARREGANDO` é a espera na origem até a carga ser trancada (evento `LOADED`); `AGUARDANDO_RETIRADA` é a espera no destino até o solicitante confirmar o recebimento (o dispatcher consulta `GET /deliveries/{id}` até o status virar `ENTREGUE`) e termina no evento `UNLOCKED`. Com `/geraldo/estop` em `true`, o robô cancela a meta, para e publica `PARADA_EMERGENCIA`; em `false`, retoma o estado anterior.
+
+`geraldo_dispatcher` também publica `/geraldo/state` e `/geraldo/battery` e envia o corpo de `Telemetry` a `POST /robot/telemetry` a cada 1 s. A bateria é virtual (a simulação não tem modelo de bateria).
