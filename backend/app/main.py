@@ -5,7 +5,7 @@ from sqlmodel import Session
 
 from app.config import settings
 from app.db import create_db, engine
-from app.routers import auth
+from app.routers import auth, catalog, deliveries
 from app.seed import seed
 
 
@@ -20,6 +20,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="G.E.R.A.L.D.O. API", version="0.1.0", lifespan=lifespan)
 app.include_router(auth.router)
+app.include_router(catalog.router)
+app.include_router(deliveries.router)
 
 
 @app.get("/health", include_in_schema=False)
