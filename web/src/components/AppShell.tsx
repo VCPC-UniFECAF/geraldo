@@ -1,12 +1,13 @@
-import { Boxes, PackageCheck, PackagePlus, type LucideIcon } from "lucide-react";
+import { Bot, Boxes, PackageCheck, PackagePlus, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-export type PageId = "solicitar" | "entregas" | "estoque";
+export type PageId = "solicitar" | "entregas" | "estoque" | "painel";
 
 const ITEMS: { id: PageId; label: string; Icon: LucideIcon }[] = [
   { id: "solicitar", label: "Solicitar", Icon: PackagePlus },
   { id: "entregas", label: "Minhas entregas", Icon: PackageCheck },
   { id: "estoque", label: "Estoque", Icon: Boxes },
+  { id: "painel", label: "Painel", Icon: Bot },
 ];
 
 interface Props {
