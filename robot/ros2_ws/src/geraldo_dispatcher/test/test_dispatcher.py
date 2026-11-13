@@ -10,39 +10,53 @@ sys.path.insert(0, str(ROOT))
 from geraldo_dispatcher.api import BackendClient  # noqa: E402
 from geraldo_dispatcher.dispatcher import Dispatcher  # noqa: E402
 from geraldo_dispatcher.ports import BackendPort, Navigator  # noqa: E402
+from geraldo_dispatcher.states import State, StateMachine  # noqa: E402
 from geraldo_dispatcher.waypoints import Pose, load_poses  # noqa: E402
 from robot.scripts.fake_backend import DEMO_TASKS, FakeBackend  # noqa: E402
 
 POSES = {
+    "base_robo": Pose(6.5, 26.5, math.radians(270)),
     "farmacia_balcao": Pose(7, 24, math.radians(270)),
     "cons1_entrega": Pose(14.5, 4, math.radians(270)),
     "banco_sangue_retirada": Pose(17, 25, math.radians(90)),
     "cc_entrega": Pose(29, 25, math.radians(90)),
 }
+TASK = {"id": 5, "origin_waypoint": "farmacia_balcao", "dest_waypoint": "cc_entrega"}
+WAITING = "AGUARDANDO_RECEBIMENTO"
 
 
 class FakeNavigator(Navigator):  # substituto de teste do Nav2 (LSP)
-    def __init__(self, reaches: bool = True) -> None:
+    def __init__(self, fails_at=()) -> None:
         self.visited: list[Pose] = []
-        self._reaches = reaches
+        self._fails_at = set(fails_at)
 
     def go_to(self, pose: Pose) -> bool:
         self.visited.append(pose)
-        return self._reaches
+        return pose not in self._fails_at
 
 
-class ListBackend(BackendPort):  # substituto de teste do backend: sem HTTP
-    def __init__(self, tasks: list[dict]) -> None:
-        self._tasks = tasks
+class ScriptedBackend(BackendPort):  # substituto de teste do backend: sem HTTP, com os status da entrega roteirizados
+    def __init__(self, tasks, statuses=("ENTREGUE",)) -> None:
+        self._tasks, self._statuses = list(tasks), list(statuses)
+        self.events: list[tuple[str, str | None]] = []
 
     def next_task(self):
         return self._tasks.pop(0) if self._tasks else None
 
     def send_event(self, delivery_id, event, reason=None):
+        self.events.append((event, reason))
         return True
 
     def delivery_status(self, delivery_id):
-        return "ENTREGUE"
+        return self._statuses.pop(0) if len(self._statuses) > 1 else self._statuses[0]
+
+
+def run(backend, navigator=None, poses=POSES, **kwargs):
+    machine, history, sleeps = StateMachine(), [], []
+    machine.subscribe(history.append)
+    dispatcher = Dispatcher(backend, poses, navigator or FakeNavigator(), machine=machine, sleep=sleeps.append,
+                            log=lambda *_: None, **kwargs)
+    return dispatcher.run_once(), history, sleeps
 
 
 @pytest.fixture
@@ -93,40 +107,88 @@ def test_client_logs_in_again_when_the_token_expires(backend):
     assert backend.calls.count("/auth/login") == 2
 
 
-def test_dispatcher_goes_to_origin_then_destination(backend):
+def test_a_delivery_walks_the_states_and_tells_the_backend_in_order():
+    scripted = ScriptedBackend([TASK])
     navigator = FakeNavigator()
-    client = client_for(backend)
-    client.login()
-    result = Dispatcher(client, POSES, navigator, log=lambda *_: None).run_once()
-    assert navigator.visited == [POSES["farmacia_balcao"], POSES["cons1_entrega"]]
-    assert result["id"] == 1 and result["result"] == "CHEGOU"
+    result, history, sleeps = run(scripted, navigator)
+    assert history == [State.A_CAMINHO, State.CARREGANDO, State.A_CAMINHO, State.CHEGOU,
+                       State.AGUARDANDO_RETIRADA, State.VOLTANDO, State.IDLE]
+    assert scripted.events == [("LOADED", None), ("ARRIVED", None), ("UNLOCKED", None)]
+    assert navigator.visited == [POSES["farmacia_balcao"], POSES["cc_entrega"], POSES["base_robo"]]
+    assert result["id"] == 5 and result["result"] == "ENTREGUE"
+    assert sleeps == []
 
 
-def test_dispatcher_stops_when_the_robot_cannot_reach_the_origin(backend):
-    navigator = FakeNavigator(reaches=False)
-    client = client_for(backend)
-    client.login()
-    result = Dispatcher(client, POSES, navigator, log=lambda *_: None).run_once()
+def test_it_polls_the_delivery_until_the_requester_confirms():
+    scripted = ScriptedBackend([TASK], statuses=[WAITING, WAITING, "ENTREGUE"])
+    result, _, sleeps = run(scripted)
+    assert result["result"] == "ENTREGUE" and sleeps == [2.0, 2.0]
+
+
+def test_a_cancelled_delivery_ends_in_failure_and_goes_home():
+    scripted = ScriptedBackend([TASK], statuses=["CANCELADA"])
+    navigator = FakeNavigator()
+    result, history, _ = run(scripted, navigator)
+    assert result["result"] == "FALHOU" and result["failed_at"] == "cc_entrega" and result["reason"] == "entrega cancelada"
+    assert scripted.events[-1] == ("FAILED", "entrega cancelada")
+    assert history[-2:] == [State.VOLTANDO, State.IDLE] and navigator.visited[-1] == POSES["base_robo"]
+
+
+def test_it_gives_up_waiting_for_the_receipt_after_the_timeout():
+    scripted = ScriptedBackend([TASK], statuses=[WAITING])
+    result, _, sleeps = run(scripted, receipt_timeout=6.0)
+    assert sleeps == [2.0, 2.0, 2.0]
+    assert result["reason"] == "recebimento não confirmado a tempo"
+    assert scripted.events[-1] == ("FAILED", "recebimento não confirmado a tempo")
+
+
+def test_unreachable_origin_reports_failure_and_returns_home():
+    scripted = ScriptedBackend([TASK])
+    navigator = FakeNavigator(fails_at=[POSES["farmacia_balcao"]])
+    result, history, _ = run(scripted, navigator)
     assert result["result"] == "FALHOU" and result["failed_at"] == "farmacia_balcao"
-    assert len(navigator.visited) == 1
+    assert scripted.events == [("FAILED", "não chegou à origem")]
+    assert history == [State.A_CAMINHO, State.VOLTANDO, State.IDLE]
+    assert navigator.visited == [POSES["farmacia_balcao"], POSES["base_robo"]]
 
 
-def test_dispatcher_returns_none_on_an_empty_queue(backend):
-    backend.tasks.clear()
+def test_unreachable_destination_reports_failure_after_loading():
+    scripted = ScriptedBackend([TASK])
+    result, history, _ = run(scripted, FakeNavigator(fails_at=[POSES["cc_entrega"]]))
+    assert result["failed_at"] == "cc_entrega"
+    assert scripted.events == [("LOADED", None), ("FAILED", "não chegou ao destino")]
+    assert history == [State.A_CAMINHO, State.CARREGANDO, State.A_CAMINHO, State.VOLTANDO, State.IDLE]
+
+
+def test_the_delivery_id_is_known_only_during_the_delivery():
+    seen = []
+
+    class Spy(FakeNavigator):
+        def go_to(self, pose):
+            seen.append(dispatcher.delivery_id)
+            return super().go_to(pose)
+
+    dispatcher = Dispatcher(ScriptedBackend([TASK]), POSES, Spy(), sleep=lambda _: None, log=lambda *_: None)
+    assert dispatcher.delivery_id is None
+    dispatcher.run_once()
+    assert seen == [5, 5, 5] and dispatcher.delivery_id is None
+
+
+def test_it_returns_none_on_an_empty_queue():
+    result, history, _ = run(ScriptedBackend([]))
+    assert result is None and history == []
+
+
+@pytest.mark.parametrize("missing", ["farmacia_balcao", "cc_entrega", "base_robo"])
+def test_a_waypoint_missing_from_the_map_is_an_error_not_a_silent_skip(missing):
+    poses = {k: v for k, v in POSES.items() if k != missing}
+    with pytest.raises(KeyError, match=missing):
+        run(ScriptedBackend([TASK]), poses=poses)
+
+
+def test_the_whole_flow_works_against_the_http_backend(backend):
     client = client_for(backend)
     client.login()
-    assert Dispatcher(client, POSES, FakeNavigator(), log=lambda *_: None).run_once() is None
-
-
-def test_unknown_waypoint_is_an_error_not_a_silent_skip(backend):
-    client = client_for(backend)
-    client.login()
-    with pytest.raises(KeyError, match="farmacia_balcao"):
-        Dispatcher(client, {}, FakeNavigator(), log=lambda *_: None).run_once()
-
-
-def test_dispatcher_works_with_any_backend_port_without_http():
-    task = {"id": 5, "origin_waypoint": "farmacia_balcao", "dest_waypoint": "cc_entrega"}
-    navigator = FakeNavigator()
-    result = Dispatcher(ListBackend([task]), POSES, navigator, log=lambda *_: None).run_once()
-    assert result["result"] == "CHEGOU" and navigator.visited == [POSES["farmacia_balcao"], POSES["cc_entrega"]]
+    result, _, _ = run(client)
+    assert result["id"] == 1 and result["result"] == "ENTREGUE"
+    assert [e["event"] for e in backend.events] == ["LOADED", "ARRIVED", "UNLOCKED"]
