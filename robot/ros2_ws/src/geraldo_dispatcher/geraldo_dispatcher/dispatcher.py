@@ -1,5 +1,6 @@
 import time
 
+from .emergency import EmergencyStop
 from .ports import BackendPort, Navigator
 from .states import State, StateMachine
 from .waypoints import Pose
@@ -14,14 +15,17 @@ class Dispatcher:
 
     def __init__(self, backend: BackendPort, poses: dict[str, Pose], navigator: Navigator,
                  machine: StateMachine | None = None, home: str = "base_robo", sleep=time.sleep,
-                 poll_interval: float = 2.0, receipt_timeout: float = 300.0, log=print) -> None:
+                 poll_interval: float = 2.0, receipt_timeout: float = 300.0,
+                 estop: EmergencyStop | None = None, estop_poll: float = 0.5, log=print) -> None:
         self.backend, self.poses, self.navigator = backend, poses, navigator
         self.machine = machine or StateMachine()
         self.home, self.sleep, self.log = home, sleep, log
         self.poll_interval, self.receipt_timeout = poll_interval, receipt_timeout
+        self.estop, self.estop_poll = estop or EmergencyStop(), estop_poll
         self.delivery_id: int | None = None
 
     def run_once(self) -> dict | None:
+        self.hold_if_stopped()
         task = self.backend.next_task()
         if task is None:
             return None
@@ -63,6 +67,7 @@ class Dispatcher:
         """Espera o solicitante confirmar o recebimento. Devolve None se confirmou, ou o motivo da falha."""
         waited = 0.0
         while True:
+            self.hold_if_stopped()
             status = self.backend.delivery_status(delivery_id)
             if status == "ENTREGUE":
                 return None
@@ -78,9 +83,26 @@ class Dispatcher:
             raise KeyError(f"Waypoint desconhecido: {waypoint}. Gere o hospital de novo (robot/hospital/gen_hospital.py).")
         return self.poses[waypoint]
 
+    def hold_if_stopped(self) -> bool:
+        """Com a emergência acionada, para em PARADA_EMERGENCIA até ela ser liberada e volta ao estado anterior."""
+        if not self.estop.active:
+            return False
+        self.log("parada de emergência acionada: robô parado")
+        self.machine.stop()
+        while self.estop.active:
+            self.sleep(self.estop_poll)
+        self.machine.resume()
+        self.log("parada de emergência liberada: retomando")
+        return True
+
     def _go(self, waypoint: str) -> bool:
         self.log(f"entrega {self.delivery_id}: indo para {waypoint}")
-        reached = self.navigator.go_to(self._pose(waypoint))
+        pose = self._pose(waypoint)
+        while True:
+            self.hold_if_stopped()
+            reached = self.navigator.go_to(pose)
+            if reached or not self.estop.active:  # chegou, ou falhou de verdade (não foi a emergência que cortou a meta)
+                break
         if not reached:
             self.log(f"entrega {self.delivery_id}: não chegou a {waypoint}")
         return reached
