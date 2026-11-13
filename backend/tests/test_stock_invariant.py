@@ -107,3 +107,45 @@ def test_two_robots_never_get_the_same_delivery(file_engine):
 
     got = [r for r in run_threads(4, ask) if r is not None]
     assert len(got) == 1
+
+
+def test_cancel_and_approve_at_the_same_time_leave_a_consistent_state(file_engine):
+    from app.commands.approve_delivery import ApproveDelivery
+    from app.commands.cancel_delivery import CancelDelivery
+    from app.commands.errors import DeliveryError
+    from app.models import DeliveryStatus
+
+    with Session(file_engine) as s:
+        user = s.exec(select(User).where(User.username == "medico1")).one()
+        payload = DeliveryCreate(origin_id="banco_sangue", items=[DeliveryItemIn(item_id="bolsa-sangue-o-neg", quantity=5)], priority=Priority.critica)
+        delivery_id = CreateDelivery(s, user, payload).execute().id
+
+    def slow_policy(priority):  # a aprovação já leu o status e demora para gravar
+        time.sleep(0.2)
+        return policy_for(priority)
+
+    def approve():
+        with Session(file_engine) as s:
+            pharmacist = s.exec(select(User).where(User.username == "farmaceutico1")).one()
+            try:
+                ApproveDelivery(s, pharmacist, delivery_id, policy_for=slow_policy).execute()
+            except DeliveryError:
+                pass
+
+    def cancel():
+        time.sleep(0.05)
+        with Session(file_engine) as s:
+            owner = s.exec(select(User).where(User.username == "medico1")).one()
+            try:
+                CancelDelivery(s, owner, delivery_id).execute()
+            except DeliveryError:
+                pass
+
+    threads = [Thread(target=approve), Thread(target=cancel)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+
+    with Session(file_engine) as s:
+        status = s.get(Delivery, delivery_id).status
+        reserved = s.get(Stock, ("banco_sangue", "bolsa-sangue-o-neg")).reserved
+    assert (status, reserved) in {(DeliveryStatus.CANCELADA, 0), (DeliveryStatus.NA_FILA, 5)}, (status, reserved)

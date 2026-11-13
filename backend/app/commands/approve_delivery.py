@@ -5,6 +5,7 @@ from app.commands.errors import InvalidState, NotAllowed
 from app.events import DeliveryChanged, Subject
 from app.models import Delivery, DeliveryStatus, User
 from app.priority import policy_for
+from app.stock_lock import serialized, stock_lock
 
 
 # COMMAND
@@ -23,13 +24,16 @@ class ApproveDelivery:
         *,
         policy_for=policy_for,
         events: Subject | None = None,
+        lock=stock_lock,
     ) -> None:
         self._session = session
         self._user = user
         self._delivery_id = delivery_id
         self._policy_for = policy_for
         self._events = events if events is not None else Subject()
+        self._lock = lock
 
+    @serialized
     def execute(self) -> Delivery:
         delivery = load_visible(self._session, self._user, self._delivery_id)
         waiting = delivery.status == DeliveryStatus.PENDENTE_APROVACAO
