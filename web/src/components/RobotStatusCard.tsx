@@ -42,7 +42,7 @@ function EstadoBadge({ telemetria }: { telemetria: Telemetry }) {
 function Detalhes({ telemetria, entrega }: { telemetria: Telemetry; entrega: string | null }) {
   const segundos = segundosAteChegar(telemetria.route);
   const baixa = bateriaBaixa(telemetria.battery);
-  const bateria = Math.round(telemetria.battery);
+  const bateria = Math.min(100, Math.max(0, Math.round(telemetria.battery)));
   return (
     <dl className="grid gap-3 text-sm">
       <div>

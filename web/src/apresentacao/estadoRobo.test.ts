@@ -20,3 +20,10 @@ test("rótulos em português", () => {
   expect(estadoRoboDe("AGUARDANDO_RETIRADA").rotulo).toBe("Aguardando retirada");
   expect(estadoRoboDe("PARADA_EMERGENCIA").rotulo).toBe("Parada de emergência");
 });
+
+test("estado desconhecido cai num fallback neutro em vez de lançar erro", () => {
+  const desconhecido = estadoRoboDe("OUTRO" as never);
+  expect(desconhecido.rotulo).toBe("Estado desconhecido");
+  expect(desconhecido.emEmergencia).toBe(false);
+  expect(desconhecido.caixa).not.toContain("vermelho");
+});

@@ -1,9 +1,9 @@
-import { Bot, Navigation, PackageCheck, PackagePlus, Siren, Undo2, type LucideIcon } from "lucide-react";
+import { Bot, CircleHelp, Navigation, PackageCheck, PackagePlus, Siren, Undo2, type LucideIcon } from "lucide-react";
 import type { RobotState } from "../api/types";
 
 // STRATEGY: cada estado do robô sabe seu texto, cor e ícone (DS §3.5). Neutro: livre e carregando; azul: em movimento; vermelho: emergência.
 export abstract class EstadoRoboStrategy {
-  abstract readonly valor: RobotState;
+  abstract readonly valor: RobotState | "DESCONHECIDO";
   abstract readonly rotulo: string;
   abstract readonly caixa: string;
   abstract readonly Icone: LucideIcon;
@@ -64,6 +64,15 @@ class ParadaEmergencia extends EstadoRoboStrategy {
   }
 }
 
+// Fallback neutro para um estado que o contrato ainda não tem aqui (ex.: snapshot de uma versão nova do backend).
+class Desconhecido extends EstadoRoboStrategy {
+  readonly valor = "DESCONHECIDO";
+  readonly rotulo = "Estado desconhecido";
+  readonly caixa = "bg-neutro-50 text-neutro-600";
+  readonly Icone = CircleHelp;
+}
+
+const DESCONHECIDO = new Desconhecido();
 const ESTADOS: readonly EstadoRoboStrategy[] = [
   new Livre(),
   new Carregando(),
@@ -74,9 +83,7 @@ const ESTADOS: readonly EstadoRoboStrategy[] = [
   new ParadaEmergencia(),
 ];
 
-// FACTORY: devolve a estratégia do estado recebido na telemetria.
+// FACTORY: devolve a estratégia do estado recebido na telemetria (ou o fallback neutro).
 export function estadoRoboDe(valor: RobotState): EstadoRoboStrategy {
-  const estrategia = ESTADOS.find((e) => e.valor === valor);
-  if (!estrategia) throw new Error(`Estado do robô desconhecido: ${valor}`);
-  return estrategia;
+  return ESTADOS.find((e) => e.valor === valor) ?? DESCONHECIDO;
 }

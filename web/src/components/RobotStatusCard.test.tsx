@@ -38,3 +38,10 @@ test("sem telemetria diz que não há sinal", () => {
   expect(screen.getByText("Sem sinal do robô. Confira se a simulação está ligada.")).toBeInTheDocument();
   expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
 });
+
+test("a barra de bateria fica entre 0 e 100", () => {
+  const { rerender } = render(<RobotStatusCard telemetria={{ ...TELEMETRIAS.IDLE, battery: 130 }} entrega={null} />);
+  expect(screen.getByRole("progressbar", { name: "Bateria" }).firstElementChild).toHaveStyle({ width: "100%" });
+  rerender(<RobotStatusCard telemetria={{ ...TELEMETRIAS.IDLE, battery: -5 }} entrega={null} />);
+  expect(screen.getByRole("progressbar", { name: "Bateria" }).firstElementChild).toHaveStyle({ width: "0%" });
+});
