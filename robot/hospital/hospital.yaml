@@ -1,4 +1,4 @@
-version: 1
+version: 2
 size: [46, 30]            # largura (x) e altura (y), em metros
 resolution: 0.05          # metros por célula do mapa
 wall_thickness: 0.15
@@ -109,3 +109,115 @@ rooms:
     stop: enf215_entrega
     waypoints:
       - { id: enf215_entrega, xy: [39, 12], yaw: 270 }
+furniture:
+  # Recepção
+  - { room: recepcao, type: balcao, xy: [7, 6.8] }
+  - { room: recepcao, type: tv, xy: [7, 7.85] }
+  - { room: recepcao, type: banco, xy: [3.4, 3.0] }
+  - { room: recepcao, type: banco, xy: [3.4, 4.0] }
+  - { room: recepcao, type: banco, xy: [3.4, 5.0] }
+  - { room: recepcao, type: banco, xy: [10.4, 3.0] }
+  - { room: recepcao, type: banco, xy: [10.4, 4.0] }
+  - { room: recepcao, type: banco, xy: [10.4, 5.0] }
+  - { room: recepcao, type: planta, xy: [2.5, 7.4] }
+  - { room: recepcao, type: planta, xy: [11.5, 7.4] }
+  # Consultório 1
+  - { room: consultorio1, type: mesa, xy: [14.5, 7.0] }
+  - { room: consultorio1, type: cadeira, xy: [14.0, 6.0] }
+  - { room: consultorio1, type: cadeira, xy: [15.0, 6.0] }
+  - { room: consultorio1, type: maca, xy: [12.6, 5.0], yaw: 90 }
+  - { room: consultorio1, type: armario, xy: [16.6, 3.0], yaw: 90 }
+  - { room: consultorio1, type: pia, xy: [12.5, 7.5] }
+  # Consultório 2
+  - { room: consultorio2, type: mesa, xy: [19.5, 7.0] }
+  - { room: consultorio2, type: cadeira, xy: [19.0, 6.0] }
+  - { room: consultorio2, type: cadeira, xy: [20.0, 6.0] }
+  - { room: consultorio2, type: maca, xy: [17.6, 5.0], yaw: 90 }
+  - { room: consultorio2, type: armario, xy: [21.6, 3.0], yaw: 90 }
+  - { room: consultorio2, type: pia, xy: [17.5, 7.5] }
+  # Pronto-socorro
+  - { room: pronto_socorro, type: maca, xy: [4.0, 9.2] }
+  - { room: pronto_socorro, type: maca, xy: [7.5, 9.2] }
+  - { room: pronto_socorro, type: maca, xy: [16.5, 9.2] }
+  - { room: pronto_socorro, type: maca, xy: [20.0, 9.2] }
+  - { room: pronto_socorro, type: cortina, xy: [5.75, 9.2] }
+  - { room: pronto_socorro, type: cortina, xy: [18.25, 9.2] }
+  - { room: pronto_socorro, type: balcao, xy: [6.0, 13.4] }
+  - { room: pronto_socorro, type: carrinho_emergencia, xy: [17.0, 13.4] }
+  # Farmácia
+  - { room: farmacia, type: estante, xy: [2.4, 17.3], yaw: 90 }
+  - { room: farmacia, type: estante, xy: [2.4, 19.5], yaw: 90 }
+  - { room: farmacia, type: estante, xy: [2.4, 21.7], yaw: 90 }
+  - { room: farmacia, type: estante, xy: [11.6, 17.3], yaw: 90 }
+  - { room: farmacia, type: estante, xy: [11.6, 19.5], yaw: 90 }
+  - { room: farmacia, type: estante, xy: [11.6, 21.7], yaw: 90 }
+  - { room: farmacia, type: balcao, xy: [9.8, 25.6] }
+  - { room: farmacia, type: doca, xy: [6.5, 26.5] }
+  # Banco de sangue
+  - { room: banco_sangue, type: geladeira, xy: [12.5, 23.0], yaw: 90 }
+  - { room: banco_sangue, type: geladeira, xy: [12.5, 24.2], yaw: 90 }
+  - { room: banco_sangue, type: bancada, xy: [21.5, 25.0], yaw: 90 }
+  - { room: banco_sangue, type: poltrona_coleta, xy: [14.6, 23.0] }
+  - { room: banco_sangue, type: poltrona_coleta, xy: [19.5, 23.0] }
+  # Apoio (rouparia)
+  - { room: apoio, type: estante, xy: [14.0, 21.6] }
+  - { room: apoio, type: estante, xy: [20.0, 21.6] }
+  - { room: apoio, type: estante, xy: [12.55, 19.0], yaw: 90 }
+  - { room: apoio, type: carrinho, xy: [20.6, 17.2] }
+  # Centro cirúrgico
+  - { room: centro_cirurgico, type: mesa_cirurgica, xy: [31.5, 21.0] }
+  - { room: centro_cirurgico, type: foco, xy: [33.2, 21.0] }
+  - { room: centro_cirurgico, type: mesa_instrumentos, xy: [31.5, 23.0] }
+  - { room: centro_cirurgico, type: pia, xy: [24.5, 19.0], yaw: 90 }
+  - { room: centro_cirurgico, type: pia, xy: [24.5, 22.0], yaw: 90 }
+  # UTI
+  - { room: uti, type: leito, xy: [35.3, 19.0] }
+  - { room: uti, type: leito, xy: [35.3, 22.5] }
+  - { room: uti, type: leito, xy: [42.7, 19.0], yaw: 180 }
+  - { room: uti, type: leito, xy: [42.7, 22.5], yaw: 180 }
+  - { room: uti, type: monitor, xy: [34.45, 20.3] }
+  - { room: uti, type: monitor, xy: [34.45, 23.7] }
+  - { room: uti, type: monitor, xy: [43.55, 20.3] }
+  - { room: uti, type: monitor, xy: [43.55, 23.7] }
+  # Enfermaria 214
+  - { room: enfermaria214, type: leito, xy: [25.3, 4.0] }
+  - { room: enfermaria214, type: leito, xy: [25.3, 7.0] }
+  - { room: enfermaria214, type: leito, xy: [25.3, 10.0] }
+  - { room: enfermaria214, type: leito, xy: [32.7, 4.0], yaw: 180 }
+  - { room: enfermaria214, type: leito, xy: [32.7, 7.0], yaw: 180 }
+  - { room: enfermaria214, type: leito, xy: [32.7, 10.0], yaw: 180 }
+  - { room: enfermaria214, type: mesa_cabeceira, xy: [24.55, 4.85] }
+  - { room: enfermaria214, type: mesa_cabeceira, xy: [24.55, 7.85] }
+  - { room: enfermaria214, type: mesa_cabeceira, xy: [24.55, 10.85] }
+  - { room: enfermaria214, type: mesa_cabeceira, xy: [33.45, 4.85] }
+  - { room: enfermaria214, type: mesa_cabeceira, xy: [33.45, 7.85] }
+  - { room: enfermaria214, type: mesa_cabeceira, xy: [33.45, 10.85] }
+  - { room: enfermaria214, type: posto_enfermagem, xy: [26.5, 13.3] }
+  # Enfermaria 215
+  - { room: enfermaria215, type: leito, xy: [35.3, 4.0] }
+  - { room: enfermaria215, type: leito, xy: [35.3, 7.0] }
+  - { room: enfermaria215, type: leito, xy: [35.3, 10.0] }
+  - { room: enfermaria215, type: leito, xy: [42.7, 4.0], yaw: 180 }
+  - { room: enfermaria215, type: leito, xy: [42.7, 7.0], yaw: 180 }
+  - { room: enfermaria215, type: leito, xy: [42.7, 10.0], yaw: 180 }
+  - { room: enfermaria215, type: mesa_cabeceira, xy: [34.55, 4.85] }
+  - { room: enfermaria215, type: mesa_cabeceira, xy: [34.55, 7.85] }
+  - { room: enfermaria215, type: mesa_cabeceira, xy: [34.55, 10.85] }
+  - { room: enfermaria215, type: mesa_cabeceira, xy: [43.45, 4.85] }
+  - { room: enfermaria215, type: mesa_cabeceira, xy: [43.45, 7.85] }
+  - { room: enfermaria215, type: mesa_cabeceira, xy: [43.45, 10.85] }
+  - { room: enfermaria215, type: posto_enfermagem, xy: [36.5, 13.3] }
+  # Corredores (decoração)
+  - { type: banco, xy: [4.0, 15.7] }
+  - { type: banco, xy: [14.0, 15.7] }
+  - { type: banco, xy: [36.0, 15.7] }
+  - { type: extintor, xy: [26.0, 15.8] }
+  - { type: extintor, xy: [40.5, 15.8] }
+  - { type: placa, xy: [9.0, 15.88] }
+  - { type: placa, xy: [35.0, 15.88] }
+obstacles:            # colisão em caixa; entram no mapa do Nav2 (nas laterais, sem fechar rota)
+  - { type: carrinho_medicacao, xy: [9.5, 14.45] }
+  - { type: cadeira_rodas, xy: [20.0, 15.55] }
+  - { type: piso_molhado, xy: [33.0, 14.6] }
+  - { type: carrinho_lencois, xy: [42.0, 15.55] }
+stretcher: { type: maca, xy: [23.0, 29.0], yaw: 90 }   # spawnada na demo; bloqueia o corredor norte

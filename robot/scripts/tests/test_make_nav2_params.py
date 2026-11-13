@@ -41,11 +41,11 @@ def test_no_node_keeps_looking_for_base_footprint():
     assert out["collision_monitor"]["ros__parameters"]["base_frame_id"] == "base_link"
 
 
-def test_global_costmap_ignores_lidar_marks_but_the_local_one_keeps_them():
+def test_global_costmap_keeps_the_lidar_layer_so_the_planner_detours_around_new_obstacles():
     defaults = fake_defaults()
     defaults["global_costmap"]["global_costmap"]["ros__parameters"]["plugins"] = ["static_layer", "obstacle_layer", "inflation_layer"]
     out = patch_params(defaults)
-    assert out["global_costmap"]["global_costmap"]["ros__parameters"]["plugins"] == ["static_layer", "inflation_layer"]
+    assert out["global_costmap"]["global_costmap"]["ros__parameters"]["plugins"] == ["static_layer", "obstacle_layer", "inflation_layer"]
     assert out["local_costmap"]["local_costmap"]["ros__parameters"]["plugins"] == ["voxel_layer"]
 
 

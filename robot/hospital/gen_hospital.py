@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import sys
 from collections import deque
 from pathlib import Path
 
@@ -14,6 +16,8 @@ import numpy as np
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))  # permite rodar como script (python3 robot/hospital/gen_hospital.py)
+from robot.hospital.pieces import MOBILIARIO, OBSTACULO, PIECES  # noqa: E402
 Segment = tuple[float, float, float, float]  # x0, y0, x1, y1 (eixo alinhado)
 
 
@@ -59,6 +63,103 @@ def wall_segments(spec: dict) -> list[Segment]:
         gaps = [e["at"] for e in spec["entrances"] if e["wall"] == wall]
         segs += _wall(wall, outer, gaps, door_w)
     return segs
+
+
+# ---------- peças (mobiliário, obstáculos, maca) ----------
+Rect = tuple[float, float, float, float]
+LANE_WIDTH = 1.2
+
+
+def _placed(item: dict, key: str, group: str | None, default_room: str) -> dict:
+    kind = item["type"]
+    if kind not in PIECES:
+        raise ValueError(f"peça desconhecida '{kind}'. Tipos válidos: {', '.join(sorted(PIECES))}")
+    piece = PIECES[kind]
+    if group and piece.group != group:
+        raise ValueError(f"peça '{kind}' é do grupo '{piece.group}' e não pode ficar em '{group}'")
+    yaw = item.get("yaw", 0)
+    if yaw % 90:
+        raise ValueError(f"peça '{kind}': yaw {yaw} precisa ser múltiplo de 90")
+    w, d, h = piece.size
+    if yaw % 180:
+        w, d = d, w
+    x, y = item["xy"]
+    return {
+        "id": key, "type": kind, "room": item.get("room", default_room), "xy": [x, y], "yaw": yaw,
+        "size": list(piece.size), "z": piece.z, "group": piece.group, "walkable": piece.walkable,
+        "rect": [x - w / 2, y - d / 2, x + w / 2, y + d / 2],
+    }
+
+
+def placed_pieces(spec: dict) -> list[dict]:
+    """Todas as peças do YAML (mobiliário, obstáculos e a maca) com tamanho, grupo e retângulo no chão."""
+    count: dict[str, int] = {}
+    out = []
+    for section, group in (("furniture", MOBILIARIO), ("obstacles", OBSTACULO)):
+        for item in spec.get(section, []):
+            n = count[item["type"]] = count.get(item["type"], 0) + 1
+            out.append(_placed(item, f"{item['type']}_{n}", group, "corredor"))
+    if "stretcher" in spec:
+        stretcher = _placed(spec["stretcher"], "maca", None, "corredor")
+        stretcher["group"] = "maca"
+        out.append(stretcher)
+    return out
+
+
+def obstacle_rects(spec: dict) -> list[Rect]:
+    return [tuple(p["rect"]) for p in placed_pieces(spec) if p["group"] == OBSTACULO]
+
+
+def stretcher_rect(spec: dict) -> Rect:
+    return tuple(next(p for p in placed_pieces(spec) if p["group"] == "maca")["rect"])
+
+
+def _door_points(room: dict) -> list[tuple[float, float]]:
+    x0, y0, x1, y1 = room["rect"]
+    return [{"N": (d["at"], y1), "S": (d["at"], y0), "W": (x0, d["at"]), "E": (x1, d["at"])}[d["wall"]] for d in room["doors"]]
+
+
+def lanes(spec: dict) -> dict[str, list[Rect]]:
+    """Faixas que ficam livres de móveis: de cada porta até o ponto de parada (ou o centro da sala) e dos outros pontos até ele."""
+    r = LANE_WIDTH / 2
+    out = {}
+    for room in spec["rooms"]:
+        x0, y0, x1, y1 = room["rect"]
+        stops = {wp["id"]: wp["xy"] for wp in room["waypoints"]}
+        target = stops[room["stop"]] if room.get("stop") else [(x0 + x1) / 2, (y0 + y1) / 2]
+        starts = _door_points(room) + [xy for xy in stops.values() if xy != target]
+        out[room["id"]] = [
+            (min(a[0], target[0]) - r, min(a[1], target[1]) - r, max(a[0], target[0]) + r, max(a[1], target[1]) + r)
+            for a in starts
+        ]
+    return out
+
+
+def door_centers(spec: dict) -> list[dict]:
+    """Centro de cada vão (portas das salas e entradas); `axis` é a direção em que a parede corre."""
+    doors = []
+    for room in spec["rooms"]:
+        for (x, y), d in zip(_door_points(room), room["doors"]):
+            doors.append({"x": float(x), "y": float(y), "axis": "x" if d["wall"] in ("N", "S") else "y"})
+    w, h = spec["size"]
+    for e in spec["entrances"]:
+        x, y = {"N": (e["at"], h), "S": (e["at"], 0), "W": (0, e["at"]), "E": (w, e["at"])}[e["wall"]]
+        doors.append({"x": float(x), "y": float(y), "axis": "x" if e["wall"] in ("N", "S") else "y"})
+    return doors
+
+
+def build_layout(spec: dict) -> dict:
+    """Tudo que o Blender precisa (ele não tem PyYAML): paredes, vãos, salas e peças."""
+    return {
+        "size": spec["size"],
+        "wall_thickness": spec["wall_thickness"],
+        "wall_height": spec["wall_height"],
+        "door_width": spec["door_width"],
+        "walls": [list(s) for s in wall_segments(spec)],
+        "doors": door_centers(spec),
+        "rooms": [{"id": r["id"], "kind": r["kind"], "rect": r["rect"]} for r in spec["rooms"]],
+        "pieces": placed_pieces(spec),
+    }
 
 
 # ---------- mapa de ocupação ----------
@@ -147,7 +248,18 @@ def write_map_yaml(spec: dict, path: Path) -> None:
     )
 
 
+MESH_URI = "package://geraldo_description/meshes/hospital"
+
+
+def _box_model(name: str, cx: float, cy: float, sx: float, sy: float, h: float) -> str:
+    return (
+        f'    <model name="{name}"><static>true</static><pose>{cx:.3f} {cy:.3f} {h / 2:.3f} 0 0 0</pose>'
+        f'<link name="link"><collision name="c"><geometry><box><size>{sx:.3f} {sy:.3f} {h:.3f}</size></box></geometry></collision></link></model>'
+    )
+
+
 def write_sdf(spec: dict, path: Path) -> None:
+    """Mundo do Gazebo: o visual vem das malhas do Blender; as paredes e os obstáculos fixos só têm colisão em caixa."""
     t, h = spec["wall_thickness"], spec["wall_height"]
     models = []
     for i, (x0, y0, x1, y1) in enumerate(wall_segments(spec)):
@@ -156,13 +268,15 @@ def write_sdf(spec: dict, path: Path) -> None:
         if length < 1e-6:
             continue
         sx, sy = (length + t, t) if horizontal else (t, length + t)
-        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-        models.append(
-            f'    <model name="wall_{i}"><static>true</static><pose>{cx:.3f} {cy:.3f} {h / 2:.3f} 0 0 0</pose>'
-            f'<link name="link"><collision name="c"><geometry><box><size>{sx:.3f} {sy:.3f} {h}</size></box></geometry></collision>'
-            f'<visual name="v"><geometry><box><size>{sx:.3f} {sy:.3f} {h}</size></box></geometry>'
-            f'<material><ambient>0.85 0.87 0.9 1</ambient><diffuse>0.85 0.87 0.9 1</diffuse></material></visual></link></model>'
-        )
+        models.append(_box_model(f"wall_{i}", (x0 + x1) / 2, (y0 + y1) / 2, sx, sy, h))
+    for p in placed_pieces(spec):
+        if p["group"] == OBSTACULO:
+            a, b, c, d = p["rect"]
+            models.append(_box_model(f"obs_{p['id']}", (a + c) / 2, (b + d) / 2, c - a, d - b, p["size"][2]))
+    visuals = "".join(
+        f'<visual name="{n}"><geometry><mesh><uri>{MESH_URI}/{n}.obj</uri></mesh></geometry></visual>'
+        for n in ("hospital_estrutura", "hospital_mobiliario", "hospital_obstaculos")
+    )
     w, d = spec["size"]
     xml = f"""<?xml version="1.0"?>
 <sdf version="1.9">
@@ -175,13 +289,34 @@ def write_sdf(spec: dict, path: Path) -> None:
       <diffuse>0.9 0.9 0.9 1</diffuse><specular>0.2 0.2 0.2 1</specular><direction>-0.3 0.2 -1</direction></light>
     <model name="ground"><static>true</static><pose>{w / 2} {d / 2} 0 0 0 0</pose>
       <link name="link"><collision name="c"><geometry><plane><normal>0 0 1</normal><size>{w + 4} {d + 4}</size></plane></geometry></collision>
-      <visual name="v"><geometry><plane><normal>0 0 1</normal><size>{w + 4} {d + 4}</size></plane></geometry>
-      <material><ambient>0.7 0.72 0.76 1</ambient><diffuse>0.7 0.72 0.76 1</diffuse></material></visual></link></model>
+      <visual name="v"><pose>0 0 -0.02 0 0 0</pose><geometry><plane><normal>0 0 1</normal><size>{w + 4} {d + 4}</size></plane></geometry>
+      <material><ambient>0.35 0.4 0.35 1</ambient><diffuse>0.35 0.4 0.35 1</diffuse></material></visual></link></model>
+    <model name="hospital_visual"><static>true</static><link name="link">{visuals}</link></model>
 {chr(10).join(models)}
   </world>
 </sdf>
 """
     path.write_text(xml, encoding="utf-8")
+
+
+def write_maca_sdf(spec: dict, path: Path) -> None:
+    """Modelo da maca que bloqueia o corredor norte; entra no mundo em tempo de execução (robot/scripts/spawn_stretcher.sh)."""
+    s = next(p for p in placed_pieces(spec) if p["group"] == "maca")
+    (x, y), yaw = s["xy"], math.radians(s["yaw"])
+    w, d, h = s["size"]
+    path.write_text(
+        f"""<?xml version="1.0"?>
+<sdf version="1.9">
+  <model name="maca"><static>true</static><pose>{x:.3f} {y:.3f} 0 0 0 {yaw:.4f}</pose>
+    <link name="link">
+      <collision name="c"><pose>0 0 {h / 2:.3f} 0 0 0</pose><geometry><box><size>{w:.3f} {d:.3f} {h:.3f}</size></box></geometry></collision>
+      <visual name="v"><geometry><mesh><uri>{MESH_URI}/maca.obj</uri></mesh></geometry></visual>
+    </link>
+  </model>
+</sdf>
+""",
+        encoding="utf-8",
+    )
 
 
 def write_locais(spec: dict, path: Path) -> None:
@@ -207,16 +342,25 @@ def write_waypoints(spec: dict, path: Path) -> None:
     path.write_text(yaml.safe_dump({"waypoints": wps}, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
 
-def generate(spec_path, world, map_dir, locais, waypoints) -> None:
+def write_layout(spec: dict, path: Path) -> None:
+    path.write_text(json.dumps(build_layout(spec), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+
+
+def generate(spec_path, world, map_dir, locais, waypoints, layout=None, maca=None) -> None:
     spec = load_spec(spec_path)
     for p in (Path(world), Path(map_dir) / "x", Path(locais), Path(waypoints)):
         p.parent.mkdir(parents=True, exist_ok=True)
     write_sdf(spec, Path(world))
-    occ = rasterize(spec)
+    occ = rasterize(spec, extra_obstacles=obstacle_rects(spec))
     write_pgm(occ, Path(map_dir) / "hospital.pgm")
     write_map_yaml(spec, Path(map_dir) / "hospital.yaml")
     write_locais(spec, Path(locais))
     write_waypoints(spec, Path(waypoints))
+    if layout:
+        Path(layout).parent.mkdir(parents=True, exist_ok=True)
+        write_layout(spec, Path(layout))
+    if maca:
+        write_maca_sdf(spec, Path(maca))
 
 
 def main() -> None:
@@ -228,8 +372,10 @@ def main() -> None:
     ap.add_argument("--map-dir", default=str(nav / "maps"))
     ap.add_argument("--locais", default=str(ROOT / "backend/seeds/locais.json"))
     ap.add_argument("--waypoints", default=str(nav / "config/waypoints.yaml"))
+    ap.add_argument("--layout", default=str(ROOT / "robot/hospital/hospital_layout.json"))
+    ap.add_argument("--maca", default=str(desc / "worlds/maca.sdf"))
     a = ap.parse_args()
-    generate(a.spec, a.world, a.map_dir, a.locais, a.waypoints)
+    generate(a.spec, a.world, a.map_dir, a.locais, a.waypoints, a.layout, a.maca)
     print("hospital gerado")
 
 

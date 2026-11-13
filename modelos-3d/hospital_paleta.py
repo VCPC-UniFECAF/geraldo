@@ -1,0 +1,21 @@
+"""Paleta da maquete do hospital: nome -> (cor RGB linear, rugosidade, metal). Só dados: o Blender e os testes a importam."""
+PALETA = {
+    "parede": ((0.72, 0.72, 0.70), 0.9, 0.0),
+    "rodape": ((0.35, 0.36, 0.38), 0.6, 0.0),
+    "faixa_protecao": ((0.55, 0.58, 0.60), 0.5, 0.0),
+    "piso_vinilico": ((0.16, 0.17, 0.19), 0.35, 0.0),
+    "piso_porcelanato": ((0.50, 0.55, 0.58), 0.2, 0.0),
+    "piso_madeira": ((0.50, 0.33, 0.18), 0.5, 0.0),
+    "inox": ((0.60, 0.62, 0.64), 0.3, 0.9),
+    "laca_branca": ((0.85, 0.86, 0.87), 0.4, 0.0),
+    "madeira_clara": ((0.60, 0.42, 0.25), 0.55, 0.0),
+    "tecido_azul": ((0.10, 0.30, 0.55), 0.9, 0.0),
+    "plastico_cinza": ((0.30, 0.32, 0.34), 0.5, 0.0),
+    "vidro_azul": ((0.45, 0.65, 0.85), 0.1, 0.0),
+    "vermelho_cruz": ((0.75, 0.05, 0.05), 0.5, 0.0),
+    "amarelo_sinal": ((0.95, 0.75, 0.05), 0.5, 0.0),
+    "borracha_preta": ((0.04, 0.04, 0.04), 0.8, 0.0),
+    "folha_verde": ((0.12, 0.40, 0.14), 0.8, 0.0),
+    "lencol": ((0.92, 0.92, 0.90), 0.95, 0.0),
+    "tela_preta": ((0.02, 0.03, 0.04), 0.2, 0.0),
+}

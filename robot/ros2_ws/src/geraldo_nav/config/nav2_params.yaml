@@ -231,6 +231,7 @@ global_costmap:
       track_unknown_space: true
       plugins:
       - static_layer
+      - obstacle_layer
       - inflation_layer
       obstacle_layer:
         plugin: nav2_costmap_2d::ObstacleLayer
