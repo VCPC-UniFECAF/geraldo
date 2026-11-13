@@ -6,7 +6,8 @@ next-task -> LOADED -> ARRIVED -> espera o solicitante confirmar (ENTREGUE) -> U
 
 Uso (o backend precisa estar de pé, e a senha é a do usuário "robo"):
   GERALDO_ROBOT_PASSWORD=... python tools/mock_robot.py --api http://127.0.0.1:8000 --travel 5 --report
-Sem --report ele só pega a próxima tarefa e espera o tempo do trajeto (não manda eventos nem telemetria).
+Renova o login sozinho (uma vez) se o backend responder 401. Não faz as 3 tentativas do dispatcher real
+nem lê GET /robot/estop. Sem --report ele só pega a próxima tarefa e espera o tempo do trajeto (não manda eventos nem telemetria).
 """
 import argparse
 import os
@@ -31,8 +32,16 @@ class MockRobot:
             raise RuntimeError(f"Login do robô falhou ({r.status_code}): {r.text}")
         self.client.headers["Authorization"] = f"Bearer {r.json()['access_token']}"
 
+    def _send(self, method: str, url: str, **kwargs) -> httpx.Response:
+        """Token vencido ou backend reiniciado dá 401: login de novo e repete a chamada uma vez (robot-protocol.md, seção 6)."""
+        response = self.client.request(method, url, **kwargs)
+        if response.status_code == 401:
+            self.login()
+            response = self.client.request(method, url, **kwargs)
+        return response
+
     def next_task(self) -> dict | None:
-        r = self.client.post("/robot/next-task")
+        r = self._send("POST", "/robot/next-task")
         if r.status_code == 204:
             return None
         r.raise_for_status()
@@ -40,7 +49,7 @@ class MockRobot:
 
     def report(self, delivery_id: int, event: str, reason: str | None = None) -> dict | None:
         """Manda o evento. O 409 (ex.: FAILED de uma entrega já cancelada) só é registrado, como faz o dispatcher."""
-        r = self.client.post("/robot/events", json={"delivery_id": delivery_id, "event": event, "reason": reason})
+        r = self._send("POST", "/robot/events", json={"delivery_id": delivery_id, "event": event, "reason": reason})
         if r.status_code == 409:
             print(f"evento {event} recusado (409): {r.json().get('detail')}")
             return None
@@ -57,10 +66,10 @@ class MockRobot:
             "route": [],
             "obstacles": [],
         }
-        self.client.post("/robot/telemetry", json=body).raise_for_status()
+        self._send("POST", "/robot/telemetry", json=body).raise_for_status()
 
     def delivery_status(self, delivery_id: int) -> str:
-        r = self.client.get(f"/deliveries/{delivery_id}")
+        r = self._send("GET", f"/deliveries/{delivery_id}")
         r.raise_for_status()
         return r.json()["status"]
 

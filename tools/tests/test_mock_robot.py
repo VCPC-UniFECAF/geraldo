@@ -121,3 +121,42 @@ def test_it_gives_up_after_the_receipt_timeout():
 def test_a_409_on_an_event_is_tolerated():
     backend = FakeBackend([TASK], event_status=409)
     assert robot_for(backend).run_once(report=True, sleep=lambda s: None) == TASK
+
+
+class Rebooted:
+    """Backend que reiniciou: o 1º token deixou de valer (401) e só o token do novo login passa."""
+
+    def __init__(self) -> None:
+        self.logins, self.calls = 0, []
+        self.client = httpx.Client(transport=httpx.MockTransport(self.handle), base_url="http://api.test")
+
+    def handle(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/auth/login":
+            self.logins += 1
+            return httpx.Response(200, json={"access_token": f"tok{self.logins}", "token_type": "bearer"})
+        self.calls.append((request.url.path, request.headers["authorization"]))
+        if request.headers["authorization"] != "Bearer tok2":
+            return httpx.Response(401, json={"detail": "Sessão inválida ou expirada. Entre de novo."})
+        return httpx.Response(200, json=TASK)
+
+
+@pytest.mark.parametrize("call", [lambda r: r.next_task(), lambda r: r.send_telemetry("IDLE"), lambda r: r.delivery_status(7), lambda r: r.report(7, "LOADED")])
+def test_a_401_logs_in_again_once_and_repeats_the_call(call):
+    backend = Rebooted()
+    robot = MockRobot(backend.client, "robo", "certa")
+    robot.login()
+    backend.logins = 1  # o login inicial deu tok1; o backend "reiniciou" e o próximo login dá tok2
+    call(robot)
+    assert backend.logins == 2
+    assert [c[1] for c in backend.calls] == ["Bearer tok1", "Bearer tok2"]
+
+
+def test_a_401_that_persists_after_the_new_login_is_an_error_not_a_loop():
+    backend = FakeBackend([])
+    robot = MockRobot(backend.client, "robo", "certa")
+    robot.login()
+    robot.client.headers["Authorization"] = "Bearer velho"
+    backend.handle = lambda request: httpx.Response(401, json={"detail": "x"}) if request.url.path != "/auth/login" else httpx.Response(200, json={"access_token": "n"})
+    robot.client = httpx.Client(transport=httpx.MockTransport(backend.handle), base_url="http://api.test")
+    with pytest.raises(httpx.HTTPStatusError):
+        robot.next_task()
