@@ -4,6 +4,7 @@ from sqlmodel import Session, select
 from app.commands.create_delivery import CreateDelivery, DeliveryError
 from app.db import get_session
 from app.deps import get_current_user, require_roles
+from app.events import Subject, get_events
 from app.models import Delivery, Role, User
 from app.queries import delivery_out
 from app.schemas import DeliveryCreate, DeliveryOut
@@ -18,9 +19,10 @@ def create_delivery(
     body: DeliveryCreate,
     user: User = Depends(require_roles(Role.medico, Role.enfermeiro, Role.farmaceutico, Role.admin)),
     session: Session = Depends(get_session),
+    events: Subject = Depends(get_events),
 ) -> DeliveryOut:
     try:
-        delivery = CreateDelivery(session, user, body).execute()
+        delivery = CreateDelivery(session, user, body, events=events).execute()
     except DeliveryError as err:
         raise HTTPException(status_code=err.status_code, detail=str(err))
     return delivery_out(session, delivery)

@@ -1,5 +1,6 @@
 from sqlmodel import Session
 
+from app.events import DeliveryChanged, StockChanged, Subject
 from app.models import Delivery, DeliveryItem, Item, Location, Stock, User
 from app.movements import MovementCreator, ReservaCreator
 from app.priority import policy_for
@@ -41,12 +42,14 @@ class CreateDelivery:
         *,
         policy_for=policy_for,
         reserva: MovementCreator | None = None,
+        events: Subject | None = None,
     ) -> None:
         self.session = session
         self.user = user
         self.payload = payload
         self._policy_for = policy_for
         self._reserva = reserva or ReservaCreator()
+        self._events = events if events is not None else Subject()
 
     def execute(self) -> Delivery:
         dest_id = self._destination()
@@ -110,4 +113,7 @@ class CreateDelivery:
             self.session.add(stock)
         self.session.commit()
         self.session.refresh(delivery)
+        self._events.notify(DeliveryChanged(delivery.id, None, delivery.status, self.user.username))
+        for stock in stocks.values():
+            self._events.notify(StockChanged(stock.location_id, stock.item_id, stock.quantity, stock.reserved, stock.minimum))
         return delivery

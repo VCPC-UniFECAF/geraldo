@@ -5,6 +5,7 @@ from sqlmodel import Session
 
 from app.config import settings
 from app.db import create_db, engine
+from app.events import AuditLog, LowStockAlert, events
 from app.routers import auth, catalog, deliveries, robot
 from app.seed import seed
 
@@ -17,6 +18,9 @@ async def lifespan(app: FastAPI):
             seed(session)
     yield
 
+
+events.add_observer(AuditLog())
+events.add_observer(LowStockAlert())
 
 app = FastAPI(title="G.E.R.A.L.D.O. API", version="0.1.0", lifespan=lifespan)
 app.include_router(auth.router)
