@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from .profiles import NavProfile
 from .waypoints import Pose
 
 
@@ -27,3 +28,9 @@ class Navigator(ABC):  # porta: tudo o que o dispatcher precisa da navegação
     @abstractmethod
     def go_to(self, pose: Pose) -> bool:
         """Leva o robô até a pose. True se chegou."""
+
+
+class NavigationTuner(ABC):  # porta: ajusta a navegação para a prioridade da entrega
+    @abstractmethod
+    def apply(self, profile: NavProfile) -> None:
+        """Aplica velocidade máxima e raio de inflação do perfil."""

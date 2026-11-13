@@ -1,7 +1,8 @@
 import time
 
 from .emergency import EmergencyStop
-from .ports import BackendPort, Navigator
+from .ports import BackendPort, NavigationTuner, Navigator
+from .profiles import DEFAULT_PROFILE, profile_for
 from .states import State, StateMachine
 from .waypoints import Pose
 
@@ -16,8 +17,9 @@ class Dispatcher:
     def __init__(self, backend: BackendPort, poses: dict[str, Pose], navigator: Navigator,
                  machine: StateMachine | None = None, home: str = "base_robo", sleep=time.sleep,
                  poll_interval: float = 2.0, receipt_timeout: float = 300.0,
-                 estop: EmergencyStop | None = None, estop_poll: float = 0.5, log=print) -> None:
-        self.backend, self.poses, self.navigator = backend, poses, navigator
+                 estop: EmergencyStop | None = None, estop_poll: float = 0.5,
+                 tuner: NavigationTuner | None = None, log=print) -> None:
+        self.backend, self.poses, self.navigator, self.tuner = backend, poses, navigator, tuner
         self.machine = machine or StateMachine()
         self.home, self.sleep, self.log = home, sleep, log
         self.poll_interval, self.receipt_timeout = poll_interval, receipt_timeout
@@ -31,6 +33,8 @@ class Dispatcher:
             return None
         for waypoint in (task["origin_waypoint"], task["dest_waypoint"], self.home):
             self._pose(waypoint)
+        if self.tuner is not None:
+            self.tuner.apply(profile_for(task["priority"]))
         self.delivery_id = task["id"]
         failure = self._deliver(task)
         if failure is not None:
@@ -39,6 +43,8 @@ class Dispatcher:
         self._go(self.home)
         self.machine.go(State.IDLE)
         self.delivery_id = None
+        if self.tuner is not None:
+            self.tuner.apply(DEFAULT_PROFILE)
         if failure is None:
             return {**task, "result": "ENTREGUE"}
         return {**task, "result": "FALHOU", "failed_at": failure[0], "reason": failure[1]}

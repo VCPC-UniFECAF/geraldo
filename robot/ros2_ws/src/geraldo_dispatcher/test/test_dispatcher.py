@@ -10,7 +10,8 @@ sys.path.insert(0, str(ROOT))
 from geraldo_dispatcher.api import BackendClient  # noqa: E402
 from geraldo_dispatcher.dispatcher import Dispatcher  # noqa: E402
 from geraldo_dispatcher.emergency import EmergencyStop  # noqa: E402
-from geraldo_dispatcher.ports import BackendPort, Navigator  # noqa: E402
+from geraldo_dispatcher.ports import BackendPort, NavigationTuner, Navigator  # noqa: E402
+from geraldo_dispatcher.profiles import DEFAULT_PROFILE, PROFILES  # noqa: E402
 from geraldo_dispatcher.states import State, StateMachine  # noqa: E402
 from geraldo_dispatcher.waypoints import Pose, load_poses  # noqa: E402
 from robot.scripts.fake_backend import DEMO_TASKS, FakeBackend  # noqa: E402
@@ -22,7 +23,7 @@ POSES = {
     "banco_sangue_retirada": Pose(17, 25, math.radians(90)),
     "cc_entrega": Pose(29, 25, math.radians(90)),
 }
-TASK = {"id": 5, "origin_waypoint": "farmacia_balcao", "dest_waypoint": "cc_entrega"}
+TASK = {"id": 5, "origin_waypoint": "farmacia_balcao", "dest_waypoint": "cc_entrega", "priority": "media"}
 WAITING = "AGUARDANDO_RECEBIMENTO"
 
 
@@ -52,11 +53,12 @@ class ScriptedBackend(BackendPort):  # substituto de teste do backend: sem HTTP,
         return self._statuses.pop(0) if len(self._statuses) > 1 else self._statuses[0]
 
 
-def run(backend, navigator=None, poses=POSES, estop=None, sleep=None, **kwargs):
+def run(backend, navigator=None, poses=POSES, estop=None, sleep=None, tuner=None, **kwargs):
     machine, history, sleeps = StateMachine(), [], []
     machine.subscribe(history.append)
     dispatcher = Dispatcher(backend, poses, navigator or FakeNavigator(), machine=machine,
-                            sleep=sleep(sleeps) if sleep else sleeps.append, estop=estop, log=lambda *_: None, **kwargs)
+                            sleep=sleep(sleeps) if sleep else sleeps.append, estop=estop, tuner=tuner,
+                            log=lambda *_: None, **kwargs)
     return dispatcher.run_once(), history, sleeps
 
 
@@ -258,3 +260,25 @@ def test_an_emergency_while_idle_holds_before_asking_for_a_task():
 def test_hold_if_stopped_does_nothing_when_the_emergency_is_off():
     dispatcher = Dispatcher(ScriptedBackend([]), POSES, FakeNavigator(), log=lambda *_: None)
     assert dispatcher.hold_if_stopped() is False and dispatcher.machine.state is State.IDLE
+
+
+class RecordingTuner(NavigationTuner):
+    def __init__(self) -> None:
+        self.applied = []
+
+    def apply(self, profile) -> None:
+        self.applied.append(profile)
+
+
+def test_each_delivery_applies_its_priority_profile_and_goes_back_to_the_default():
+    tuner = RecordingTuner()
+    result, _, _ = run(ScriptedBackend([{**TASK, "priority": "critica"}]), tuner=tuner)
+    assert result["result"] == "ENTREGUE"
+    assert tuner.applied == [PROFILES["critica"], DEFAULT_PROFILE]
+
+
+def test_an_unknown_priority_is_an_error_before_the_robot_moves():
+    navigator = FakeNavigator()
+    with pytest.raises(ValueError, match="Prioridade desconhecida"):
+        run(ScriptedBackend([{**TASK, "priority": "urgente"}]), navigator, tuner=RecordingTuner())
+    assert navigator.visited == []
