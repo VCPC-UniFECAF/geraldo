@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import html from "../index.html?raw";
 import { HttpApiClient } from "./api/HttpApiClient";
-import { DELIVERY_AGUARDANDO } from "./api/mocks/fixtures";
+import { DELIVERY_AGUARDANDO, ME } from "./api/mocks/fixtures";
 import { semearEntregas } from "./api/mocks/handlers";
 import { AppShell } from "./components/AppShell";
 import { TelemetriaCliente } from "./domain/TelemetriaCliente";
@@ -33,7 +33,7 @@ test("Solicitar: todos os controles têm 44 px", async () => {
 
 test("Minhas entregas: o botão de confirmar recebimento tem 44 px e ocupa a largura no celular", async () => {
   semearEntregas([DELIVERY_AGUARDANDO]);
-  const { container } = render(<MinhasEntregasPage api={new HttpApiClient()} onRequest={vi.fn()} />);
+  const { container } = render(<MinhasEntregasPage api={new HttpApiClient()} usuario={ME} onRequest={vi.fn()} />);
   const botao = await screen.findByRole("button", { name: /Confirmar recebimento/ });
   expect(botao).toHaveClass("w-full", "md:w-auto");
   conferirAlvos(container);

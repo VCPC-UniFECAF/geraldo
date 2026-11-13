@@ -8,6 +8,7 @@ export interface Entrega {
   itens: { nome: string; quantidade: number }[];
   prioridade: Priority;
   status: DeliveryStatus;
+  solicitanteId: number;
   solicitadaEm: Date;
 }
 
@@ -32,6 +33,7 @@ export class EntregaAdapter {
       itens: entrega.items.map((i) => ({ nome: legivel(i.item_id), quantidade: i.quantity })),
       prioridade: entrega.priority,
       status: entrega.status,
+      solicitanteId: entrega.requested_by,
       solicitadaEm: new Date(entrega.created_at),
     };
   }

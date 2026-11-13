@@ -1,6 +1,7 @@
 import { PackageCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { CatalogoApi, EntregasApi } from "../api/ApiClient";
+import type { Me } from "../api/types";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { DeliveryQueueRow } from "../components/DeliveryQueueRow";
@@ -9,10 +10,12 @@ import { aguardandoRecebimento, maisRecentesPrimeiro } from "../domain/operacoes
 
 interface Props {
   api: CatalogoApi & EntregasApi;
+  usuario: Pick<Me, "id" | "role">;
   onRequest: () => void;
+  intervaloMs?: number;
 }
 
-export function MinhasEntregasPage({ api, onRequest }: Props) {
+export function MinhasEntregasPage({ api, usuario, onRequest, intervaloMs = 5000 }: Props) {
   const [entregas, setEntregas] = useState<Entrega[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<number | null>(null);
@@ -29,6 +32,12 @@ export function MinhasEntregasPage({ api, onRequest }: Props) {
   useEffect(() => {
     carregar().catch((err: Error) => setError(err.message));
   }, [carregar]);
+
+  // O robô chega sem ninguém tocar na tela: recarrega sozinho (falha de uma rodada some; a próxima tenta de novo).
+  useEffect(() => {
+    const id = setInterval(() => carregar().catch(() => {}), intervaloMs);
+    return () => clearInterval(id);
+  }, [carregar, intervaloMs]);
 
   async function confirmar(id: number) {
     setConfirmando(id);
@@ -84,7 +93,7 @@ export function MinhasEntregasPage({ api, onRequest }: Props) {
                 key={e.id}
                 entrega={e}
                 acao={
-                  aguardandoRecebimento(e) ? (
+                  aguardandoRecebimento(e) && (e.solicitanteId === usuario.id || usuario.role === "admin") ? (
                     <Button
                       variant="secundario"
                       className="w-full md:w-auto"
