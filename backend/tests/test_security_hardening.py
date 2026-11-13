@@ -76,3 +76,7 @@ def test_role_matrix(client, auth, method, path, allowed):
         if role.value not in allowed:
             status = client.request(method, path, json={}, headers=auth(USERS[role.value])).status_code
             assert status == 403, f"{role.value} em {method.upper()} {path} deveria levar 403, levou {status}"
+
+
+def test_a_huge_numeric_subject_is_401_not_500(client):
+    assert get_me(client, token(sub="9" * 40)) == 401  # estoura o inteiro do SQLite

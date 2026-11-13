@@ -15,7 +15,7 @@ def user_from_token(token: str, session: Session) -> User | None:
     try:
         claims = decode_token(token)
         user = session.get(User, int(claims["sub"]))
-    except (jwt.PyJWTError, TypeError, ValueError):  # assinatura/algoritmo/claims ruins ou sub que não é um número
+    except (jwt.PyJWTError, TypeError, ValueError, OverflowError):  # assinatura/algoritmo/claims ruins, sub que não é número ou grande demais para o banco
         return None
     if user is None or user.role.value != claims["role"]:  # o papel do token precisa ser o papel atual do usuário
         return None

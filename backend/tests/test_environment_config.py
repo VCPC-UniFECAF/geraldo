@@ -50,3 +50,13 @@ def test_audit_and_stock_logs_have_a_handler_at_info_level():
 
     log = logging.getLogger("geraldo")
     assert log.handlers and log.level == logging.INFO
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize("value", ["abc", "20", "20-", "-6", "a-b", "20-30", "25-3", "20-6-1", ""])
+def test_malformed_off_peak_hours_fail_with_a_clear_message(monkeypatch, value):
+    monkeypatch.setenv("GERALDO_OFF_PEAK_HOURS", value)
+    with pytest.raises(ValueError, match=r"GERALDO_OFF_PEAK_HOURS.*inicio-fim.*20-6"):
+        Settings()

@@ -4,6 +4,14 @@ import secrets
 DEFAULT_DEMO_PASSWORD = "demo-only-change-me"  # valor público: serve só para a demonstração local
 
 
+def parse_hours(text: str) -> tuple[int, int]:
+    """'20-6' -> (20, 6). Erro claro em português se o formato ou a faixa (0 a 24) estiverem errados."""
+    parts = text.split("-")
+    if len(parts) == 2 and all(p.strip().isdigit() and 0 <= int(p) <= 24 for p in parts):
+        return int(parts[0]), int(parts[1])
+    raise ValueError(f"GERALDO_OFF_PEAK_HOURS inválido ({text!r}): use o formato inicio-fim, em horas de 0 a 24, por exemplo 20-6.")
+
+
 class Settings:
     """Configuração lida do ambiente. Atributos mutáveis para os testes."""
 
@@ -21,7 +29,7 @@ class Settings:
         default_origins = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173"
         self.cors_origins = [o.strip() for o in os.environ.get("GERALDO_CORS_ORIGINS", default_origins).split(",") if o.strip()]
         # janela de baixo pico, "início-fim" em horas (padrão 20-6; "0-24" libera a rotina o dia todo, útil na demo)
-        self.off_peak_start, self.off_peak_end = (int(h) for h in os.environ.get("GERALDO_OFF_PEAK_HOURS", "20-6").split("-"))
+        self.off_peak_start, self.off_peak_end = parse_hours(os.environ.get("GERALDO_OFF_PEAK_HOURS", "20-6"))
 
 
 settings = Settings()
