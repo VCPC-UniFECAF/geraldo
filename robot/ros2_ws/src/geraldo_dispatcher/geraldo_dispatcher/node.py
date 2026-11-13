@@ -21,7 +21,7 @@ from std_msgs.msg import Bool, String
 from .api import BackendClient
 from .dispatcher import Dispatcher
 from .emergency import EmergencyStop
-from .ports import NavigationTuner, Navigator
+from .ports import BackendError, NavigationTuner, Navigator
 from .profiles import NavProfile
 from .states import State, StateMachine
 from .telemetry import BatteryModel, TelemetryReporter, downsample, yaw_from_quaternion
@@ -111,6 +111,19 @@ def _every_second(reporter: TelemetryReporter) -> None:
         reporter.tick(1.0)
 
 
+def _login_when_available(client: BackendClient, name: str) -> None:
+    """Entra no backend; se ele ainda não subiu, espera. Usuário ou senha errados (401) é erro fatal."""
+    while True:
+        try:
+            client.login()
+            return
+        except BackendError as err:
+            if err.status in (401, 403):
+                raise SystemExit(str(err))
+            print(f"{name}: {err} Tentando de novo em 5 s.", flush=True)
+            time.sleep(5)
+
+
 def main() -> None:
     password = os.environ.get("GERALDO_ROBOT_PASSWORD") or os.environ.get("GERALDO_DEMO_PASSWORD")
     if not password:
@@ -123,7 +136,7 @@ def main() -> None:
     nav.waitUntilNav2Active()
     waypoints_file = os.path.join(get_package_share_directory("geraldo_nav"), "config", "waypoints.yaml")
     client = BackendClient(api_url, "robo", password)
-    client.login()
+    _login_when_available(client, "dispatcher")
     machine, estop = StateMachine(), EmergencyStop()
 
     state_node = GeraldoStateNode(estop)
@@ -137,7 +150,7 @@ def main() -> None:
                             machine=machine, estop=estop, tuner=Nav2Tuner(state_node))
 
     telemetry_client = BackendClient(api_url, "robo", password)  # cliente próprio: a telemetria roda em outra thread
-    telemetry_client.login()
+    _login_when_available(telemetry_client, "telemetria")
     reporter = TelemetryReporter(
         telemetry_client, machine, BatteryModel(), pose_source=lambda: state_node.pose,
         route_source=lambda: state_node.route, delivery_source=lambda: dispatcher.delivery_id,
@@ -146,7 +159,11 @@ def main() -> None:
     threading.Thread(target=_every_second, args=(reporter,), daemon=True).start()
     try:
         while rclpy.ok():
-            if dispatcher.run_once() is None:
-                time.sleep(2)
+            try:
+                if dispatcher.run_once() is None:
+                    time.sleep(2)
+            except BackendError as err:  # backend fora do ar entre duas entregas: espera e pergunta de novo
+                print(f"backend indisponível: {err}", flush=True)
+                time.sleep(5)
     finally:
         rclpy.shutdown()

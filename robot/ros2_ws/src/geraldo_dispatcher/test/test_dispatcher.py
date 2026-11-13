@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT))
 from geraldo_dispatcher.api import BackendClient  # noqa: E402
 from geraldo_dispatcher.dispatcher import Dispatcher  # noqa: E402
 from geraldo_dispatcher.emergency import EmergencyStop  # noqa: E402
-from geraldo_dispatcher.ports import BackendPort, NavigationTuner, Navigator  # noqa: E402
+from geraldo_dispatcher.ports import BackendError, BackendPort, NavigationTuner, Navigator  # noqa: E402
 from geraldo_dispatcher.profiles import DEFAULT_PROFILE, PROFILES  # noqa: E402
 from geraldo_dispatcher.states import State, StateMachine  # noqa: E402
 from geraldo_dispatcher.waypoints import Pose, load_poses  # noqa: E402
@@ -282,3 +282,62 @@ def test_an_unknown_priority_is_an_error_before_the_robot_moves():
     with pytest.raises(ValueError, match="Prioridade desconhecida"):
         run(ScriptedBackend([{**TASK, "priority": "urgente"}]), navigator, tuner=RecordingTuner())
     assert navigator.visited == []
+
+
+class FlakyEvents(ScriptedBackend):  # send_event falha `fails` vezes
+    def __init__(self, tasks, fails) -> None:
+        super().__init__(tasks)
+        self.fails = fails
+
+    def send_event(self, delivery_id, event, reason=None):
+        if self.fails > 0:
+            self.fails -= 1
+            raise BackendError("O backend respondeu 500 em POST /robot/events.", 500)
+        return super().send_event(delivery_id, event, reason)
+
+
+class FlakyStatus(ScriptedBackend):  # delivery_status falha `errors` vezes
+    def __init__(self, tasks, errors) -> None:
+        super().__init__(tasks)
+        self.errors = errors
+
+    def delivery_status(self, delivery_id):
+        if self.errors > 0:
+            self.errors -= 1
+            raise BackendError(f"O backend respondeu 404 em GET /deliveries/{delivery_id}.", 404)
+        return "ENTREGUE"
+
+
+def test_an_event_is_retried_while_the_backend_is_down_and_the_delivery_goes_on():
+    flaky = FlakyEvents([TASK], fails=2)
+    result, _, sleeps = run(flaky)
+    assert result["result"] == "ENTREGUE"
+    assert [event for event, _ in flaky.events] == ["LOADED", "ARRIVED", "UNLOCKED"]
+    assert sleeps == [1.0, 1.0]
+
+
+def test_an_event_that_never_gets_through_is_dropped_without_stopping_the_robot():
+    flaky = FlakyEvents([TASK], fails=99)
+    result, history, sleeps = run(flaky)
+    assert result["result"] == "ENTREGUE" and flaky.events == [] and history[-1] is State.IDLE
+    assert sleeps == [1.0] * 6  # 3 eventos x 2 esperas entre as 3 tentativas
+
+
+def test_the_receipt_wait_survives_errors_while_polling():
+    result, _, sleeps = run(FlakyStatus([TASK], errors=2))
+    assert result["result"] == "ENTREGUE" and sleeps == [2.0, 2.0]
+
+
+def test_a_status_that_never_answers_ends_unconfirmed_and_says_why():
+    result, _, _ = run(FlakyStatus([TASK], errors=999), receipt_timeout=4.0)
+    assert result["result"] == "FALHOU"
+    assert result["reason"].startswith("recebimento não confirmado a tempo") and "404" in result["reason"]
+
+
+def test_a_backend_that_hides_the_delivery_from_the_robot_ends_unconfirmed_instead_of_crashing(backend):
+    backend.delivery_status_code = 404  # o que o plano da semana 1 do Erik faria com o papel robo
+    client = client_for(backend)
+    client.login()
+    result, _, _ = run(client, receipt_timeout=4.0)
+    assert result["result"] == "FALHOU" and "404" in result["reason"]
+    assert [e["event"] for e in backend.events] == ["LOADED", "ARRIVED", "FAILED"]
