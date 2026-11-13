@@ -31,11 +31,9 @@ def patch_params(params: dict) -> dict:
         p = params[name][name]["ros__parameters"]
         p.pop("robot_radius", None)
         p["footprint"] = FOOTPRINT
-    # O hospital é estático: uma marca do LiDAR num vão de 1,0 m fecha a porta para o planejador global.
-    # Obstáculos novos continuam no costmap local, que o controlador usa para desviar.
-    glob = params["global_costmap"]["global_costmap"]["ros__parameters"]
-    if "plugins" in glob:
-        glob["plugins"] = [x for x in glob["plugins"] if x != "obstacle_layer"]
+    # O costmap global mantém o obstacle_layer (padrão do nav2_bringup): sem ele o planejador não vê obstáculos novos,
+    # como a maca do corredor norte, e o robô para na frente dela em vez de replanejar pela cruz central.
+    # Validado em 12/11/2026: com a camada ligada a varredura dos 10 pontos continua em TODOS OS PONTOS OK.
     params["controller_server"]["ros__parameters"]["FollowPath"]["vx_max"] = CRUISE_SPEED
     params["velocity_smoother"]["ros__parameters"]["max_velocity"][0] = CRUISE_SPEED   # senão o suavizador corta o controlador
     amcl = params["amcl"]["ros__parameters"]
