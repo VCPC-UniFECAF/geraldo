@@ -22,6 +22,8 @@ AMCL_TUNING = {
     "sigma_hit": 0.1, "z_hit": 0.9, "z_rand": 0.1,
     "update_min_d": 0.1, "update_min_a": 0.1,
 }
+# m/s: antes 0,5 e depois 0,8. É o teto do plugin de movimento do URDF e ainda cabe nos corredores de 2 m e nas portas de 1 m.
+CRUISE_SPEED = 1.0
 
 
 def patch_params(params: dict) -> dict:
@@ -34,7 +36,9 @@ def patch_params(params: dict) -> dict:
     glob = params["global_costmap"]["global_costmap"]["ros__parameters"]
     if "plugins" in glob:
         glob["plugins"] = [x for x in glob["plugins"] if x != "obstacle_layer"]
-    amcl =params["amcl"]["ros__parameters"]
+    params["controller_server"]["ros__parameters"]["FollowPath"]["vx_max"] = CRUISE_SPEED
+    params["velocity_smoother"]["ros__parameters"]["max_velocity"][0] = CRUISE_SPEED   # senão o suavizador corta o controlador
+    amcl = params["amcl"]["ros__parameters"]
     amcl["set_initial_pose"] = True
     amcl["initial_pose"] = dict(INITIAL_POSE)
     amcl["base_frame_id"] = "base_link"
