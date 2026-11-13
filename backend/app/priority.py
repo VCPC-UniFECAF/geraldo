@@ -17,6 +17,11 @@ class PriorityPolicy(ABC):  # STRATEGY: cada prioridade sabe sua posição na fi
     @abstractmethod
     def initial_status(self) -> DeliveryStatus: ...
 
+    @property
+    def needs_approval(self) -> bool:
+        """Exige a assinatura do farmacêutico antes de entrar na fila."""
+        return self.initial_status == DeliveryStatus.PENDENTE_APROVACAO
+
 
 class Critical(PriorityPolicy):
     priority = Priority.critica
