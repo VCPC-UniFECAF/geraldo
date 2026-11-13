@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
-from app.commands.create_delivery import CreateDelivery, DeliveryError
+from app.commands.create_delivery import CreateDelivery
+from app.commands.errors import DeliveryError
 from app.db import get_session
 from app.deps import get_current_user, require_roles
 from app.events import Subject, get_events

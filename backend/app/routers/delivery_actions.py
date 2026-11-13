@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
 from app.commands.cancel_delivery import CancelDelivery
-from app.commands.create_delivery import DeliveryError
+from app.commands.errors import DeliveryError
 from app.db import get_session
 from app.deps import require_roles
 from app.events import Subject, get_events
