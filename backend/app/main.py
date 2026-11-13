@@ -5,6 +5,7 @@ from sqlmodel import Session
 
 from app.config import settings
 from app.db import create_db, engine
+from app.errors import install as install_error_handlers
 from app.events import AuditLog, LowStockAlert, events
 from app.routers import auth, catalog, deliveries, delivery_actions, estop, movements, robot, telemetry
 from app.seed import seed
@@ -23,6 +24,7 @@ events.add_observer(AuditLog())
 events.add_observer(LowStockAlert())
 
 app = FastAPI(title="G.E.R.A.L.D.O. API", version="0.1.0", lifespan=lifespan)
+install_error_handlers(app)
 app.include_router(auth.router)
 app.include_router(catalog.router)
 app.include_router(deliveries.router)

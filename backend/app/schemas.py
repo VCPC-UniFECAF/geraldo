@@ -8,8 +8,8 @@ from app.models import DeliveryStatus, MovementType, Priority, Role
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=128)
 
 
 class TokenResponse(BaseModel):
@@ -43,14 +43,14 @@ class StockOut(BaseModel):
 
 
 class DeliveryItemIn(BaseModel):
-    item_id: str
-    quantity: int = Field(gt=0)
+    item_id: str = Field(min_length=1, max_length=64)
+    quantity: int = Field(gt=0, le=10_000)
 
 
 class DeliveryCreate(BaseModel):
-    origin_id: str
-    dest_id: str | None = None
-    items: list[DeliveryItemIn] = Field(min_length=1)
+    origin_id: str = Field(min_length=1, max_length=64)
+    dest_id: str | None = Field(default=None, min_length=1, max_length=64)
+    items: list[DeliveryItemIn] = Field(min_length=1, max_length=50)
     priority: Priority
 
 
