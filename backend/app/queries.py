@@ -1,6 +1,6 @@
 from sqlmodel import Session, select
 
-from app.models import Delivery, DeliveryItem, DeliveryStatus, Item, Location, Role, Stock, User
+from app.models import Delivery, DeliveryItem, DeliveryStatus, Item, Location, Movement, Role, Stock, User
 from app.schemas import DeliveryItemIn, DeliveryOut, StockOut
 
 SEE_ALL = (Role.admin, Role.farmaceutico)
@@ -63,3 +63,15 @@ def list_queued_deliveries(session: Session) -> list[Delivery]:
 def waypoint_of(session: Session, location_id: str) -> str | None:
     location = session.get(Location, location_id)
     return location.waypoint if location else None
+
+
+def movements_for(session: Session, user: User, *, delivery_id: int | None = None, location_id: str | None = None) -> list[Movement]:
+    """Histórico de movimentações: admin e farmacêutico veem tudo; os demais, só as das entregas que pediram."""
+    query = select(Movement).order_by(Movement.id)
+    if user.role not in SEE_ALL:
+        query = query.where(Movement.delivery_id.in_(select(Delivery.id).where(Delivery.requested_by == user.id)))
+    if delivery_id is not None:
+        query = query.where(Movement.delivery_id == delivery_id)
+    if location_id is not None:
+        query = query.where(Movement.location_id == location_id)
+    return list(session.exec(query).all())
