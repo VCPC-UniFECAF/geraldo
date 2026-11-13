@@ -6,8 +6,12 @@ from app.schemas import DeliveryItemIn, DeliveryOut, StockOut
 SEE_ALL = (Role.admin, Role.farmaceutico)
 
 
+def delivery_lines(session: Session, delivery: Delivery) -> list[DeliveryItem]:
+    return list(session.exec(select(DeliveryItem).where(DeliveryItem.delivery_id == delivery.id).order_by(DeliveryItem.id)).all())
+
+
 def delivery_out(session: Session, delivery: Delivery) -> DeliveryOut:
-    items = session.exec(select(DeliveryItem).where(DeliveryItem.delivery_id == delivery.id).order_by(DeliveryItem.id)).all()
+    items = delivery_lines(session, delivery)
     return DeliveryOut(
         id=delivery.id,
         origin_id=delivery.origin_id,
