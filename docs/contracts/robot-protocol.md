@@ -41,14 +41,19 @@ O backend pode responder `409` a um evento (por exemplo `FAILED` de uma entrega 
 
 - `POST /robot/telemetry` a cada 1 s, corpo `Telemetry` (`204` na resposta). Sem pose do AMCL ainda, o robô não envia.
 - `route`: no máximo 50 pontos, tirados do `/plan` do Nav2 (vazia quando parado).
-- `obstacles`: **sempre `[]` por enquanto** (o robô ainda não detecta obstáculos por conta própria).
+- `obstacles`: até 20 itens `{x, y, radius}`, em metros, no referencial `map` (um círculo por grupo de pontos do LiDAR). O robô leva o `/scan` para o `map` pela pose do AMCL, descarta o que coincide com o mapa estático (tolerância de 0,25 m), agrupa os pontos que estão a menos de 0,35 m um do outro e envia os grupos mais próximos do robô primeiro. Lista vazia quando não há nada novo à vista.
 - `battery`: virtual (gasta andando, gasta pouco esperando, recarrega parado na base), de 0 a 100.
 - `delivery_id`: a entrega em curso, `null` em `IDLE`.
 - O backend ignora o `updated_at` do robô e grava a hora de recebimento.
 
 ## 5. Emergência
 
-`/geraldo/estop` (`std_msgs/Bool`) é tópico ROS, não HTTP. Com `true`, o robô cancela a meta, para e o estado vira `PARADA_EMERGENCIA` em cerca de 1 s (a telemetria acompanha). Com `false`, volta ao estado anterior e refaz a mesma meta. Botão no painel exige contrato novo (semana 3).
+Há duas fontes de parada, e o robô as junta:
+
+1. O tópico ROS `/geraldo/estop` (`std_msgs/Bool`), para quem está na máquina.
+2. O backend: o painel chama `POST /robot/estop` com `{"active": true}` (papéis `admin` e `farmaceutico`) e o robô consulta `GET /robot/estop` (papel `robo`, resposta `{"active": bool}`). O backend começa com `active` falso. `GET /robot/estop` a cada 1 s, com o mesmo login do robô.
+
+Regra de junção: com **qualquer** fonte ligada, o robô cancela a meta, para e o estado vira `PARADA_EMERGENCIA` (a telemetria acompanha, em até uns 2 s no caso do backend); só sai da parada com as duas fontes desligadas, e então volta ao estado anterior e refaz a mesma meta. Se a consulta ao backend falhar, vale o último valor conhecido: não libera nem aciona sozinho.
 
 ## 6. Resiliência
 
@@ -65,13 +70,16 @@ O backend pode responder `409` a um evento (por exemplo `FAILED` de uma entrega 
 3. `ARRIVED` leva a entrega a `AGUARDANDO_RECEBIMENTO`. `UNLOCKED` chega **depois** de `ENTREGUE`: aceitar, ou responder `409` (o robô tolera).
 4. `POST /robot/next-task` deve pular `rotina` fora da janela de baixo pico: o robô não consegue devolver uma tarefa que o backend já marcou `EM_ROTA`.
 5. Locais sem `waypoint` (a recepção) não podem ser origem nem destino: recusar na criação da entrega (já está no seu plano). Se uma passar, o robô manda `FAILED` e não se mexe.
+6. `POST /robot/estop` (papéis `admin` e `farmaceutico`) guarda `{active}` em memória (começa em `false`) e `GET /robot/estop` (papel `robo`) devolve o último valor; `422` se o corpo não tiver `active` booleano.
 
 **Vieira (web)**
 1. Montar o MSW e as telas de estado do robô com `examples/robot-telemetry.json` (um corpo por estado) em vez de inventar fixtures.
 2. "Confirmar recebimento" só faz sentido com `status = AGUARDANDO_RECEBIMENTO`; o estado do robô nessa hora é `AGUARDANDO_RETIRADA`.
-3. `obstacles` vem vazio e `route` pode vir vazio.
+3. `obstacles` traz até 20 círculos `{x, y, radius}` em metros no referencial `map` (pode vir vazio) e `route` também pode vir vazia.
+4. Botão de emergência: `POST /robot/estop` com `{active: true}`; o estado `PARADA_EMERGENCIA` na telemetria confirma (em até uns 2 s). Para liberar, `{active: false}`: se o tópico ROS ainda estiver ligado, o robô continua parado.
 
 **Pedro (qualidade)**
 1. `tools/mock_robot.py` deve seguir a sequência da seção 2 e usar os corpos de `examples/robot-events.json`.
 2. O teste de contrato precisa incluir a operação `POST /robot/telemetry` (nova no OpenAPI) na lista de pendentes até o Erik implementar.
 3. O ataque "obstáculo falso na telemetria" mira `POST /robot/telemetry`; as mitigações são papel `robo`, estado no enum, bateria de 0 a 100 e `updated_at` ignorado.
+4. `tools/mock_robot.py` também consulta `GET /robot/estop` a cada 1 s e fica em `PARADA_EMERGENCIA` enquanto vier `true`; o teste de contrato inclui `POST` e `GET /robot/estop`.

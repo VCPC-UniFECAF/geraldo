@@ -1,6 +1,6 @@
 """Validador mínimo de corpos contra os schemas do docs/contracts/openapi.yaml (sem dependência nova).
 
-Cobre só o que o contrato usa: $ref, nullable, enum, type, format date-time, minimum, maximum, required, properties e items.
+Cobre só o que o contrato usa: $ref, nullable, enum, type, format date-time, minimum, maximum, maxItems, required, properties e items.
 """
 from datetime import datetime
 
@@ -38,6 +38,8 @@ def validate(value, schema: dict, spec: dict, path: str = "$") -> list[str]:
             if name in value:
                 errors += validate(value[name], sub, spec, f"{path}.{name}")
     if kind == "array":
+        if "maxItems" in schema and len(value) > schema["maxItems"]:
+            errors.append(f"{path}: {len(value)} itens, no máximo {schema['maxItems']}")
         for index, item in enumerate(value):
             errors += validate(item, schema.get("items", {}), spec, f"{path}[{index}]")
     return errors
