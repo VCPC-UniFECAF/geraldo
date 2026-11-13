@@ -3,6 +3,7 @@ from sqlmodel import Session
 
 from app.commands.approve_delivery import ApproveDelivery
 from app.commands.cancel_delivery import CancelDelivery
+from app.commands.confirm_receipt import ConfirmReceipt
 from app.commands.errors import DeliveryError
 from app.db import get_session
 from app.deps import require_roles
@@ -38,6 +39,20 @@ def approve_delivery(
 ) -> DeliveryOut:
     try:
         delivery = ApproveDelivery(session, user, delivery_id, events=events).execute()
+    except DeliveryError as err:
+        raise HTTPException(status_code=err.status_code, detail=str(err))
+    return delivery_out(session, delivery)
+
+
+@router.post("/deliveries/{delivery_id}/confirm-receipt", response_model=DeliveryOut)
+def confirm_receipt(
+    delivery_id: int,
+    user: User = Depends(require_roles(*REQUESTERS)),
+    session: Session = Depends(get_session),
+    events: Subject = Depends(get_events),
+) -> DeliveryOut:
+    try:
+        delivery = ConfirmReceipt(session, user, delivery_id, events=events).execute()
     except DeliveryError as err:
         raise HTTPException(status_code=err.status_code, detail=str(err))
     return delivery_out(session, delivery)
