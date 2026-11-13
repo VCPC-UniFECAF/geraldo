@@ -10,6 +10,7 @@ from app.schemas import TelemetryOut
 from app.telemetry import TelemetryHub, get_hub
 
 router = APIRouter()
+QUEUE_SIZE = 100
 
 
 @router.get("/telemetry", response_model=TelemetryOut)
@@ -22,10 +23,19 @@ class _Subscriber:  # OBSERVER: assinante do hub para um WebSocket
 
     def __init__(self) -> None:
         self._loop = asyncio.get_running_loop()
-        self.queue: asyncio.Queue = asyncio.Queue()
+        self.queue: asyncio.Queue = asyncio.Queue(maxsize=QUEUE_SIZE)
 
     def update(self, telemetry: TelemetryOut) -> None:
-        self._loop.call_soon_threadsafe(self.queue.put_nowait, telemetry.model_dump(mode="json"))
+        try:
+            self._loop.call_soon_threadsafe(self._put, telemetry.model_dump(mode="json"))
+        except RuntimeError:  # o loop do socket já fechou: esse assinante saiu, e o POST do robô não pode falhar por isso
+            pass
+
+    def _put(self, message: dict) -> None:
+        """Cliente lento não acumula memória: com a fila cheia, descarta o estado mais antigo (o painel só quer o mais novo)."""
+        if self.queue.full():
+            self.queue.get_nowait()
+        self.queue.put_nowait(message)
 
 
 async def _wait_disconnect(ws: WebSocket) -> None:
@@ -43,6 +53,7 @@ def _token_of(ws: WebSocket) -> str | None:
 async def ws_telemetry(ws: WebSocket, hub: TelemetryHub = Depends(get_hub), session: Session = Depends(get_session)):
     token = _token_of(ws)
     user = user_from_token(token, session) if token else None
+    session.close()  # a conexão volta ao pool agora; o socket pode ficar horas aberto sem ela
     if user is None:
         await ws.close(code=1008, reason="Faça login: informe o token em ?token=")
         return

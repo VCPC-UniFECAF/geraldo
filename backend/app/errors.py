@@ -16,8 +16,11 @@ MESSAGES = {
     "float_parsing": "deve ser um número",
     "bool_type": "deve ser verdadeiro ou falso",
     "bool_parsing": "deve ser verdadeiro ou falso",
-    "enum": "valor fora da lista permitida",
-    "literal_error": "valor fora da lista permitida",
+    "enum": "valor fora da lista permitida ({expected})",
+    "literal_error": "valor fora da lista permitida ({expected})",
+    "datetime_type": "deve ser uma data e hora (ex.: 2026-11-13T15:00:00Z)",
+    "datetime_parsing": "deve ser uma data e hora (ex.: 2026-11-13T15:00:00Z)",
+    "datetime_from_date_parsing": "deve ser uma data e hora (ex.: 2026-11-13T15:00:00Z)",
     "too_short": "curto demais (mínimo {min_length})",
     "too_long": "grande demais (máximo {max_length})",
     "string_too_short": "curto demais (mínimo {min_length})",
@@ -57,7 +60,10 @@ async def validation_error(_: Request, exc: RequestValidationError) -> JSONRespo
 
 
 async def http_error(_: Request, exc: StarletteHTTPException) -> JSONResponse:
-    default = HTTPStatus(exc.status_code).phrase
+    try:
+        default = HTTPStatus(exc.status_code).phrase
+    except ValueError:  # código fora da enumeração (ex.: 499): não há frase padrão para trocar
+        default = None
     detail = HTTP_MESSAGES.get(exc.status_code, exc.detail) if exc.detail == default else exc.detail
     return JSONResponse(status_code=exc.status_code, content={"detail": detail}, headers=exc.headers)
 
