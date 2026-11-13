@@ -81,6 +81,8 @@ asyncio.run(main())
 PY
 )" "primeiro quadro do WebSocket"
 
+expect 0 "$(grep -c "$MED" "$WORK/uvicorn.log")" "o token do WebSocket não aparece no log do servidor"
+
 echo "--- 9. trilha de auditoria no log do servidor"
 grep -E "geraldo\." "$WORK/uvicorn.log"
 expect 1 "$(grep -c 'entrega 1: AGUARDANDO_RECEBIMENTO -> ENTREGUE (por medico1)' "$WORK/uvicorn.log")" "auditoria do recebimento"

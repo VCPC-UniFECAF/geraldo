@@ -1,4 +1,5 @@
 import logging
+import re
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -24,6 +25,21 @@ async def lifespan(app: FastAPI):
     yield
 
 
+class MaskToken(logging.Filter):
+    """O WebSocket recebe o JWT em ?token=; o log de acesso do uvicorn não pode guardá-lo (vale 60 min)."""
+
+    _TOKEN = re.compile(r"(token=)[^&\s\"]+")
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.msg = self._mask(record.msg)
+        if isinstance(record.args, tuple):
+            record.args = tuple(self._mask(a) for a in record.args)
+        return True
+
+    def _mask(self, value):
+        return self._TOKEN.sub(r"\1***", value) if isinstance(value, str) else value
+
+
 def configure_logging() -> None:
     """A trilha de auditoria e os alertas de estoque saem no terminal do servidor (o uvicorn só configura o log dele)."""
     log = logging.getLogger("geraldo")
@@ -32,6 +48,10 @@ def configure_logging() -> None:
         handler.setFormatter(logging.Formatter("%(levelname)s:     [%(name)s] %(message)s"))
         log.addHandler(handler)
         log.setLevel(logging.INFO)
+    for name in ("uvicorn.access", "uvicorn.error"):  # access log do HTTP e a linha "WebSocket ... [accepted]"
+        uvicorn_log = logging.getLogger(name)
+        if not any(isinstance(f, MaskToken) for f in uvicorn_log.filters):
+            uvicorn_log.addFilter(MaskToken())
 
 
 configure_logging()
