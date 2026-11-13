@@ -1,22 +1,29 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
 import { HttpApiClient } from "../api/HttpApiClient";
 import { DELIVERY, TELEMETRIAS } from "../api/mocks/fixtures";
 import { semearEntregas } from "../api/mocks/handlers";
+import { server } from "../api/mocks/server";
+import type { Role } from "../api/types";
 import { TelemetriaCliente } from "../domain/TelemetriaCliente";
 import { fabricaDeSockets } from "../test/SocketFalso";
 import { PainelPage } from "./PainelPage";
 
-function montar() {
+async function montar(role: Role = "medico") {
   const { criar, sockets } = fabricaDeSockets();
   const telemetria = new TelemetriaCliente(() => "ws://teste/ws/telemetry", criar);
-  render(<PainelPage api={new HttpApiClient()} telemetria={telemetria} />);
+  const api = new HttpApiClient();
+  const usuarios: Partial<Record<Role, string>> = { farmaceutico: "farmaceutico1", admin: "admin" };
+  if (usuarios[role]) await api.login(usuarios[role]!, "demo");
+  render(<PainelPage api={api} telemetria={telemetria} role={role} />);
   return { sockets };
 }
 
 const cartaoDoRobo = () => screen.getByRole("region", { name: "Estado do robô" });
 
 test("mostra o estado inicial e depois o que chega pelo WebSocket", async () => {
-  const { sockets } = montar();
+  const { sockets } = await montar();
   expect(screen.getByRole("heading", { name: "Painel do robô" })).toBeInTheDocument();
   expect(await within(cartaoDoRobo()).findByText("Livre")).toBeInTheDocument();
   act(() => {
@@ -29,7 +36,7 @@ test("mostra o estado inicial e depois o que chega pelo WebSocket", async () => 
 
 test("a entrega em curso aparece no cartão com o nome do destino", async () => {
   semearEntregas([DELIVERY]);
-  const { sockets } = montar();
+  const { sockets } = await montar();
   await within(cartaoDoRobo()).findByText("Livre");
   act(() => {
     sockets[0].receber({ ...TELEMETRIAS.A_CAMINHO, delivery_id: 1 });
@@ -43,7 +50,7 @@ test("separa as entregas em andamento da fila, com a crítica primeiro", async (
     { ...DELIVERY, id: 3, status: "NA_FILA", priority: "rotina" },
     { ...DELIVERY, id: 4, status: "NA_FILA", priority: "critica" },
   ]);
-  montar();
+  await montar();
   const andamento = await screen.findByRole("region", { name: "Em andamento" });
   await waitFor(() => expect(within(andamento).getAllByRole("listitem")).toHaveLength(1));
   const fila = screen.getByRole("region", { name: "Fila de espera" });
@@ -54,13 +61,13 @@ test("separa as entregas em andamento da fila, com a crítica primeiro", async (
 });
 
 test("sem entregas mostra os textos de vazio", async () => {
-  montar();
+  await montar();
   expect(await screen.findByText("Nenhuma entrega em andamento.")).toBeInTheDocument();
   expect(screen.getByText("Ninguém na fila.")).toBeInTheDocument();
 });
 
 test("parada de emergência na telemetria mostra o alerta vermelho", async () => {
-  const { sockets } = montar();
+  const { sockets } = await montar();
   await within(cartaoDoRobo()).findByText("Livre");
   act(() => {
     sockets[0].receber(TELEMETRIAS.PARADA_EMERGENCIA);
@@ -69,7 +76,7 @@ test("parada de emergência na telemetria mostra o alerta vermelho", async () =>
 });
 
 test("bateria baixa mostra o alerta", async () => {
-  const { sockets } = montar();
+  const { sockets } = await montar();
   await within(cartaoDoRobo()).findByText("Livre");
   act(() => {
     sockets[0].receber({ ...TELEMETRIAS.IDLE, battery: 12 });
@@ -78,16 +85,75 @@ test("bateria baixa mostra o alerta", async () => {
 });
 
 test("conexão caída mostra o aviso de reconexão e some quando volta", async () => {
-  const { sockets } = montar();
+  const { sockets } = await montar();
   await within(cartaoDoRobo()).findByText("Livre");
   act(() => sockets[0].cair());
   expect(screen.getByRole("status")).toHaveTextContent("Sem conexão com o robô. Tentando reconectar…");
 });
 
 test("erro ao carregar as entregas aparece como alerta", async () => {
-  const { server } = await import("../api/mocks/server");
-  const { http, HttpResponse } = await import("msw");
   server.use(http.get("http://localhost:8000/deliveries", () => HttpResponse.json({ detail: "Faça login para continuar." }, { status: 401 })));
-  montar();
+  await montar();
   expect(await screen.findByRole("alert")).toHaveTextContent("Faça login para continuar.");
+});
+
+test("médico não vê o botão de emergência", async () => {
+  await montar("medico");
+  await within(cartaoDoRobo()).findByText("Livre");
+  expect(screen.queryByRole("button", { name: /parada de emergência/i })).not.toBeInTheDocument();
+});
+
+test("farmacêutico aciona a parada: o corpo é {active: true}, o alerta aparece e o botão vira Desligar", async () => {
+  let corpo: unknown = null;
+  server.use(
+    http.post("http://localhost:8000/robot/estop", async ({ request }) => {
+      corpo = await request.json();
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  await montar("farmaceutico");
+  await within(cartaoDoRobo()).findByText("Livre");
+  await userEvent.click(screen.getByRole("button", { name: "Parada de emergência" }));
+  expect(await screen.findByRole("button", { name: "Desligar parada de emergência" })).toBeInTheDocument();
+  expect(corpo).toEqual({ active: true });
+  expect(screen.getByRole("alert")).toHaveTextContent("Parada de emergência ativa. O robô está parado até a liberação.");
+});
+
+test("desligar a parada manda {active: false} e o alerta some", async () => {
+  const corpos: unknown[] = [];
+  server.use(
+    http.post("http://localhost:8000/robot/estop", async ({ request }) => {
+      corpos.push(await request.json());
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  await montar("admin");
+  await within(cartaoDoRobo()).findByText("Livre");
+  await userEvent.click(screen.getByRole("button", { name: "Parada de emergência" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Desligar parada de emergência" }));
+  expect(await screen.findByRole("button", { name: "Parada de emergência" })).toBeInTheDocument();
+  expect(corpos).toEqual([{ active: true }, { active: false }]);
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+test("parada acionada por outro painel (só a telemetria sabe) também liga o alerta e o botão Desligar", async () => {
+  const { sockets } = await montar("farmaceutico");
+  await within(cartaoDoRobo()).findByText("Livre");
+  act(() => {
+    sockets[0].receber(TELEMETRIAS.PARADA_EMERGENCIA);
+  });
+  expect(screen.getByRole("button", { name: "Desligar parada de emergência" })).toBeInTheDocument();
+});
+
+test("erro da API ao acionar aparece em alerta e o botão volta ao normal", async () => {
+  server.use(
+    http.post("http://localhost:8000/robot/estop", () =>
+      HttpResponse.json({ detail: "Só administrador e farmacêutico acionam a parada de emergência." }, { status: 403 }),
+    ),
+  );
+  await montar("farmaceutico");
+  await within(cartaoDoRobo()).findByText("Livre");
+  await userEvent.click(screen.getByRole("button", { name: "Parada de emergência" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Só administrador e farmacêutico acionam a parada de emergência.");
+  expect(screen.getByRole("button", { name: "Parada de emergência" })).toBeEnabled();
 });

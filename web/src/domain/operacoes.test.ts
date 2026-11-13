@@ -1,6 +1,16 @@
 import { DELIVERY, LOCATIONS, MOVEMENTS, STOCK } from "../api/mocks/fixtures";
 import type { Delivery } from "../api/types";
-import { abaixoDoMinimo, abaixoDoMinimoPrimeiro, aguardandoRecebimento, emAndamento, filaDeEspera, filtrarComSaldo, locaisComEstoque, locaisComParada, maisRecentesPrimeiro, rotularEstoque, saldo } from "./operacoes";
+import { abaixoDoMinimo, abaixoDoMinimoPrimeiro, aguardandoRecebimento, emAndamento, filaDeEspera, filtrarComSaldo, locaisComEstoque, locaisComParada, maisRecentesPrimeiro, podeAcionarEstop, rotularEstoque, saldo } from "./operacoes";
+
+test.each([
+  ["admin", true],
+  ["farmaceutico", true],
+  ["medico", false],
+  ["enfermeiro", false],
+  ["robo", false],
+] as const)("podeAcionarEstop(%s) é %s", (papel, esperado) => {
+  expect(podeAcionarEstop(papel)).toBe(esperado);
+});
 
 test("saldo é quantidade menos reservado", () => {
   expect(saldo(STOCK[0])).toBe(420);

@@ -1,5 +1,5 @@
 // PROGRAMAÇÃO FUNCIONAL: funções puras com filter / map / sort, sem alterar a lista original.
-import type { Delivery, DeliveryStatus, Location, Priority, StockEntry } from "../api/types";
+import type { Delivery, DeliveryStatus, Location, Priority, Role, StockEntry } from "../api/types";
 
 export const saldo = (e: StockEntry): number => e.quantity - e.reserved;
 
@@ -40,3 +40,8 @@ export const filaDeEspera = (entregas: Delivery[]): Delivery[] =>
   entregas
     .filter((e) => e.status === "NA_FILA" || e.status === "PENDENTE_APROVACAO")
     .sort((a, b) => ORDEM_DA_PRIORIDADE[a.priority] - ORDEM_DA_PRIORIDADE[b.priority] || a.id - b.id);
+
+const PAPEIS_DE_EMERGENCIA: readonly Role[] = ["admin", "farmaceutico"];
+
+// Contrato: só admin e farmacêutico chamam POST /robot/estop; a interface nem mostra o botão para os outros.
+export const podeAcionarEstop = (role: Role): boolean => PAPEIS_DE_EMERGENCIA.includes(role);
