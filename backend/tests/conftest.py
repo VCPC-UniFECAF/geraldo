@@ -1,10 +1,12 @@
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from app.config import settings
-from app.db import create_db, make_engine
+from app.db import create_db, get_session, make_engine
+from app.main import app
 from app.seed import seed
 
 FIXTURES = Path(__file__).parent / "fixtures" / "seeds"
@@ -38,3 +40,25 @@ def engine():
 def session(engine):
     with Session(engine) as s:
         yield s
+
+
+@pytest.fixture
+def client(engine):
+    def override():
+        with Session(engine) as s:
+            yield s
+
+    app.dependency_overrides[get_session] = override
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def auth(client):
+    def login(username: str) -> dict:
+        r = client.post("/auth/login", json={"username": username, "password": PASSWORD})
+        assert r.status_code == 200, r.text
+        return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    return login
