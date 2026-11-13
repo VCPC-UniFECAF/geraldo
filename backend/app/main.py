@@ -1,6 +1,8 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 
 from app.config import settings
@@ -22,11 +24,28 @@ async def lifespan(app: FastAPI):
     yield
 
 
+def configure_logging() -> None:
+    """A trilha de auditoria e os alertas de estoque saem no terminal do servidor (o uvicorn só configura o log dele)."""
+    log = logging.getLogger("geraldo")
+    if not log.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(levelname)s:     [%(name)s] %(message)s"))
+        log.addHandler(handler)
+        log.setLevel(logging.INFO)
+
+
+configure_logging()
 events.add_observer(AuditLog())
 events.add_observer(LowStockAlert())
 
 app = FastAPI(title="G.E.R.A.L.D.O. API", version="0.1.0", lifespan=lifespan)
 install_error_handlers(app)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 app.include_router(auth.router)
 app.include_router(catalog.router)
 app.include_router(deliveries.router)

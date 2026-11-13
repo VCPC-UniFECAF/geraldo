@@ -19,7 +19,9 @@ Padrões de código (SOLID, Factory, Strategy, Observer, Adapter, injeção): [`
 - **Dependências pelo construtor (DIP):** o comando recebe `session`, `user`, `payload` e, opcionalmente, a política de prioridade e o criador de movimentação. Nada de criar `Session` dentro do comando.
 - **Strategy:** `app/priority.py` (`PriorityPolicy`, `policy_for`) define ranking e se exige aprovação. Não compare `Priority.critica` fora dele.
 - **Factory Method:** `app/movements.py` (`MovementCreator`) é o único lugar que muda `quantity` ou `reserved`. Tipo novo de movimentação = classe nova.
-- **Observer:** eventos de entrega e de estoque baixo entram na semana 2.
+- **Observer:** `app/events.py` (`Subject`, `AuditLog`, `LowStockAlert`) avisa cada mudança de entrega, de saldo e da emergência; `app/telemetry.py` (`TelemetryHub`) alimenta o WebSocket `/ws/telemetry`, que recebe o token em `?token=<JWT>` (o navegador não manda cabeçalho no WebSocket).
+- **Fluxo do estoque:** criar entrega faz `RESERVA` na origem; confirmar o recebimento faz `BAIXA` na origem e `CREDITO` no destino; cancelar ou falhar faz `ESTORNO`. Só `app/movements.py` mexe no saldo.
+- **Hora injetada:** `app/clock.py` (`Clock`, `OffPeakWindow`); a `rotina` só sai da fila das 20h às 6h (veja `GERALDO_OFF_PEAK_HOURS`).
 
 - **Command:** cada ação do domínio (criar, cancelar, aprovar entrega) é uma classe em `app/commands/` com método `execute()`. Os routers só validam a entrada, chamam o comando e traduzem exceções do domínio em HTTP.
 - **Estoque só por `Movimentacao`** (`RESERVA`, `BAIXA`, `CREDITO`, `ESTORNO`). `quantity` do movimento é sempre positiva; o tipo diz a direção.
@@ -33,4 +35,4 @@ Padrões de código (SOLID, Factory, Strategy, Observer, Adapter, injeção): [`
 
 ## Variáveis de ambiente
 
-`GERALDO_DATABASE_URL`, `GERALDO_JWT_SECRET`, `GERALDO_JWT_MINUTES`, `GERALDO_DEMO_PASSWORD` (senha dos usuários de demonstração), `GERALDO_AUTO_SEED`.
+`GERALDO_DATABASE_URL`, `GERALDO_JWT_SECRET` (mínimo de 32 caracteres), `GERALDO_JWT_MINUTES`, `GERALDO_DEMO_PASSWORD` (senha dos usuários de demonstração), `GERALDO_ROBOT_PASSWORD` (senha do usuário `robo`; sem ela vale a `GERALDO_DEMO_PASSWORD`), `GERALDO_AUTO_SEED`, `GERALDO_CORS_ORIGINS` (origens do navegador, separadas por vírgula; padrão: o Vite em `localhost:5173` e `4173`) e `GERALDO_OFF_PEAK_HOURS` (janela de baixo pico da rotina, `inicio-fim` em horas; padrão `20-6`; `0-24` libera o dia todo na demonstração).

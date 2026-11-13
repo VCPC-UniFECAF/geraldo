@@ -9,7 +9,7 @@ from app.security import hash_password
 
 SEEDS = Path(__file__).resolve().parent.parent / "seeds"
 
-# (username, papel, local padrão). Todos usam GERALDO_DEMO_PASSWORD; só para demonstração.
+# (username, papel, local padrão). Todos usam GERALDO_DEMO_PASSWORD (o robô, GERALDO_ROBOT_PASSWORD se existir); só para demonstração.
 DEMO_USERS = [
     ("medico1", Role.medico, "consultorio1"),
     ("medico2", Role.medico, "consultorio2"),
@@ -18,6 +18,12 @@ DEMO_USERS = [
     ("admin", Role.admin, None),
     ("robo", Role.robo, None),
 ]
+
+
+def _password_for(role: Role) -> str:
+    if role == Role.robo and settings.robot_password:
+        return settings.robot_password
+    return settings.demo_password
 
 
 def _load(path: Path) -> list[dict]:
@@ -38,5 +44,5 @@ def seed(session: Session, seeds_dir: Path = SEEDS) -> None:
             session.add(Stock(**st))
     for username, role, local_id in DEMO_USERS:
         if session.exec(select(User).where(User.username == username)).first() is None:
-            session.add(User(username=username, password_hash=hash_password(settings.demo_password), role=role, local_id=local_id))
+            session.add(User(username=username, password_hash=hash_password(_password_for(role)), role=role, local_id=local_id))
     session.commit()
