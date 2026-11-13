@@ -13,6 +13,8 @@ from app.seed import seed
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if len(settings.jwt_secret) < 32:
+        raise RuntimeError("GERALDO_JWT_SECRET precisa ter pelo menos 32 caracteres. Gere um: python -c 'import secrets; print(secrets.token_hex(32))'")
     if settings.auto_seed:
         create_db()
         with Session(engine) as session:

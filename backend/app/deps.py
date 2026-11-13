@@ -14,9 +14,12 @@ def user_from_token(token: str, session: Session) -> User | None:
     """O usuário dono do token, ou None se o token for inválido, expirado ou de usuário que não existe."""
     try:
         claims = decode_token(token)
-    except jwt.PyJWTError:
+        user = session.get(User, int(claims["sub"]))
+    except (jwt.PyJWTError, TypeError, ValueError):  # assinatura/algoritmo/claims ruins ou sub que não é um número
         return None
-    return session.get(User, int(claims["sub"]))
+    if user is None or user.role.value != claims["role"]:  # o papel do token precisa ser o papel atual do usuário
+        return None
+    return user
 
 
 def get_current_user(
