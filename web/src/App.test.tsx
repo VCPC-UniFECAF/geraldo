@@ -10,14 +10,15 @@ test("começa no login, entra e mostra a tela de solicitar", async () => {
   expect(await screen.findByRole("heading", { name: "Solicitar medicamento" })).toBeInTheDocument();
 });
 
-test("as outras abas mostram Em breve", async () => {
+test("a aba Estoque mostra os saldos", async () => {
   render(<App />);
   await userEvent.type(screen.getByLabelText("Usuário"), "medico1");
   await userEvent.type(screen.getByLabelText("Senha"), "demo");
   await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
   await screen.findByRole("heading", { name: "Solicitar medicamento" });
   await userEvent.click(screen.getAllByRole("button", { name: "Estoque" })[0]);
-  expect(screen.getByText("Em breve.")).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Estoque" })).toBeInTheDocument();
+  expect(await screen.findByText("Bolsa de sangue O negativo")).toBeInTheDocument();
 });
 
 test("a aba Minhas entregas mostra a lista", async () => {

@@ -21,3 +21,11 @@ export const maisRecentesPrimeiro = (entregas: Delivery[]): Delivery[] =>
   [...entregas].sort((a, b) => b.created_at.localeCompare(a.created_at));
 
 export const aguardandoRecebimento = (e: { status: DeliveryStatus }): boolean => e.status === "AGUARDANDO_RECEBIMENTO";
+
+export const abaixoDoMinimo = (estoque: StockEntry[]): StockEntry[] => estoque.filter((e) => e.quantity < e.minimum);
+
+// Quem está abaixo do mínimo vem primeiro; a ordem original é mantida dentro de cada grupo.
+export const abaixoDoMinimoPrimeiro = (estoque: StockEntry[]): StockEntry[] => [
+  ...abaixoDoMinimo(estoque),
+  ...estoque.filter((e) => e.quantity >= e.minimum),
+];

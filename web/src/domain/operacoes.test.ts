@@ -1,5 +1,5 @@
 import { DELIVERY, LOCATIONS, STOCK } from "../api/mocks/fixtures";
-import { aguardandoRecebimento, filtrarComSaldo, locaisComEstoque, locaisComParada, maisRecentesPrimeiro, rotularEstoque, saldo } from "./operacoes";
+import { abaixoDoMinimo, abaixoDoMinimoPrimeiro, aguardandoRecebimento, filtrarComSaldo, locaisComEstoque, locaisComParada, maisRecentesPrimeiro, rotularEstoque, saldo } from "./operacoes";
 
 test("saldo é quantidade menos reservado", () => {
   expect(saldo(STOCK[0])).toBe(420);
@@ -33,4 +33,14 @@ test("aguardandoRecebimento só vale para o status AGUARDANDO_RECEBIMENTO", () =
   expect(aguardandoRecebimento({ status: "AGUARDANDO_RECEBIMENTO" })).toBe(true);
   expect(aguardandoRecebimento({ status: "EM_ROTA" })).toBe(false);
   expect(aguardandoRecebimento({ status: "ENTREGUE" })).toBe(false);
+});
+
+test("abaixoDoMinimo pega só quem tem quantidade menor que o mínimo", () => {
+  expect(abaixoDoMinimo(STOCK).map((e) => e.item_id)).toEqual(["bolsa-sangue-o-neg"]);
+});
+
+test("abaixoDoMinimoPrimeiro põe os críticos na frente sem alterar a lista original", () => {
+  const copia = [...STOCK];
+  expect(abaixoDoMinimoPrimeiro(STOCK).map((e) => e.item_id)).toEqual(["bolsa-sangue-o-neg", "dipirona-500mg", "amoxicilina-500mg"]);
+  expect(STOCK).toEqual(copia);
 });

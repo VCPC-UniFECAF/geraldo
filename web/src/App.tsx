@@ -4,6 +4,7 @@ import { HttpApiClient } from "./api/HttpApiClient";
 import { AppShell, type PageId } from "./components/AppShell";
 import { Sessao, TokenObserver } from "./domain/Sessao";
 import { LoginPage } from "./pages/LoginPage";
+import { EstoquePage } from "./pages/EstoquePage";
 import { MinhasEntregasPage } from "./pages/MinhasEntregasPage";
 import { SolicitarPage } from "./pages/SolicitarPage";
 
@@ -29,7 +30,7 @@ export default function App({ api }: { api?: ApiClient }) {
     <AppShell active={page} onNavigate={setPage}>
       {page === "solicitar" && <SolicitarPage api={cliente} />}
       {page === "entregas" && <MinhasEntregasPage api={cliente} onRequest={() => setPage("solicitar")} />}
-      {page === "estoque" && <p className="text-neutro-500">Em breve.</p>}
+      {page === "estoque" && <EstoquePage api={cliente} />}
     </AppShell>
   );
 }
