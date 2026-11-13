@@ -6,12 +6,17 @@ import { atrasoDeReconexao, lerTelemetria } from "./telemetria";
 export interface SocketLike {
   onopen: ((evento: unknown) => void) | null;
   onmessage: ((evento: { data: unknown }) => void) | null;
-  onclose: ((evento: unknown) => void) | null;
+  onclose: ((evento: { code?: number }) => void) | null;
   onerror: ((evento: unknown) => void) | null;
   close(): void;
 }
 
-export type EstadoConexao = "conectando" | "conectado" | "reconectando" | "parado";
+export type EstadoConexao = "conectando" | "conectado" | "reconectando" | "parado" | "sessao_expirada" | "desistiu";
+
+// O servidor fecha com 1008 (violação de política) quando o token do ?token= é inválido ou expirou.
+const FECHAMENTO_TOKEN_INVALIDO = 1008;
+// Tentativas seguidas de reconexão sem conseguir abrir; passou disso, desiste e avisa.
+const MAX_TENTATIVAS = 10;
 
 export type EventoTelemetria =
   | { tipo: "telemetria"; dados: Telemetry }
@@ -79,14 +84,28 @@ export class TelemetriaCliente extends Observavel<EventoTelemetria> {
       const dados = lerTelemetria(String(evento.data));
       if (dados) this.notificar({ tipo: "telemetria", dados });
     };
-    socket.onclose = () => {
+    socket.onclose = (evento) => {
       if (this.#socket !== socket) return;
       this.#socket = null;
+      if (evento?.code === FECHAMENTO_TOKEN_INVALIDO) {
+        this.#encerrar("sessao_expirada");
+        return;
+      }
       this.#reagendar();
     };
   }
 
+  // Para de vez (sem religar em laço) e diz por quê.
+  #encerrar(motivo: "sessao_expirada" | "desistiu"): void {
+    this.#ativo = false;
+    this.notificar({ tipo: "conexao", estado: motivo });
+  }
+
   #reagendar(): void {
+    if (this.#tentativas >= MAX_TENTATIVAS) {
+      this.#encerrar("desistiu");
+      return;
+    }
     const espera = atrasoDeReconexao(this.#tentativas);
     this.#tentativas += 1;
     this.notificar({ tipo: "conexao", estado: "reconectando" });

@@ -22,8 +22,8 @@ export class SocketFalso implements SocketLike {
     this.onmessage?.({ data: typeof corpo === "string" ? corpo : JSON.stringify(corpo) });
   }
 
-  cair(): void {
-    this.onclose?.({});
+  cair(code = 1006): void {
+    this.onclose?.({ code });
   }
 }
 

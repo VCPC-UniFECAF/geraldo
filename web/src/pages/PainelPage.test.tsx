@@ -230,3 +230,28 @@ test("o erro da parada some quando a ação seguinte dá certo", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Parada de emergência" }));
   await waitFor(() => expect(screen.queryByText("Robô sem resposta.")).not.toBeInTheDocument());
 });
+
+test("sessão expirada no WebSocket mostra a mensagem em português, sem o aviso de reconexão", async () => {
+  const { sockets } = await montar();
+  await within(cartaoDoRobo()).findByText("Livre");
+  act(() => sockets[0].cair(1008));
+  expect(screen.getByRole("alert")).toHaveTextContent("Sua sessão expirou. Entre de novo para ver o robô ao vivo.");
+  expect(screen.queryByText(/Tentando reconectar/)).not.toBeInTheDocument();
+});
+
+test("desistir de reconectar mostra a mensagem em português", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    const { sockets } = await montar();
+    await within(cartaoDoRobo()).findByText("Livre");
+    for (let i = 0; i <= 10; i++) {
+      act(() => {
+        sockets[i].cair();
+        vi.advanceTimersByTime(10000);
+      });
+    }
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível reconectar ao robô. Recarregue a página.");
+  } finally {
+    vi.useRealTimers();
+  }
+});

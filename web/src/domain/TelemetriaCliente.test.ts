@@ -120,3 +120,27 @@ test("observer removido não é mais avisado", () => {
   sockets[0].abrir();
   expect(recebidos.map((e) => (e.tipo === "conexao" ? e.estado : e.tipo))).toEqual(["conectando"]);
 });
+
+test("fechamento 1008 (token inválido ou expirado) não reconecta e avisa sessão expirada", () => {
+  const { cliente, sockets, eventos } = montar();
+  cliente.iniciar();
+  sockets[0].abrir();
+  sockets[0].cair(1008);
+  vi.advanceTimersByTime(60000);
+  expect(sockets).toHaveLength(1);
+  expect(estados(eventos).slice(-1)).toEqual(["sessao_expirada"]);
+});
+
+test("depois de 10 tentativas seguidas sem conectar, desiste e avisa", () => {
+  const { cliente, sockets, eventos } = montar();
+  cliente.iniciar();
+  for (let i = 0; i < 10; i++) {
+    sockets[i].cair();
+    vi.advanceTimersByTime(10000);
+  }
+  expect(sockets).toHaveLength(11);
+  sockets[10].cair();
+  vi.advanceTimersByTime(60000);
+  expect(sockets).toHaveLength(11);
+  expect(estados(eventos).slice(-1)).toEqual(["desistiu"]);
+});

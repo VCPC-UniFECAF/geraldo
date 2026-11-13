@@ -99,6 +99,8 @@ export function PainelPage({ api, telemetria: cliente, role }: Props) {
       <h1 className="font-display text-2xl font-bold">Painel do robô</h1>
       {emergenciaAtiva && <AlertBanner>Parada de emergência ativa. O robô está parado até a liberação.</AlertBanner>}
       {telemetria && bateriaBaixa(telemetria.battery) && <AlertBanner>Bateria abaixo de 20%. Evite novos pedidos até a recarga.</AlertBanner>}
+      {conexao === "sessao_expirada" && <AlertBanner>Sua sessão expirou. Entre de novo para ver o robô ao vivo.</AlertBanner>}
+      {conexao === "desistiu" && <AlertBanner>Não foi possível reconectar ao robô. Recarregue a página.</AlertBanner>}
       {conexao === "reconectando" && <AlertBanner variante="info">Sem conexão com o robô. Tentando reconectar…</AlertBanner>}
       {erro && (
         <p role="alert" className="rounded-controle border border-vermelho-200 bg-vermelho-50 px-3 py-2 text-sm text-vermelho-600">
