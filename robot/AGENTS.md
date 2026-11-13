@@ -46,6 +46,7 @@ Padrões de código (SOLID, Adapter, injeção): [`docs/padroes-de-projeto.md`](
 - Malhas: 5 arquivos em `geraldo_description/meshes/` (`geraldo_body`, `roda_esq`, `roda_dir`, `rodizio_garfo`, `rodizio_roda`), um por link do URDF, exportadas do `GeraldoV3.blend` em coordenadas do `base_link` (frente = +X). O visual de cada link desfaz o deslocamento da sua junta. Para exportar de novo: `blender -b modelos-3d/geraldoV3.blend --python robot/scripts/export_blender_mesh.py`. O `.blend` está em `modelos-3d/geraldoV3.blend`; `test_export_meshes.py` regenera as malhas dele e compara com as salvas, e `test_meshes.py` confere os `.obj` sem Blender.
 - Footprint do Nav2: retângulo 0,70 × 0,50 m (+10 cm de inflação).
 - Tópicos e estados: `docs/contracts/ros-interfaces.md`. Não crie tópico novo sem PR no contrato.
+- Dispatcher: `Dispatcher.run_once()` leva a entrega por `A_CAMINHO → CARREGANDO → A_CAMINHO → CHEGOU → AGUARDANDO_RETIRADA → VOLTANDO → IDLE` (`StateMachine` em `states.py`), avisa o backend com `LOADED`, `ARRIVED`, `UNLOCKED` ou `FAILED` e, em `AGUARDANDO_RETIRADA`, consulta `GET /deliveries/{id}` até virar `ENTREGUE`. `node.py` publica `/geraldo/state` e `/geraldo/battery` (bateria virtual) e manda `POST /robot/telemetry` a cada 1 s. Para rodar sem o backend: `python3 robot/scripts/fake_backend.py --port 8000` e `GERALDO_ROBOT_PASSWORD=robo-local ros2 run geraldo_dispatcher dispatcher`.
 - O mundo, o mapa e os waypoints são **gerados** por `robot/hospital/gen_hospital.py`; não edite os arquivos gerados à mão.
 
 ## Hospital 3D (maquete)
