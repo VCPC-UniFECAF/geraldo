@@ -1,0 +1,5 @@
+[
+  {"location_id": "farmacia", "item_id": "dipirona-500mg", "quantity": 420, "minimum": 100},
+  {"location_id": "banco_sangue", "item_id": "bolsa-sangue-o-neg", "quantity": 6, "minimum": 10},
+  {"location_id": "consultorio1", "item_id": "dipirona-500mg", "quantity": 0, "minimum": 20}
+]

@@ -1,0 +1,8 @@
+[
+  {"id": "dipirona-500mg", "name": "Dipirona 500 mg", "unit": "caixa"},
+  {"id": "amoxicilina-500mg", "name": "Amoxicilina 500 mg", "unit": "caixa"},
+  {"id": "soro-fisiologico-500ml", "name": "Soro fisiológico 500 ml", "unit": "bolsa"},
+  {"id": "bolsa-sangue-o-neg", "name": "Bolsa de sangue O negativo", "unit": "bolsa"},
+  {"id": "lencol-hospitalar", "name": "Lençol hospitalar", "unit": "unidade"},
+  {"id": "luva-procedimento", "name": "Luva de procedimento", "unit": "caixa"}
+]

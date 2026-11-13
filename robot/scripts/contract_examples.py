@@ -31,15 +31,15 @@ POSES = {
 }
 TASK = {"id": DELIVERY_ID, "origin_waypoint": "farmacia_balcao", "dest_waypoint": "cons1_entrega", "priority": "media"}
 
-# estado: (pose, bateria, entrega em curso, rota)
+# estado: (pose, bateria, entrega em curso, rota, obstáculos (x, y, raio))
 SNAPSHOTS = {
-    State.IDLE: (Pose(6.5, 26.5, -1.5708), 100.0, None, []),
-    State.CARREGANDO: (Pose(7.0, 24.0, -1.5708), 99.8, DELIVERY_ID, []),
-    State.A_CAMINHO: (Pose(14.2, 28.9, 0.0), 99.1, DELIVERY_ID, [(14.2, 28.9), (20.0, 28.9), (29.0, 28.9)]),
-    State.CHEGOU: (Pose(14.5, 4.0, -1.5708), 98.0, DELIVERY_ID, []),
-    State.AGUARDANDO_RETIRADA: (Pose(14.5, 4.0, -1.5708), 97.9, DELIVERY_ID, []),
-    State.VOLTANDO: (Pose(10.0, 28.9, 3.1416), 97.0, DELIVERY_ID, [(10.0, 28.9), (6.5, 26.5)]),
-    State.PARADA_EMERGENCIA: (Pose(14.2, 28.9, 0.0), 99.1, DELIVERY_ID, []),
+    State.IDLE: (Pose(6.5, 26.5, -1.5708), 100.0, None, [], []),
+    State.CARREGANDO: (Pose(7.0, 24.0, -1.5708), 99.8, DELIVERY_ID, [], []),
+    State.A_CAMINHO: (Pose(14.2, 28.9, 0.0), 99.1, DELIVERY_ID, [(14.2, 28.9), (20.0, 28.9), (29.0, 28.9)], [(23.0, 29.0, 1.0)]),
+    State.CHEGOU: (Pose(14.5, 4.0, -1.5708), 98.0, DELIVERY_ID, [], []),
+    State.AGUARDANDO_RETIRADA: (Pose(14.5, 4.0, -1.5708), 97.9, DELIVERY_ID, [], []),
+    State.VOLTANDO: (Pose(10.0, 28.9, 3.1416), 97.0, DELIVERY_ID, [(10.0, 28.9), (6.5, 26.5)], []),
+    State.PARADA_EMERGENCIA: (Pose(14.2, 28.9, 0.0), 99.1, DELIVERY_ID, [], []),
 }
 # cenário: (statuses da entrega que o backend devolve, a origem é inalcançável?)
 SCENARIOS = {
@@ -74,8 +74,8 @@ class _Navigator(Navigator):
 
 
 def telemetry_examples() -> dict[str, dict]:
-    return {state.value: build_telemetry(state, pose, battery, delivery_id, route, [], NOW)
-            for state, (pose, battery, delivery_id, route) in SNAPSHOTS.items()}
+    return {state.value: build_telemetry(state, pose, battery, delivery_id, route, obstacles, NOW)
+            for state, (pose, battery, delivery_id, route, obstacles) in SNAPSHOTS.items()}
 
 
 def event_examples() -> dict[str, list[dict]]:

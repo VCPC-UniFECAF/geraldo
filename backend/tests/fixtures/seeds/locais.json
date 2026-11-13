@@ -1,0 +1,8 @@
+[
+  {"id": "farmacia", "name": "Farmácia central", "kind": "pharmacy", "has_stock": true, "waypoint": "farmacia_balcao"},
+  {"id": "banco_sangue", "name": "Banco de sangue", "kind": "blood_bank", "has_stock": true, "waypoint": "banco_sangue_retirada"},
+  {"id": "consultorio1", "name": "Consultório 1", "kind": "office", "has_stock": true, "waypoint": "cons1_entrega"},
+  {"id": "consultorio2", "name": "Consultório 2", "kind": "office", "has_stock": true, "waypoint": "cons2_entrega"},
+  {"id": "enfermaria214", "name": "Enfermaria 214", "kind": "ward", "has_stock": true, "waypoint": "enf214_entrega"},
+  {"id": "recepcao", "name": "Recepção", "kind": "reception", "has_stock": false, "waypoint": null}
+]

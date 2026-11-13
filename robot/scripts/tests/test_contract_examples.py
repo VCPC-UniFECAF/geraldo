@@ -56,3 +56,12 @@ def test_the_validator_catches_each_kind_of_violation():
     assert any("esperado number" in e for e in validate({**TELEMETRY, "battery": True}, schema, SPEC))
     assert any("data/hora" in e for e in validate({**TELEMETRY, "updated_at": "ontem"}, schema, SPEC))
     assert any("nulo" in e for e in validate({**TELEMETRY, "battery": None}, schema, SPEC))
+
+
+
+def test_the_moving_example_shows_an_obstacle_and_the_validator_caps_the_list_at_20():
+    assert telemetry_examples()["A_CAMINHO"]["obstacles"] == [{"x": 23.0, "y": 29.0, "radius": 1.0}]
+    too_many = {**TELEMETRY, "obstacles": [{"x": 1.0, "y": 2.0, "radius": 0.3}] * 21}
+    assert any("no máximo 20" in e for e in validate(too_many, SCHEMAS["Telemetry"], SPEC))
+    assert validate({**TELEMETRY, "obstacles": [{"x": 1.0, "y": 2.0}]}, SCHEMAS["Telemetry"], SPEC) == [
+        "$.obstacles[0]: falta radius"]
