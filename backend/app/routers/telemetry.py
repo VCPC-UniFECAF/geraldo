@@ -54,10 +54,10 @@ async def ws_telemetry(ws: WebSocket, hub: TelemetryHub = Depends(get_hub), sess
     token = _token_of(ws)
     user = user_from_token(token, session) if token else None
     session.close()  # a conexão volta ao pool agora; o socket pode ficar horas aberto sem ela
+    await ws.accept()  # aceitar antes de fechar: recusado no handshake, o navegador só veria 1006, nunca o 1008
     if user is None:
         await ws.close(code=1008, reason="Faça login: informe o token em ?token=")
         return
-    await ws.accept()
     subscriber = _Subscriber()
     hub.add_observer(subscriber)
     gone = asyncio.create_task(_wait_disconnect(ws))
