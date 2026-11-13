@@ -1,5 +1,6 @@
 import { DELIVERY, LOCATIONS, MOVEMENTS, STOCK } from "../api/mocks/fixtures";
-import { abaixoDoMinimo, abaixoDoMinimoPrimeiro, aguardandoRecebimento, filtrarComSaldo, locaisComEstoque, locaisComParada, maisRecentesPrimeiro, rotularEstoque, saldo } from "./operacoes";
+import type { Delivery } from "../api/types";
+import { abaixoDoMinimo, abaixoDoMinimoPrimeiro, aguardandoRecebimento, emAndamento, filaDeEspera, filtrarComSaldo, locaisComEstoque, locaisComParada, maisRecentesPrimeiro, rotularEstoque, saldo } from "./operacoes";
 
 test("saldo é quantidade menos reservado", () => {
   expect(saldo(STOCK[0])).toBe(420);
@@ -48,4 +49,18 @@ test("abaixoDoMinimoPrimeiro põe os críticos na frente sem alterar a lista ori
 test("maisRecentesPrimeiro também ordena movimentações", () => {
   const ordenadas = maisRecentesPrimeiro(MOVEMENTS);
   expect(ordenadas.map((m) => m.id)).toEqual([4, 3, 2, 1]);
+});
+
+const com = (id: number, status: Delivery["status"], priority: Delivery["priority"] = "media"): Delivery => ({ ...DELIVERY, id, status, priority });
+
+test("emAndamento pega EM_ROTA e AGUARDANDO_RECEBIMENTO", () => {
+  const lista = [com(1, "EM_ROTA"), com(2, "NA_FILA"), com(3, "AGUARDANDO_RECEBIMENTO"), com(4, "ENTREGUE")];
+  expect(emAndamento(lista).map((d) => d.id)).toEqual([1, 3]);
+});
+
+test("filaDeEspera ordena por prioridade e depois por id, sem alterar a entrada", () => {
+  const lista = [com(5, "NA_FILA", "rotina"), com(2, "NA_FILA", "media"), com(7, "PENDENTE_APROVACAO", "critica"), com(3, "NA_FILA", "media"), com(9, "EM_ROTA")];
+  const copia = [...lista];
+  expect(filaDeEspera(lista).map((d) => d.id)).toEqual([7, 2, 3, 5]);
+  expect(lista).toEqual(copia);
 });

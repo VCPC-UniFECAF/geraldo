@@ -1,5 +1,5 @@
 // PROGRAMAÇÃO FUNCIONAL: funções puras com filter / map / sort, sem alterar a lista original.
-import type { DeliveryStatus, Location, StockEntry } from "../api/types";
+import type { Delivery, DeliveryStatus, Location, Priority, StockEntry } from "../api/types";
 
 export const saldo = (e: StockEntry): number => e.quantity - e.reserved;
 
@@ -29,3 +29,14 @@ export const abaixoDoMinimoPrimeiro = (estoque: StockEntry[]): StockEntry[] => [
   ...abaixoDoMinimo(estoque),
   ...estoque.filter((e) => e.quantity >= e.minimum),
 ];
+
+const ORDEM_DA_PRIORIDADE: Record<Priority, number> = { critica: 0, media: 1, rotina: 2 };
+
+export const emAndamento = (entregas: Delivery[]): Delivery[] =>
+  entregas.filter((e) => e.status === "EM_ROTA" || e.status === "AGUARDANDO_RECEBIMENTO");
+
+// Mesma ordem em que o robô pega o trabalho: prioridade crítica < média < rotina, depois FIFO por id.
+export const filaDeEspera = (entregas: Delivery[]): Delivery[] =>
+  entregas
+    .filter((e) => e.status === "NA_FILA" || e.status === "PENDENTE_APROVACAO")
+    .sort((a, b) => ORDEM_DA_PRIORIDADE[a.priority] - ORDEM_DA_PRIORIDADE[b.priority] || a.id - b.id);
