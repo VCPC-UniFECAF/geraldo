@@ -1,6 +1,12 @@
-import type { Delivery, Location, Me, StockEntry } from "../types";
+import exemplos from "../../../../docs/contracts/examples/robot-telemetry.json";
+import type { Delivery, Location, Me, Movement, RobotState, StockEntry, Telemetry } from "../types";
 
 export const ME: Me = { id: 1, username: "medico1", role: "medico", local_id: "consultorio1" };
+export const FARMACEUTICO: Me = { id: 2, username: "farmaceutico1", role: "farmaceutico", local_id: "farmacia" };
+export const ADMIN: Me = { id: 3, username: "admin", role: "admin", local_id: null };
+
+// O mock de login escolhe o usuário pelo nome (senha sempre "demo").
+export const USUARIOS: Record<string, Me> = { medico1: ME, farmaceutico1: FARMACEUTICO, admin: ADMIN };
 
 export const LOCATIONS: Location[] = [
   { id: "farmacia", name: "Farmácia central", kind: "pharmacy", has_stock: true, waypoint: "farmacia_balcao" },
@@ -27,3 +33,15 @@ export const DELIVERY: Delivery = {
   requested_by: 1,
   created_at: "2026-11-09T13:20:00Z",
 };
+
+export const DELIVERY_AGUARDANDO: Delivery = { ...DELIVERY, id: 2, status: "AGUARDANDO_RECEBIMENTO" };
+
+export const MOVEMENTS: Movement[] = [
+  { id: 1, delivery_id: 1, type: "RESERVA", item_id: "dipirona-500mg", location_id: "farmacia", quantity: 5, created_at: "2026-11-09T13:20:00Z" },
+  { id: 2, delivery_id: 1, type: "BAIXA", item_id: "dipirona-500mg", location_id: "farmacia", quantity: 5, created_at: "2026-11-09T13:22:00Z" },
+  { id: 3, delivery_id: 1, type: "CREDITO", item_id: "dipirona-500mg", location_id: "consultorio1", quantity: 5, created_at: "2026-11-09T13:30:00Z" },
+  { id: 4, delivery_id: 3, type: "ESTORNO", item_id: "bolsa-sangue-o-neg", location_id: "banco_sangue", quantity: 2, created_at: "2026-11-09T14:00:00Z" },
+];
+
+// Um corpo de telemetria por estado, gerado do código do robô (docs/contracts/examples/robot-telemetry.json).
+export const TELEMETRIAS = exemplos as unknown as Record<RobotState, Telemetry>;
