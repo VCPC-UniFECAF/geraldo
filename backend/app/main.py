@@ -6,7 +6,7 @@ from sqlmodel import Session
 from app.config import settings
 from app.db import create_db, engine
 from app.events import AuditLog, LowStockAlert, events
-from app.routers import auth, catalog, deliveries, delivery_actions, movements, robot, telemetry
+from app.routers import auth, catalog, deliveries, delivery_actions, estop, movements, robot, telemetry
 from app.seed import seed
 
 
@@ -29,6 +29,7 @@ app.include_router(deliveries.router)
 app.include_router(delivery_actions.router)
 app.include_router(movements.router)
 app.include_router(robot.router)
+app.include_router(estop.router)
 app.include_router(telemetry.router)
 
 

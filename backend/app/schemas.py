@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 from app.models import DeliveryStatus, MovementType, Priority, Role
 
@@ -138,3 +138,7 @@ class TelemetryIn(BaseModel):
 
 class TelemetryOut(TelemetryIn):
     updated_at: datetime
+
+
+class EstopState(BaseModel):
+    active: StrictBool  # só true ou false; "true" e 1 são recusados
