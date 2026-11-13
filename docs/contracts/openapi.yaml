@@ -219,6 +219,34 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { description: Corpo inválido (estado fora do enum, bateria fora de 0 a 100) }
+  /robot/estop:
+    post:
+      summary: O painel aciona ou libera a parada de emergência do robô
+      description: >
+        Papéis admin e farmaceutico. O backend guarda o último valor (começa em active false) e o devolve no GET /robot/estop.
+        Com active true o robô para e o estado vira PARADA_EMERGENCIA; ele só volta a andar quando esta fonte e o tópico
+        /geraldo/estop estiverem desligados (ver docs/contracts/robot-protocol.md).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EstopState' }
+      responses:
+        '204': { description: Parada de emergência atualizada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: Corpo inválido (active ausente ou não booleano) }
+    get:
+      summary: O robô consulta se a parada de emergência do painel está acionada
+      description: Papel robo, a cada 1 s (ver docs/contracts/robot-protocol.md).
+      responses:
+        '200':
+          description: Estado da parada de emergência
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EstopState' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /telemetry:
     get:
       summary: Último estado do robô (o mesmo corpo sai no WebSocket /ws/telemetry)
@@ -376,6 +404,11 @@ components:
         location_id: { type: string }
         quantity: { type: integer, minimum: 1 }
         created_at: { type: string, format: date-time }
+    EstopState:
+      type: object
+      required: [active]
+      properties:
+        active: { type: boolean, description: "true = parada de emergência acionada" }
     Telemetry:
       type: object
       required: [robot_state, pose, battery, updated_at]
@@ -401,8 +434,11 @@ components:
               y: { type: number }
         obstacles:
           type: array
+          maxItems: 20
+          description: Círculos {x, y, radius} em metros no referencial map, os mais próximos do robô primeiro
           items:
             type: object
+            required: [x, y, radius]
             properties:
               x: { type: number }
               y: { type: number }
