@@ -26,12 +26,17 @@ def xyz(el):
     return [float(v) for v in el.find("origin").get("xyz").split()]
 
 
+RANGE = ("front_c", "front_l45", "front_r45", "rear_l135", "rear_r135")
+
+
 def test_links_and_joints_exist(robot):
     assert {l.get("name") for l in robot.findall("link")} == {
         "base_link", "wheel_left_link", "wheel_right_link", "caster_swivel_link", "caster_wheel_link", "lidar_link",
+        *(f"range_{n}_link" for n in RANGE),
     }
     assert set(joints(robot)) == {
         "wheel_left_joint", "wheel_right_joint", "caster_swivel_joint", "caster_wheel_joint", "lidar_joint",
+        *(f"range_{n}_joint" for n in RANGE),
     }
 
 
@@ -125,3 +130,31 @@ def test_each_visual_mesh_exists_and_lands_in_the_base_frame(robot, name):
     assert (PKG / "meshes" / mesh_file).is_file()
     origin = visual.find("origin")
     assert (origin is None and offset == [0.0, 0.0, 0.0]) or xyz(visual) == pytest.approx(offset)
+
+
+RANGE_LAYOUT = {  # nome: (x, y, yaw em radianos); nenhum sensor a 180 graus (a traseira fica livre)
+    "front_c": (0.36, 0.0, 0.0),
+    "front_l45": (0.33, 0.26, 0.7854),
+    "front_r45": (0.33, -0.26, -0.7854),
+    "rear_l135": (-0.33, 0.26, 2.3562),
+    "rear_r135": (-0.33, -0.26, -2.3562),
+}
+
+
+@pytest.mark.parametrize("name", RANGE_LAYOUT)
+def test_range_sensor_sits_on_the_chassis_pointing_where_the_contract_says(robot, name):
+    joint = joints(robot)[f"range_{name}_joint"]
+    x, y, yaw = RANGE_LAYOUT[name]
+    assert joint.get("type") == "fixed" and joint.find("parent").get("link") == "base_link"
+    assert xyz(joint) == pytest.approx([x, y, 0.15])
+    assert float(joint.find("origin").get("rpy").split()[2]) == pytest.approx(yaw)
+
+
+@pytest.mark.parametrize("name", RANGE_LAYOUT)
+def test_range_sensor_publishes_a_narrow_short_range_scan(robot, name):
+    sensor = next(s for g in robot.findall("gazebo") if g.get("reference") == f"range_{name}_link" for s in g.findall("sensor"))
+    assert sensor.get("type") == "gpu_lidar"
+    assert sensor.find("topic").text == f"range/{name}"
+    assert sensor.find("gz_frame_id").text == f"range_{name}_link"
+    assert int(sensor.find("lidar/scan/horizontal/samples").text) == 5
+    assert float(sensor.find("lidar/range/max").text) == pytest.approx(2.0)

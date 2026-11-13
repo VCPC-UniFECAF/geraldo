@@ -1,0 +1,60 @@
+{
+  "entrega_concluida": [
+    {
+      "delivery_id": 7,
+      "event": "LOADED",
+      "reason": null
+    },
+    {
+      "delivery_id": 7,
+      "event": "ARRIVED",
+      "reason": null
+    },
+    {
+      "delivery_id": 7,
+      "event": "UNLOCKED",
+      "reason": null
+    }
+  ],
+  "falha_na_origem": [
+    {
+      "delivery_id": 7,
+      "event": "FAILED",
+      "reason": "não chegou à origem"
+    }
+  ],
+  "entrega_cancelada": [
+    {
+      "delivery_id": 7,
+      "event": "LOADED",
+      "reason": null
+    },
+    {
+      "delivery_id": 7,
+      "event": "ARRIVED",
+      "reason": null
+    },
+    {
+      "delivery_id": 7,
+      "event": "FAILED",
+      "reason": "entrega cancelada"
+    }
+  ],
+  "recebimento_nao_confirmado": [
+    {
+      "delivery_id": 7,
+      "event": "LOADED",
+      "reason": null
+    },
+    {
+      "delivery_id": 7,
+      "event": "ARRIVED",
+      "reason": null
+    },
+    {
+      "delivery_id": 7,
+      "event": "FAILED",
+      "reason": "recebimento não confirmado a tempo"
+    }
+  ]
+}
