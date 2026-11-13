@@ -57,3 +57,38 @@ test("erro ao confirmar aparece como alerta e a lista continua na tela", async (
   expect(await screen.findByRole("alert")).toHaveTextContent("Só quem solicitou a entrega confirma o recebimento.");
   expect(screen.getByRole("button", { name: /Confirmar recebimento/ })).toBeEnabled();
 });
+
+test("se o recarregamento falhar depois de confirmar, mostra o sucesso e o erro da lista à parte", async () => {
+  semearEntregas([DELIVERY_AGUARDANDO]);
+  let chamadas = 0;
+  server.use(
+    http.get("http://localhost:8000/deliveries", () => {
+      chamadas += 1;
+      return chamadas === 1
+        ? HttpResponse.json([DELIVERY_AGUARDANDO])
+        : HttpResponse.json({ detail: "Não foi possível carregar as entregas." }, { status: 500 });
+    }),
+  );
+  render(<MinhasEntregasPage api={new HttpApiClient()} onRequest={vi.fn()} />);
+  await userEvent.click(await screen.findByRole("button", { name: /Confirmar recebimento/ }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Recebimento confirmado.");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Recebimento confirmado, mas a lista não atualizou");
+  expect(screen.getByRole("heading", { name: "Minhas entregas" })).toBeInTheDocument();
+});
+
+test("enquanto uma confirmação está em andamento todos os botões ficam desabilitados", async () => {
+  semearEntregas([DELIVERY_AGUARDANDO, { ...DELIVERY_AGUARDANDO, id: 5 }]);
+  let liberar: () => void = () => {};
+  const portao = new Promise<void>((r) => (liberar = r));
+  server.use(
+    http.post("http://localhost:8000/deliveries/:id/confirm-receipt", async () => {
+      await portao;
+      return HttpResponse.json({});
+    }),
+  );
+  render(<MinhasEntregasPage api={new HttpApiClient()} onRequest={vi.fn()} />);
+  const botoes = await screen.findAllByRole("button", { name: /Confirmar recebimento/ });
+  await userEvent.click(botoes[0]);
+  for (const b of screen.getAllByRole("button", { name: /Confirmar recebimento/ })) expect(b).toBeDisabled();
+  liberar();
+});

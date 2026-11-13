@@ -18,6 +18,7 @@ export function MinhasEntregasPage({ api, onRequest }: Props) {
   const [confirmando, setConfirmando] = useState<number | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [confirmada, setConfirmada] = useState(false);
+  const [erroLista, setErroLista] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     const [deliveries, locations] = await Promise.all([api.deliveries(), api.locations()]);
@@ -33,10 +34,13 @@ export function MinhasEntregasPage({ api, onRequest }: Props) {
     setConfirmando(id);
     setErroAcao(null);
     setConfirmada(false);
+    setErroLista(null);
     try {
       await api.confirmReceipt(id);
-      await carregar();
       setConfirmada(true);
+      await carregar().catch(() =>
+        setErroLista("Recebimento confirmado, mas a lista não atualizou. Recarregue a página para ver o novo status."),
+      );
     } catch (err) {
       setErroAcao(err instanceof Error ? err.message : "Não foi possível confirmar o recebimento. Tente de novo.");
     } finally {
@@ -53,6 +57,11 @@ export function MinhasEntregasPage({ api, onRequest }: Props) {
       {confirmada && (
         <p role="status" className="mt-4 rounded-controle bg-sucesso-50 px-4 py-3 text-sucesso-700">
           Recebimento confirmado. A tampa do robô foi liberada.
+        </p>
+      )}
+      {erroLista && (
+        <p role="alert" className="mt-4 rounded-controle border border-vermelho-200 bg-vermelho-50 px-3 py-2 text-sm text-vermelho-600">
+          {erroLista}
         </p>
       )}
       {erroAcao && (
@@ -79,7 +88,7 @@ export function MinhasEntregasPage({ api, onRequest }: Props) {
                     <Button
                       variant="secundario"
                       className="w-full md:w-auto"
-                      disabled={confirmando === e.id}
+                      disabled={confirmando !== null}
                       aria-label={`Confirmar recebimento da entrega ${e.id}`}
                       onClick={() => confirmar(e.id)}
                     >
