@@ -57,3 +57,41 @@ def test_create_delivery_notifies_the_delivery_and_the_reserved_stock(session):
         DeliveryChanged(delivery.id, None, DeliveryStatus.NA_FILA, "medico1"),
         StockChanged("farmacia", "dipirona-500mg", quantity=420, reserved=2, minimum=100),
     ]
+
+
+class Broken:
+    def update(self, event) -> None:
+        raise RuntimeError("observador quebrado")
+
+
+def test_a_failing_observer_does_not_stop_the_others_nor_the_caller(caplog):
+    subject, after = Subject(), Spy()
+    subject.add_observer(Broken())
+    subject.add_observer(after)
+    subject.notify("x")  # não levanta
+    assert after.events == ["x"]
+    assert any("observador quebrado" in (r.exc_text or r.getMessage()) or r.exc_info for r in caplog.records)
+    assert any(r.name == "geraldo.events" for r in caplog.records)
+
+
+def test_observers_ignore_event_types_they_have_no_handler_for(caplog):
+    caplog.set_level("INFO")
+    AuditLog().update("evento desconhecido")
+    LowStockAlert().update(EstopChanged(True, "admin"))
+    assert not caplog.records
+
+
+def test_low_stock_alert_keeps_only_the_latest_alerts():
+    alert = LowStockAlert()
+    for n in range(150):
+        alert.update(StockChanged("farmacia", f"item{n}", quantity=0, reserved=0, minimum=5))
+    assert len(alert.alerts) == 100 and "item149" in alert.alerts[-1] and "item50" in alert.alerts[0]
+
+
+def test_audit_log_writes_the_failure_reason_on_one_clean_line(caplog):
+    caplog.set_level("INFO", logger="geraldo.audit")
+    reason = "tampa travada\nINFO fake: entrega 99 ENTREGUE\r" + "x" * 300
+    AuditLog().update(DeliveryChanged(5, DeliveryStatus.EM_ROTA, DeliveryStatus.FALHOU, "robo", reason))
+    message = caplog.records[0].getMessage()
+    assert message.startswith("entrega 5: EM_ROTA -> FALHOU (por robo), motivo: tampa travada INFO fake")
+    assert "\n" not in message and "\r" not in message and len(message) < 300

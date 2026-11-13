@@ -68,6 +68,7 @@ class RegisterRobotEvent:
         self._session.commit()
         self._session.refresh(delivery)
         if delivery.status != old_status:
-            self._events.notify(DeliveryChanged(delivery.id, old_status, delivery.status, self._actor))
+            reason = self._payload.reason if self._payload.event == RobotEventType.FAILED else None
+            self._events.notify(DeliveryChanged(delivery.id, old_status, delivery.status, self._actor, reason))
         notify_stocks(self._events, stocks)
         return delivery

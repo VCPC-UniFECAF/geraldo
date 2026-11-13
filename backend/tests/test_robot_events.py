@@ -55,7 +55,7 @@ def test_failed_marks_falhou_and_releases_the_reservation(client, auth, session,
     assert (stock["quantity"], stock["reserved"]) == (420, 0)
     assert [m.type for m in session.exec(select(Movement).order_by(Movement.id)).all()] == [MovementType.RESERVA, MovementType.ESTORNO]
     assert spy.events == [
-        DeliveryChanged(delivery_id, DeliveryStatus(stage), DeliveryStatus.FALHOU, "robo"),
+        DeliveryChanged(delivery_id, DeliveryStatus(stage), DeliveryStatus.FALHOU, "robo", "não chegou ao destino"),
         StockChanged("farmacia", "dipirona-500mg", quantity=420, reserved=0, minimum=100),
     ]
 
