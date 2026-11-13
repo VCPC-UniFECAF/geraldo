@@ -128,7 +128,7 @@
   </joint>
 
   <!-- O baú bloqueia a visão para trás do LiDAR (fica 3,5 cm atrás dele): o campo de visão simulado é de ~172 graus.
-       A traseira é coberta pelos sensores de alcance a 135 graus (semana 2). -->
+       A traseira é coberta pelos sensores de alcance a 135 graus (range_rear_*). -->
   <gazebo reference="lidar_link">
     <sensor name="lidar" type="gpu_lidar">
       <pose>0 0 0 0 0 0</pose>
@@ -159,6 +159,51 @@
       </lidar>
     </sensor>
   </gazebo>
+
+  <!-- Sensores de alcance (contrato): 5 feixes estreitos de até 2 m, um pouco fora da carcaça; nenhum a 180 graus -->
+  <xacro:macro name="range_sensor" params="name x y yaw">
+    <link name="range_${name}_link">
+      <inertial>
+        <mass value="0.01"/>
+        <inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.000001"/>
+      </inertial>
+    </link>
+    <joint name="range_${name}_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="range_${name}_link"/>
+      <origin xyz="${x} ${y} 0.15" rpy="0 0 ${yaw}"/>
+    </joint>
+    <gazebo reference="range_${name}_link">
+      <sensor name="range_${name}" type="gpu_lidar">
+        <pose>0 0 0 0 0 0</pose>
+        <topic>range/${name}</topic>
+        <gz_frame_id>range_${name}_link</gz_frame_id>
+        <update_rate>10</update_rate>
+        <always_on>true</always_on>
+        <visualize>false</visualize>
+        <lidar>
+          <scan>
+            <horizontal>
+              <samples>5</samples>
+              <resolution>1</resolution>
+              <min_angle>-0.087</min_angle>
+              <max_angle>0.087</max_angle>
+            </horizontal>
+          </scan>
+          <range>
+            <min>0.05</min>
+            <max>2.0</max>
+            <resolution>0.01</resolution>
+          </range>
+        </lidar>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+  <xacro:range_sensor name="front_c" x="0.36" y="0.0" yaw="0.0"/>
+  <xacro:range_sensor name="front_l45" x="0.33" y="0.26" yaw="0.7854"/>
+  <xacro:range_sensor name="front_r45" x="0.33" y="-0.26" yaw="-0.7854"/>
+  <xacro:range_sensor name="rear_l135" x="-0.33" y="0.26" yaw="2.3562"/>
+  <xacro:range_sensor name="rear_r135" x="-0.33" y="-0.26" yaw="-2.3562"/>
 
   <gazebo>
     <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">

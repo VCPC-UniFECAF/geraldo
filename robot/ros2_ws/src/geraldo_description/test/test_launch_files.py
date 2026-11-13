@@ -9,7 +9,13 @@ PKG = Path(__file__).resolve().parents[1]
 def test_bridge_has_the_contract_topics():
     entries = yaml.safe_load((PKG / "config/bridge.yaml").read_text())
     by_topic = {e["ros_topic_name"]: e for e in entries}
-    assert set(by_topic) == {"/clock", "/cmd_vel", "/odom", "/tf", "/scan"}
+    assert set(by_topic) == {"/clock", "/cmd_vel", "/odom", "/tf", "/scan",
+                             "/range/front_c", "/range/front_l45", "/range/front_r45",
+                             "/range/rear_l135", "/range/rear_r135"}
+    for topic in set(by_topic) - {"/clock", "/cmd_vel", "/odom", "/tf"}:
+        assert by_topic[topic]["ros_type_name"] == "sensor_msgs/msg/LaserScan"
+        assert by_topic[topic]["gz_type_name"] == "gz.msgs.LaserScan"
+        assert by_topic[topic]["direction"] == "GZ_TO_ROS"
     assert by_topic["/cmd_vel"]["direction"] == "ROS_TO_GZ"
     assert by_topic["/cmd_vel"]["ros_type_name"] == "geometry_msgs/msg/Twist"
     assert by_topic["/scan"]["ros_type_name"] == "sensor_msgs/msg/LaserScan"

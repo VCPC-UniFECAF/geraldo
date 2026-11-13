@@ -1,0 +1,115 @@
+{
+  "IDLE": {
+    "robot_state": "IDLE",
+    "pose": {
+      "x": 6.5,
+      "y": 26.5,
+      "yaw": -1.5708
+    },
+    "battery": 100.0,
+    "delivery_id": null,
+    "route": [],
+    "obstacles": [],
+    "updated_at": "2026-11-13T12:00:00+00:00"
+  },
+  "CARREGANDO": {
+    "robot_state": "CARREGANDO",
+    "pose": {
+      "x": 7.0,
+      "y": 24.0,
+      "yaw": -1.5708
+    },
+    "battery": 99.8,
+    "delivery_id": 7,
+    "route": [],
+    "obstacles": [],
+    "updated_at": "2026-11-13T12:00:00+00:00"
+  },
+  "A_CAMINHO": {
+    "robot_state": "A_CAMINHO",
+    "pose": {
+      "x": 14.2,
+      "y": 28.9,
+      "yaw": 0.0
+    },
+    "battery": 99.1,
+    "delivery_id": 7,
+    "route": [
+      {
+        "x": 14.2,
+        "y": 28.9
+      },
+      {
+        "x": 20.0,
+        "y": 28.9
+      },
+      {
+        "x": 29.0,
+        "y": 28.9
+      }
+    ],
+    "obstacles": [],
+    "updated_at": "2026-11-13T12:00:00+00:00"
+  },
+  "CHEGOU": {
+    "robot_state": "CHEGOU",
+    "pose": {
+      "x": 14.5,
+      "y": 4.0,
+      "yaw": -1.5708
+    },
+    "battery": 98.0,
+    "delivery_id": 7,
+    "route": [],
+    "obstacles": [],
+    "updated_at": "2026-11-13T12:00:00+00:00"
+  },
+  "AGUARDANDO_RETIRADA": {
+    "robot_state": "AGUARDANDO_RETIRADA",
+    "pose": {
+      "x": 14.5,
+      "y": 4.0,
+      "yaw": -1.5708
+    },
+    "battery": 97.9,
+    "delivery_id": 7,
+    "route": [],
+    "obstacles": [],
+    "updated_at": "2026-11-13T12:00:00+00:00"
+  },
+  "VOLTANDO": {
+    "robot_state": "VOLTANDO",
+    "pose": {
+      "x": 10.0,
+      "y": 28.9,
+      "yaw": 3.1416
+    },
+    "battery": 97.0,
+    "delivery_id": 7,
+    "route": [
+      {
+        "x": 10.0,
+        "y": 28.9
+      },
+      {
+        "x": 6.5,
+        "y": 26.5
+      }
+    ],
+    "obstacles": [],
+    "updated_at": "2026-11-13T12:00:00+00:00"
+  },
+  "PARADA_EMERGENCIA": {
+    "robot_state": "PARADA_EMERGENCIA",
+    "pose": {
+      "x": 14.2,
+      "y": 28.9,
+      "yaw": 0.0
+    },
+    "battery": 99.1,
+    "delivery_id": 7,
+    "route": [],
+    "obstacles": [],
+    "updated_at": "2026-11-13T12:00:00+00:00"
+  }
+}
