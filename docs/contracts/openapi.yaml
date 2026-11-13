@@ -6,6 +6,7 @@ info:
     Contrato entre backend (Erik), sistema web (Vieira), robô (geraldo_dispatcher, Samuel),
     Pentest (Pedro) e Unity. Mudança só por PR com aviso ao dono da frente afetada.
     A telemetria em tempo real também existe como WebSocket em /ws/telemetry (mesmo corpo de Telemetry).
+    WebSocket /ws/telemetry autentica por ?token=<JWT>, porque o navegador não manda cabeçalho; sem token válido o servidor fecha com 1008; clientes de linha de comando podem usar Authorization: Bearer.
 servers:
   - url: http://localhost:8000
 security:

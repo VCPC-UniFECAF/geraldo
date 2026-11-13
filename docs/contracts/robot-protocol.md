@@ -66,7 +66,7 @@ Regra de junção: com **qualquer** fonte ligada, o robô cancela a meta, para e
 
 **Erik (backend)**
 1. `GET /deliveries/{id}` precisa aceitar o papel `robo`. No plano da semana 1, só `admin`, `farmaceutico` e o solicitante veem a entrega; para o robô daria `404` e toda entrega terminaria em `FAILED` após 5 minutos. Já está no contrato (`openapi.yaml`, somente leitura).
-2. Implementar `POST /robot/telemetry` (`204`; `403` para quem não é `robo`; `422` para corpo inválido) e repassar o último corpo no `GET /telemetry` e no WebSocket.
+2. Implementar `POST /robot/telemetry` (`204`; `403` para quem não é `robo`; `422` para corpo inválido) e repassar o último corpo no `GET /telemetry` e no WebSocket. WebSocket /ws/telemetry autentica por ?token=<JWT>, porque o navegador não manda cabeçalho; sem token válido o servidor fecha com 1008; clientes de linha de comando podem usar Authorization: Bearer.
 3. `ARRIVED` leva a entrega a `AGUARDANDO_RECEBIMENTO`. `UNLOCKED` chega **depois** de `ENTREGUE`: aceitar, ou responder `409` (o robô tolera).
 4. `POST /robot/next-task` deve pular `rotina` fora da janela de baixo pico: o robô não consegue devolver uma tarefa que o backend já marcou `EM_ROTA`.
 5. Locais sem `waypoint` (a recepção) não podem ser origem nem destino: recusar na criação da entrega (já está no seu plano). Se uma passar, o robô manda `FAILED` e não se mexe.
