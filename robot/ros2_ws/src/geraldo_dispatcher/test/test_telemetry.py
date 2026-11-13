@@ -69,12 +69,12 @@ class Sink(TelemetryPort):
         self.bodies.append(body)
 
 
-def reporter(sink, pose=Pose(1, 2, 0.5), logs=None, levels=None):
+def reporter(sink, pose=Pose(1, 2, 0.5), logs=None, levels=None, **extra):
     return TelemetryReporter(
         sink, StateMachine(), BatteryModel(level=80.0), pose_source=lambda: pose,
         route_source=lambda: [(1, 2), (3, 4)], delivery_source=lambda: 7,
         on_battery=(levels if levels is not None else []).append, clock=lambda: NOW,
-        log=(logs if logs is not None else []).append,
+        log=(logs if logs is not None else []).append, **extra,
     )
 
 
@@ -96,3 +96,24 @@ def test_a_telemetry_failure_is_logged_and_never_stops_the_robot():
     logs = []
     reporter(Sink(fails=True), logs=logs).tick(1.0)
     assert logs and "telemetria não enviada" in logs[0]
+
+
+def test_tick_sends_the_obstacles_the_source_reports():
+    sink = Sink()
+    reporter(sink, obstacle_source=lambda: [(23.0, 29.0, 1.0)]).tick(1.0)
+    assert sink.bodies[0]["obstacles"] == [{"x": 23.0, "y": 29.0, "radius": 1.0}]
+
+
+def test_without_an_obstacle_source_the_list_is_empty():
+    sink = Sink()
+    reporter(sink).tick(1.0)
+    assert sink.bodies[0]["obstacles"] == []
+
+
+def test_a_failing_obstacle_source_is_logged_and_the_rest_of_the_telemetry_still_goes():
+    def broken():
+        raise ValueError("scan inválido")
+
+    sink, logs = Sink(), []
+    reporter(sink, logs=logs, obstacle_source=broken).tick(1.0)
+    assert sink.bodies[0]["obstacles"] == [] and "obstáculos não calculados: scan inválido" in logs[0]

@@ -14,13 +14,14 @@ from rcl_interfaces.msg import ParameterType, ParameterValue
 from rcl_interfaces.srv import SetParameters
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
-from rclpy.qos import DurabilityPolicy, QoSProfile
-from sensor_msgs.msg import BatteryState
+from rclpy.qos import DurabilityPolicy, QoSProfile, qos_profile_sensor_data
+from sensor_msgs.msg import BatteryState, LaserScan
 from std_msgs.msg import Bool, String
 
 from .api import BackendClient
 from .dispatcher import Dispatcher
 from .emergency import EmergencyStop
+from .obstacles import STATIC_TOLERANCE, StaticMap, detect_obstacles
 from .ports import BackendError, NavigationTuner, Navigator
 from .profiles import NavProfile
 from .states import State, StateMachine
@@ -54,19 +55,21 @@ class Nav2Navigator(Navigator):  # ADAPTER: traduz Pose para o NavigateToPose do
 
 
 class GeraldoStateNode(Node):
-    """Publica /geraldo/state e /geraldo/battery e guarda a última pose (AMCL) e a rota (/plan) para a telemetria."""
+    """Publica /geraldo/state e /geraldo/battery e guarda a última pose (AMCL), a rota (/plan) e o /scan para a telemetria."""
 
-    def __init__(self, estop: EmergencyStop) -> None:
+    def __init__(self, estop: EmergencyStop, static_map: StaticMap) -> None:
         super().__init__("geraldo_state")
-        self._estop = estop
+        self._estop, self._map = estop, static_map
         self.pose: Pose | None = None
         self.route: list[tuple[float, float]] = []
+        self.scan: LaserScan | None = None
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self._state_pub = self.create_publisher(String, "/geraldo/state", latched)
         self._battery_pub = self.create_publisher(BatteryState, "/geraldo/battery", 10)
         self.create_subscription(PoseWithCovarianceStamped, "/amcl_pose", self._on_pose, 10)
         self.create_subscription(Path, "/plan", self._on_plan, 10)
         self.create_subscription(Bool, "/geraldo/estop", self._on_estop, 10)
+        self.create_subscription(LaserScan, "/scan", self._on_scan, qos_profile_sensor_data)
 
     def _on_estop(self, msg: Bool) -> None:
         if msg.data:
@@ -86,6 +89,18 @@ class GeraldoStateNode(Node):
 
     def _on_plan(self, msg: Path) -> None:
         self.route = downsample([(s.pose.position.x, s.pose.position.y) for s in msg.poses], 50)
+
+    def _on_scan(self, msg: LaserScan) -> None:
+        self.scan = msg
+
+    def obstacles(self) -> list[tuple[float, float, float]]:
+        """Obstáculos do último /scan que o mapa estático não explica (círculos x, y, raio no referencial map)."""
+        scan, pose = self.scan, self.pose
+        if scan is None or pose is None:
+            return []
+        return detect_obstacles(list(scan.ranges), scan.angle_min, scan.angle_increment, pose,
+                                lambda x, y: self._map.occupied_near(x, y, STATIC_TOLERANCE),
+                                range_min=scan.range_min, range_max=scan.range_max)
 
 
 class Nav2Tuner(NavigationTuner):  # ADAPTER: traduz o perfil para o /speed_limit e o costmap local do Nav2
@@ -139,7 +154,8 @@ def main() -> None:
     _login_when_available(client, "dispatcher")
     machine, estop = StateMachine(), EmergencyStop()
 
-    state_node = GeraldoStateNode(estop)
+    static_map = StaticMap.from_yaml(os.path.join(get_package_share_directory("geraldo_nav"), "maps", "hospital.yaml"))
+    state_node = GeraldoStateNode(estop, static_map)
     machine.subscribe(state_node.publish_state)
     state_node.publish_state(machine.state)
     executor = SingleThreadedExecutor()
@@ -155,6 +171,7 @@ def main() -> None:
         telemetry_client, machine, BatteryModel(), pose_source=lambda: state_node.pose,
         route_source=lambda: state_node.route, delivery_source=lambda: dispatcher.delivery_id,
         on_battery=state_node.publish_battery, clock=lambda: datetime.now(timezone.utc),
+        obstacle_source=state_node.obstacles,
     )
     threading.Thread(target=_every_second, args=(reporter,), daemon=True).start()
     try:
