@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -92,3 +92,49 @@ class RobotEventIn(BaseModel):
     delivery_id: int
     event: RobotEventType
     reason: str | None = Field(default=None, max_length=200)
+
+
+Meters = Annotated[float, Field(allow_inf_nan=False, ge=-1000, le=1000)]  # o hospital cabe folgado em 2 km
+
+
+class RobotState(str, Enum):
+    IDLE = "IDLE"
+    CARREGANDO = "CARREGANDO"
+    A_CAMINHO = "A_CAMINHO"
+    CHEGOU = "CHEGOU"
+    AGUARDANDO_RETIRADA = "AGUARDANDO_RETIRADA"
+    VOLTANDO = "VOLTANDO"
+    PARADA_EMERGENCIA = "PARADA_EMERGENCIA"
+
+
+class PoseIn(BaseModel):
+    x: Meters
+    y: Meters
+    yaw: Annotated[float, Field(allow_inf_nan=False, ge=-10, le=10)]  # radianos
+
+
+class PointIn(BaseModel):
+    x: Meters
+    y: Meters
+
+
+class ObstacleIn(BaseModel):
+    x: Meters
+    y: Meters
+    radius: Annotated[float, Field(allow_inf_nan=False, ge=0, le=50)]
+
+
+class TelemetryIn(BaseModel):
+    """Corpo do POST /robot/telemetry. O updated_at do robô é aceito e ignorado: vale a hora de recebimento."""
+
+    robot_state: RobotState
+    pose: PoseIn
+    battery: Annotated[float, Field(allow_inf_nan=False, ge=0, le=100)]
+    delivery_id: int | None = None
+    route: list[PointIn] = Field(default_factory=list, max_length=50)
+    obstacles: list[ObstacleIn] = Field(default_factory=list, max_length=20)
+    updated_at: datetime | None = None
+
+
+class TelemetryOut(TelemetryIn):
+    updated_at: datetime

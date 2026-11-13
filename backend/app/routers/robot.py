@@ -10,7 +10,8 @@ from app.deps import require_roles
 from app.events import Subject, get_events
 from app.models import Role, User
 from app.queries import delivery_out
-from app.schemas import DeliveryOut, RobotEventIn, RobotTaskOut
+from app.schemas import DeliveryOut, RobotEventIn, RobotTaskOut, TelemetryIn
+from app.telemetry import TelemetryHub, get_hub
 
 router = APIRouter()
 
@@ -45,3 +46,13 @@ def robot_event(
     except DeliveryError as err:
         raise HTTPException(status_code=err.status_code, detail=str(err))
     return delivery_out(session, delivery)
+
+
+@router.post("/robot/telemetry", status_code=204)
+def robot_telemetry(
+    body: TelemetryIn,
+    _: User = Depends(require_roles(Role.robo)),
+    hub: TelemetryHub = Depends(get_hub),
+) -> Response:
+    hub.publish(body)
+    return Response(status_code=204)
