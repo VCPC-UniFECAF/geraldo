@@ -34,3 +34,8 @@ test("crédito e estorno têm sinal de mais", () => {
 test("é uma linha arredondada de fundo claro que quebra em duas linhas no celular", () => {
   expect(mostrar(0)).toHaveClass("rounded-controle", "bg-fundo", "flex-col", "md:flex-row");
 });
+
+test("tipo desconhecido não derruba a linha", () => {
+  render(<ul><MovementLogRow movimento={{ id: 9, tipo: "NOVO_TIPO" as never, item: "X", local: "Y", entregaId: null, quantidade: 1, quando: new Date("2026-11-09T13:20:00Z") }} /></ul>);
+  expect(screen.getByText("Movimentação")).toBeInTheDocument();
+});

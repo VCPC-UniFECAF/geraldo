@@ -15,3 +15,9 @@ test("nenhum tipo de movimento usa vermelho", () => {
     expect(tipoMovimentoDe(valor).caixa).not.toContain("vermelho");
   }
 });
+
+test("tipo desconhecido usa o fallback Movimentação em vez de lançar erro", () => {
+  const t = tipoMovimentoDe("NOVO_TIPO" as never);
+  expect(t.rotulo).toBe("Movimentação");
+  expect(t.caixa).not.toContain("vermelho");
+});

@@ -1,4 +1,4 @@
-import { Lock, PackageMinus, PackagePlus, Undo2, type LucideIcon } from "lucide-react";
+import { ArrowLeftRight, Lock, PackageMinus, PackagePlus, Undo2, type LucideIcon } from "lucide-react";
 import type { MovementType } from "../api/types";
 
 // STRATEGY: cada tipo de movimentação sabe seu texto, o sinal da quantidade, a cor e o ícone. A quantidade do contrato é sempre positiva.
@@ -46,11 +46,19 @@ class Estorno extends TipoMovimentoStrategy {
   readonly Icone = Undo2;
 }
 
+// STRATEGY: fallback neutro para um tipo que o backend ainda não conhecemos aqui.
+class Outro extends TipoMovimentoStrategy {
+  readonly valor = "OUTRO" as MovementType;
+  readonly rotulo = "Movimentação";
+  readonly sinal = "+";
+  readonly caixa = "bg-neutro-50 text-neutro-600";
+  readonly Icone = ArrowLeftRight;
+}
+
+const OUTRO = new Outro();
 const TIPOS: readonly TipoMovimentoStrategy[] = [new Reserva(), new Baixa(), new Credito(), new Estorno()];
 
-// FACTORY: devolve a estratégia do tipo recebido.
+// FACTORY: devolve a estratégia do tipo recebido (ou o fallback neutro).
 export function tipoMovimentoDe(valor: MovementType): TipoMovimentoStrategy {
-  const estrategia = TIPOS.find((t) => t.valor === valor);
-  if (!estrategia) throw new Error(`Tipo de movimentação desconhecido: ${valor}`);
-  return estrategia;
+  return TIPOS.find((t) => t.valor === valor) ?? OUTRO;
 }
