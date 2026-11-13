@@ -1,0 +1,12 @@
+[
+  {"location_id": "farmacia", "item_id": "dipirona-500mg", "quantity": 420, "minimum": 100},
+  {"location_id": "farmacia", "item_id": "amoxicilina-500mg", "quantity": 200, "minimum": 60},
+  {"location_id": "farmacia", "item_id": "soro-fisiologico-500ml", "quantity": 300, "minimum": 80},
+  {"location_id": "farmacia", "item_id": "luva-procedimento", "quantity": 150, "minimum": 40},
+  {"location_id": "banco_sangue", "item_id": "bolsa-sangue-o-neg", "quantity": 6, "minimum": 10},
+  {"location_id": "uti", "item_id": "soro-fisiologico-500ml", "quantity": 20, "minimum": 10},
+  {"location_id": "consultorio1", "item_id": "luva-procedimento", "quantity": 10, "minimum": 5},
+  {"location_id": "consultorio2", "item_id": "luva-procedimento", "quantity": 10, "minimum": 5},
+  {"location_id": "enfermaria214", "item_id": "amoxicilina-500mg", "quantity": 12, "minimum": 6},
+  {"location_id": "enfermaria215", "item_id": "lencol-hospitalar", "quantity": 30, "minimum": 10}
+]
