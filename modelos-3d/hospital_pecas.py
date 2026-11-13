@@ -129,6 +129,8 @@ def maca(f, w, d, h):
             f.cilindro(0.06, 0.04, (x, y, 0.06), "borracha_preta", eixo="y")
             f.caixa((0.04, 0.04, 0.38), (x, y, 0.31), "inox")
     f.caixa((w - 0.2, d - 0.1, 0.05), (0, 0, 0.5), "inox")
+    # carenagem sólida sob o colchão: o LiDAR do robô fica a 0,259 m do chão e, sem ela, só enxergaria as pernas
+    f.caixa((w - 0.15, d - 0.15, 0.36), (0, 0, 0.3), "plastico_cinza")
     f.caixa((w, d, 0.12), (0, 0, 0.585), "lencol")
     f.caixa((0.4, d - 0.2, 0.1), (-(w / 2 - 0.3), 0, 0.695), "lencol")
     f.caixa((w * 0.55, d - 0.02, 0.04), (w / 2 - w * 0.275, 0, 0.665), "tecido_azul")

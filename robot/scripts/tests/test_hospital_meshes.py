@@ -62,3 +62,17 @@ def test_world_sdf_references_only_existing_hospital_meshes():
     uris = re.findall(r"package://geraldo_description/(meshes/hospital/[\w.]+)", WORLD.read_text())
     assert {Path(u).stem for u in uris} == set(NAMES[:3])
     assert all((ROOT / "robot/ros2_ws/src/geraldo_description" / u).exists() for u in uris)
+
+
+LIDAR_HEIGHT = 0.259   # robot/.../geraldo.urdf.xacro: lidar_joint em z = 0,259
+
+
+def stretcher_solid_at_lidar_height(vertices_):
+    """A maca precisa ter corpo (não só pernas) na altura do LiDAR, senão o Nav2 não a enxerga e o robô bate nela."""
+    top = [v for v in vertices_ if abs(v[2] - 0.48) < 1e-3]   # topo da carenagem sob o colchão
+    low = [v for v in vertices_ if abs(v[2] - 0.12) < 1e-3]   # base da carenagem (e pés das pernas)
+    return bool(top) and bool(low) and max(abs(v[0]) for v in top) >= 0.9 and max(abs(v[1]) for v in top) >= 0.3 and 0.12 < LIDAR_HEIGHT < 0.48
+
+
+def test_stretcher_has_a_solid_body_at_the_lidar_height():
+    assert stretcher_solid_at_lidar_height(vertices("maca"))
