@@ -313,8 +313,8 @@ components:
       type: object
       required: [username, password]
       properties:
-        username: { type: string }
-        password: { type: string }
+        username: { type: string, minLength: 1, maxLength: 64 }
+        password: { type: string, minLength: 1, maxLength: 128 }
     TokenResponse:
       type: object
       required: [access_token, token_type]
@@ -352,17 +352,18 @@ components:
       type: object
       required: [item_id, quantity]
       properties:
-        item_id: { type: string, example: dipirona-500mg }
-        quantity: { type: integer, minimum: 1 }
+        item_id: { type: string, minLength: 1, maxLength: 64, example: dipirona-500mg }
+        quantity: { type: integer, minimum: 1, maximum: 10000 }
     DeliveryCreate:
       type: object
       required: [origin_id, items, priority]
       properties:
-        origin_id: { type: string }
-        dest_id: { type: string, nullable: true, description: "Se omitido, usa o local_id do usuário" }
+        origin_id: { type: string, minLength: 1, maxLength: 64 }
+        dest_id: { type: string, nullable: true, minLength: 1, maxLength: 64, description: "Se omitido, usa o local_id do usuário" }
         items:
           type: array
           minItems: 1
+          maxItems: 50
           items: { $ref: '#/components/schemas/DeliveryItem' }
         priority: { $ref: '#/components/schemas/Priority' }
     Delivery:
