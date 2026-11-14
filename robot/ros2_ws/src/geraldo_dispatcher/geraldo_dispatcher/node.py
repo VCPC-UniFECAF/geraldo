@@ -24,7 +24,7 @@ from tf2_ros import Buffer, TransformException, TransformListener
 
 from .api import BackendClient
 from .dispatcher import Dispatcher
-from .emergency import EmergencyStop
+from .emergency import BackendEstopPoller, EmergencyStop
 from .obstacles import Scan, ScanObstacleDetector, StaticMap
 from .ports import BackendError, NavigationTuner, Navigator
 from .profiles import NavProfile
@@ -139,10 +139,10 @@ class Nav2Tuner(NavigationTuner):  # ADAPTER: traduz o perfil para o /speed_limi
         self._node.get_logger().info(f"perfil {profile.name}: {profile.max_speed} m/s, inflação {profile.inflation_radius} m")
 
 
-def _every_second(reporter: TelemetryReporter) -> None:
+def _repeat(action, period: float) -> None:
     while rclpy.ok():
-        time.sleep(1.0)
-        reporter.tick(1.0)
+        time.sleep(period)
+        action()
 
 
 def _login_when_available(client: BackendClient, name: str) -> None:
@@ -183,6 +183,12 @@ def main() -> None:
     executor.add_node(state_node)
     threading.Thread(target=executor.spin, daemon=True).start()
 
+    estop_client = BackendClient(api_url, "robo", password)  # cliente próprio: a consulta da emergência roda em outra thread
+    _login_when_available(estop_client, "emergência")
+    poller = BackendEstopPoller(estop_client, estop)
+    poller.poll()  # uma parada já acionada no painel vale antes da primeira meta
+    threading.Thread(target=_repeat, args=(poller.poll, 1.0), daemon=True).start()
+
     dispatcher = Dispatcher(client, load_poses(waypoints_file), Nav2Navigator(nav, timeout=300, estop=estop),
                             machine=machine, estop=estop, tuner=Nav2Tuner(state_node))
 
@@ -194,7 +200,7 @@ def main() -> None:
         on_battery=state_node.publish_battery, clock=lambda: datetime.now(timezone.utc),
         obstacle_source=state_node.obstacles,
     )
-    threading.Thread(target=_every_second, args=(reporter,), daemon=True).start()
+    threading.Thread(target=_repeat, args=(lambda: reporter.tick(1.0), 1.0), daemon=True).start()
     try:
         while rclpy.ok():
             try:

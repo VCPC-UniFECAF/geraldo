@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """API falsa do robô para desenvolver o dispatcher sem o backend. Segue docs/contracts/openapi.yaml
-(POST /auth/login, POST /robot/next-task, POST /robot/events, POST /robot/telemetry e GET /deliveries/{id}).
+(POST /auth/login, POST /robot/next-task, POST /robot/events, POST /robot/telemetry, GET e POST /robot/estop,
+GET /telemetry e GET /deliveries/{id}).
 
 Uso: python robot/scripts/fake_backend.py --port 8000     (usuário `robo`, senha `robo-local`)
 """
@@ -32,6 +33,7 @@ class FakeBackend:
         self.receipt_after = receipt_after  # quantas consultas a entrega fica em AGUARDANDO_RECEBIMENTO
         self.reject_events = False          # responde 409 a todo evento
         self.delivery_status_code = 200     # outro valor: a consulta da entrega responde esse código
+        self.estop = False                  # emergência do painel: GET /robot/estop devolve, POST /robot/estop muda
         self.verbose = verbose
         backend = self
 
@@ -59,6 +61,10 @@ class FakeBackend:
                 backend.calls.append(self.path)
                 if self._unauthorized():
                     return
+                if self.path == "/robot/estop":
+                    return self._send(200, {"active": backend.estop})
+                if self.path == "/telemetry":
+                    return self._send(200, backend.telemetry[-1]) if backend.telemetry else self._send(404, {"detail": "Sem telemetria ainda."})
                 if backend.delivery_status_code != 200:
                     return self._send(backend.delivery_status_code, {"detail": "Entrega não encontrada."})
                 match = re.fullmatch(r"/deliveries/(\d+)", self.path)
@@ -88,6 +94,9 @@ class FakeBackend:
                     body = json.loads(raw)
                     backend.events.append(body)
                     return self._send(200, {"id": body["delivery_id"], "status": "EM_ROTA"})
+                if self.path == "/robot/estop":
+                    backend.estop = bool(json.loads(raw)["active"])
+                    return self._send(204)
                 if self.path == "/robot/telemetry":
                     backend.telemetry.append(json.loads(raw))
                     return self._send(204)

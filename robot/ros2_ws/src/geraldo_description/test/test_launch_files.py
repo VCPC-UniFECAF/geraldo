@@ -11,11 +11,18 @@ def test_bridge_has_the_contract_topics():
     by_topic = {e["ros_topic_name"]: e for e in entries}
     assert set(by_topic) == {"/clock", "/cmd_vel", "/odom", "/tf", "/scan",
                              "/range/front_c", "/range/front_l45", "/range/front_r45",
-                             "/range/rear_l135", "/range/rear_r135"}
-    for topic in set(by_topic) - {"/clock", "/cmd_vel", "/odom", "/tf"}:
+                             "/range/rear_l135", "/range/rear_r135",
+                             "/camera/color/image_raw", "/camera/depth/image_raw"}
+    for topic in set(by_topic) - {"/clock", "/cmd_vel", "/odom", "/tf", "/camera/color/image_raw", "/camera/depth/image_raw"}:
         assert by_topic[topic]["ros_type_name"] == "sensor_msgs/msg/LaserScan"
         assert by_topic[topic]["gz_type_name"] == "gz.msgs.LaserScan"
         assert by_topic[topic]["direction"] == "GZ_TO_ROS"
+    for topic in ("/camera/color/image_raw", "/camera/depth/image_raw"):  # câmera RGB-D: só imagens, do Gazebo para o ROS
+        assert by_topic[topic]["ros_type_name"] == "sensor_msgs/msg/Image"
+        assert by_topic[topic]["gz_type_name"] == "gz.msgs.Image"
+        assert by_topic[topic]["direction"] == "GZ_TO_ROS"
+    assert by_topic["/camera/color/image_raw"]["gz_topic_name"] == "/camera/image"
+    assert by_topic["/camera/depth/image_raw"]["gz_topic_name"] == "/camera/depth_image"
     assert by_topic["/cmd_vel"]["direction"] == "ROS_TO_GZ"
     assert by_topic["/cmd_vel"]["ros_type_name"] == "geometry_msgs/msg/Twist"
     assert by_topic["/scan"]["ros_type_name"] == "sensor_msgs/msg/LaserScan"

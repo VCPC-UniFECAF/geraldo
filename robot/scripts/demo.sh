@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Sobe a demo inteira do G.E.R.A.L.D.O.: backend, web, simulação (Gazebo), Nav2 e dispatcher.
-# Uso: bash robot/scripts/demo.sh [--headless]
-#   --headless   sem a janela do Gazebo (só o servidor)
+# Uso: bash robot/scripts/demo.sh [--headless] [--fake-backend]
+#   --headless       sem a janela do Gazebo (só o servidor)
+#   --fake-backend   no lugar do backend real e da web, sobe a API falsa (robot/scripts/fake_backend.py; usuário robo, senha robo-local)
 # Depois abra http://localhost:5173 e entre como medico1, farmaceutico1 ou admin (senha: GERALDO_DEMO_PASSWORD, padrão "demo").
 # Cada execução começa com o banco e o estoque do seed. Ctrl+C derruba tudo.
 # Antes, na primeira vez: backend/.venv com as dependências, npm install em web/ e colcon build em robot/ros2_ws.
@@ -12,18 +13,20 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 STACK_ROOT="${STACK_ROOT:-$ROOT}"
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-77}" GZ_PARTITION="${GZ_PARTITION:-verif}"
 HEADLESS=false
+FAKE=false
 for arg in "$@"; do
   case "$arg" in
     --headless) HEADLESS=true ;;
-    *) echo "uso: bash robot/scripts/demo.sh [--headless]" >&2; exit 2 ;;
+    --fake-backend) FAKE=true ;;
+    *) echo "uso: bash robot/scripts/demo.sh [--headless] [--fake-backend]" >&2; exit 2 ;;
   esac
 done
 
-for port in 8000 5173; do
+for port in 8000 $($FAKE || echo 5173); do
   if ss -ltn | grep -qE ":$port\b"; then echo "A porta $port está ocupada: feche o que está nela e rode de novo." >&2; exit 1; fi
 done
-[ -x "$STACK_ROOT/backend/.venv/bin/uvicorn" ] || { echo "Falta o backend/.venv em $STACK_ROOT. Crie com: (cd $STACK_ROOT/backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt)" >&2; exit 1; }
-[ -d "$STACK_ROOT/web/node_modules" ] || { echo "Falta rodar npm install em $STACK_ROOT/web." >&2; exit 1; }
+$FAKE || [ -x "$STACK_ROOT/backend/.venv/bin/uvicorn" ] || { echo "Falta o backend/.venv em $STACK_ROOT. Crie com: (cd $STACK_ROOT/backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt)" >&2; exit 1; }
+$FAKE || [ -d "$STACK_ROOT/web/node_modules" ] || { echo "Falta rodar npm install em $STACK_ROOT/web." >&2; exit 1; }
 
 LOGS="${TMPDIR:-/tmp}/geraldo-demo"
 mkdir -p "$LOGS"
@@ -62,9 +65,15 @@ wait_for() {  # wait_for "<descrição>" <segundos> <comando...>
   echo "pronto: $what (${SECONDS}s)"
 }
 
-start backend bash -c "cd '$STACK_ROOT/backend' && exec .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000"
-start web env VITE_API_URL="$GERALDO_API_URL" npm --prefix "$STACK_ROOT/web" run dev -- --port 5173 --strictPort
-wait_for "backend" 30 curl -sf "$GERALDO_API_URL/health"
+if $FAKE; then
+  export GERALDO_ROBOT_PASSWORD="robo-local"
+  start api-falsa python3 "$ROOT/robot/scripts/fake_backend.py" --port 8000
+  wait_for "API falsa" 30 bash -c "ss -ltn | grep -qE ':8000\\b'"
+else
+  start backend bash -c "cd '$STACK_ROOT/backend' && exec .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000"
+  start web env VITE_API_URL="$GERALDO_API_URL" npm --prefix "$STACK_ROOT/web" run dev -- --port 5173 --strictPort
+  wait_for "backend" 30 curl -sf "$GERALDO_API_URL/health"
+fi
 
 set +u
 # shellcheck disable=SC1091
@@ -84,6 +93,7 @@ wait_for "Nav2 ativo" 120 bash -c "ros2 lifecycle get /bt_navigator | grep -q '^
 start dispatcher env PYTHONUNBUFFERED=1 ros2 run geraldo_dispatcher dispatcher
 
 echo
-echo "Demo no ar: http://localhost:5173 (medico1, farmaceutico1 ou admin; senha: $GERALDO_DEMO_PASSWORD)"
+if $FAKE; then echo "Demo no ar com a API falsa em $GERALDO_API_URL (sem web)."; else echo "Demo no ar: http://localhost:5173 (medico1, farmaceutico1 ou admin; senha: $GERALDO_DEMO_PASSWORD)"; fi
+echo "Maca no corredor: bash robot/scripts/spawn_stretcher.sh on (e off para tirar). Roteiro completo em docs/demo-roteiro.md."
 echo "Ctrl+C derruba tudo."
 wait

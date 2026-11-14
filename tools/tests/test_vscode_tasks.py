@@ -41,3 +41,9 @@ def test_compound_task_starts_simulation_and_nav2_in_parallel():
     both = BY_LABEL["GERALDO: simulação + Nav2"]
     assert set(both["dependsOn"]) == {"GERALDO: simulação", "GERALDO: Nav2"}
     assert both["dependsOrder"] == "parallel"
+
+
+def test_the_sweep_waits_for_lifecycle_states_that_start_with_active():
+    command = BY_LABEL["GERALDO: varredura dos 10 pontos"]["command"]
+    assert command.count("grep -q '^active'") == 2   # "inactive" também contém "active"
+    assert "grep -q active" not in command
