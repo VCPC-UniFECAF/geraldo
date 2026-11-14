@@ -12,7 +12,9 @@ export function SolicitarPage({ api }: Props) {
   const [data, setData] = useState<{ me: Me; locations: Location[] } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-  const loadStock = useCallback((originId: string) => api.stock(originId), [api]);
+  // `envios` muda a função de carga depois de cada pedido, e o formulário recarrega o estoque (o disponível caiu).
+  const [envios, setEnvios] = useState(0);
+  const loadStock = useCallback((originId: string) => api.stock(originId), [api, envios]);
 
   useEffect(() => {
     Promise.all([api.me(), api.locations()])
@@ -23,6 +25,7 @@ export function SolicitarPage({ api }: Props) {
   async function submit(body: DeliveryCreate) {
     await api.createDelivery(body);
     setDone(true);
+    setEnvios((n) => n + 1);
   }
 
   if (loadError) return <p role="alert" className="text-vermelho-600">{loadError}</p>;

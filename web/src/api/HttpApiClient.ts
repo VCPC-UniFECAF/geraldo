@@ -1,5 +1,5 @@
 import { ApiError, type ApiClient } from "./ApiClient";
-import type { Delivery, DeliveryCreate, Location, Me, StockEntry } from "./types";
+import type { Delivery, DeliveryCreate, EstopState, Location, Me, Movement, MovementFiltro, StockEntry, Telemetry } from "./types";
 
 export class HttpApiClient implements ApiClient {
   #token: string | null = null;
@@ -50,5 +50,31 @@ export class HttpApiClient implements ApiClient {
 
   deliveries() {
     return this.#request<Delivery[]>("/deliveries");
+  }
+
+  confirmReceipt(id: number) {
+    return this.#request<Delivery>(`/deliveries/${id}/confirm-receipt`, { method: "POST" });
+  }
+
+  movements(filtro: MovementFiltro = {}) {
+    const query = new URLSearchParams();
+    if (filtro.deliveryId !== undefined) query.set("delivery_id", String(filtro.deliveryId));
+    if (filtro.locationId) query.set("location_id", filtro.locationId);
+    const texto = query.toString();
+    return this.#request<Movement[]>(`/movements${texto ? `?${texto}` : ""}`);
+  }
+
+  telemetry() {
+    return this.#request<Telemetry>("/telemetry");
+  }
+
+  setEstop(active: boolean) {
+    const corpo: EstopState = { active };
+    return this.#request<void>("/robot/estop", { method: "POST", body: JSON.stringify(corpo) });
+  }
+
+  telemetryStreamUrl() {
+    const url = `${this.#baseUrl.replace(/^http/, "ws")}/ws/telemetry`;
+    return this.#token ? `${url}?token=${encodeURIComponent(this.#token)}` : url;
   }
 }

@@ -15,6 +15,7 @@ test("tem a barra lateral (desktop) e a barra inferior (celular) com os mesmos i
   expect(screen.getAllByRole("button", { name: "Solicitar" })).toHaveLength(2);
   expect(screen.getAllByRole("button", { name: "Minhas entregas" })).toHaveLength(2);
   expect(screen.getAllByRole("button", { name: "Estoque" })).toHaveLength(2);
+  expect(screen.getAllByRole("button", { name: "Painel" })).toHaveLength(2);
   expect(screen.getByText("conteúdo")).toBeInTheDocument();
 });
 
@@ -50,4 +51,15 @@ test("os botões de navegação têm alvo de toque de 44 px", () => {
     </AppShell>,
   );
   for (const button of screen.getAllByRole("button")) expect(button).toHaveClass("min-h-controle");
+});
+
+test("clicar em Painel navega para o painel", async () => {
+  const onNavigate = vi.fn();
+  render(
+    <AppShell active="solicitar" onNavigate={onNavigate}>
+      x
+    </AppShell>,
+  );
+  await userEvent.click(screen.getAllByRole("button", { name: "Painel" })[0]);
+  expect(onNavigate).toHaveBeenCalledWith("painel");
 });

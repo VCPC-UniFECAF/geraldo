@@ -1,7 +1,8 @@
 import { http, HttpResponse } from "msw";
 import { ApiError } from "./ApiClient";
 import { HttpApiClient } from "./HttpApiClient";
-import { ME } from "./mocks/fixtures";
+import { DELIVERY, DELIVERY_AGUARDANDO, ME } from "./mocks/fixtures";
+import { semearEntregas } from "./mocks/handlers";
 import { server } from "./mocks/server";
 
 const api = new HttpApiClient();
@@ -55,4 +56,53 @@ test("erro sem corpo JSON vira ApiError com mensagem padrão", async () => {
   expect(err).toBeInstanceOf(ApiError);
   expect(err.status).toBe(500);
   expect(err.message).toBe("Algo deu errado. Tente de novo.");
+});
+
+test("confirmReceipt confirma a entrega que aguarda recebimento e credita o destino", async () => {
+  semearEntregas([DELIVERY_AGUARDANDO]);
+  const entrega = await api.confirmReceipt(2);
+  expect(entrega.status).toBe("ENTREGUE");
+  const movimentos = await api.movements({ deliveryId: 2 });
+  expect(movimentos).toMatchObject([{ type: "CREDITO", location_id: "consultorio1", quantity: 5 }]);
+});
+
+test("confirmReceipt de entrega que ainda está a caminho levanta ApiError 409", async () => {
+  semearEntregas([DELIVERY]);
+  await expect(api.confirmReceipt(1)).rejects.toMatchObject({
+    status: 409,
+    message: "A entrega ainda não chegou ao destino. Aguarde o robô.",
+  });
+});
+
+test("movements filtra por local", async () => {
+  const lista = await api.movements({ locationId: "banco_sangue" });
+  expect(lista.map((m) => m.id)).toEqual([4]);
+});
+
+test("telemetry devolve o último estado do robô", async () => {
+  const telemetria = await api.telemetry();
+  expect(telemetria.robot_state).toBe("IDLE");
+  expect(telemetria.pose).toEqual({ x: 6.5, y: 26.5, yaw: -1.5708 });
+});
+
+test("setEstop recusa quem não é administrador nem farmacêutico", async () => {
+  await expect(api.setEstop(true)).rejects.toMatchObject({
+    status: 403,
+    message: "Só administrador e farmacêutico acionam a parada de emergência.",
+  });
+});
+
+test("setEstop liga e desliga a parada e a telemetria acompanha", async () => {
+  await api.login("farmaceutico1", "demo");
+  expect((await api.me()).role).toBe("farmaceutico");
+  await api.setEstop(true);
+  expect((await api.telemetry()).robot_state).toBe("PARADA_EMERGENCIA");
+  await api.setEstop(false);
+  expect((await api.telemetry()).robot_state).toBe("IDLE");
+});
+
+test("telemetryStreamUrl troca http por ws e leva o token quando há login", () => {
+  expect(api.telemetryStreamUrl()).toBe("ws://localhost:8000/ws/telemetry");
+  api.definirToken("abc");
+  expect(api.telemetryStreamUrl()).toBe("ws://localhost:8000/ws/telemetry?token=abc");
 });

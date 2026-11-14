@@ -11,6 +11,7 @@ test("traduz o contrato do backend para o modelo da interface", () => {
     itens: [{ nome: "Dipirona 500mg", quantidade: 5 }],
     prioridade: "media",
     status: "EM_ROTA",
+    solicitanteId: 1,
     solicitadaEm: new Date("2026-11-09T13:20:00Z"),
   });
 });

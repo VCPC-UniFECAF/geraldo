@@ -98,6 +98,8 @@ def test_websocket_accepts_the_token_in_the_authorization_header(client, auth, h
 
 @pytest.mark.parametrize("query", ["", "?token=lixo"])
 def test_websocket_without_a_valid_token_is_refused(client, hub, query):
-    with pytest.raises(WebSocketDisconnect):
-        with client.websocket_connect(f"/ws/telemetry{query}"):
-            pass
+    # o handshake é aceito antes de fechar: recusado no handshake, o navegador só veria 1006, nunca o 1008
+    with client.websocket_connect(f"/ws/telemetry{query}") as ws:
+        with pytest.raises(WebSocketDisconnect) as closed:
+            ws.receive_json()
+    assert closed.value.code == 1008

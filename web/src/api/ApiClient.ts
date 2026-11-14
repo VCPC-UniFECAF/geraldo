@@ -1,4 +1,4 @@
-import type { Delivery, DeliveryCreate, Location, Me, StockEntry } from "./types";
+import type { Delivery, DeliveryCreate, Location, Me, Movement, MovementFiltro, StockEntry, Telemetry } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -24,7 +24,19 @@ export interface CatalogoApi {
 export interface EntregasApi {
   createDelivery(body: DeliveryCreate): Promise<Delivery>;
   deliveries(): Promise<Delivery[]>;
+  confirmReceipt(id: number): Promise<Delivery>;
+}
+
+export interface HistoricoApi {
+  movements(filtro?: MovementFiltro): Promise<Movement[]>;
+}
+
+export interface RoboApi {
+  telemetry(): Promise<Telemetry>;
+  setEstop(active: boolean): Promise<void>;
+  // URL do WebSocket /ws/telemetry, já com o token: o navegador não manda cabeçalho Authorization num WebSocket.
+  telemetryStreamUrl(): string;
 }
 
 // DIP: a aplicação conhece essa abstração; quem fala HTTP é a HttpApiClient.
-export type ApiClient = SessaoApi & CatalogoApi & EntregasApi;
+export type ApiClient = SessaoApi & CatalogoApi & EntregasApi & HistoricoApi & RoboApi;
