@@ -30,5 +30,5 @@ def test_demo_script_rejects_unknown_options_before_starting_anything():
 def test_the_demo_script_is_listed_by_the_robot_agents_file_and_the_roteiro_exists():
     assert "demo.sh" in (ROOT / "robot/AGENTS.md").read_text(encoding="utf-8")
     text = ROTEIRO.read_text(encoding="utf-8")
-    for piece in ("demo.sh", "spawn_stretcher.sh", "3,0 m/s", "TODOS OS PONTOS OK", "Parada de emergência", "28/11"):
+    for piece in ("demo.sh", "spawn_stretcher.sh", "1,0 m/s", "TODOS OS PONTOS OK", "Parada de emergência", "28/11"):
         assert piece in text, piece
