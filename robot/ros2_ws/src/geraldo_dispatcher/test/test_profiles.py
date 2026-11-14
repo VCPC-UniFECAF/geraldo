@@ -15,9 +15,9 @@ def test_profiles_cover_exactly_the_contract_priorities():
     assert list(PROFILES) == spec["components"]["schemas"]["Priority"]["enum"]
 
 
-def test_critical_is_faster_and_squeezes_closer_than_routine():
-    assert PROFILES["critica"].max_speed > PROFILES["media"].max_speed > PROFILES["rotina"].max_speed
-    assert PROFILES["critica"].inflation_radius < PROFILES["media"].inflation_radius
+def test_only_the_inflation_radius_depends_on_the_priority():
+    assert [(p.name, p.inflation_radius) for p in PROFILES.values()] == [("critica", 0.55), ("media", 0.70), ("rotina", 0.70)]
+    assert not any(hasattr(p, "max_speed") for p in PROFILES.values())  # a velocidade é 3,0 m/s para todas
 
 
 def test_the_default_profile_matches_the_nav2_inflation_radius():

@@ -3,18 +3,17 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class NavProfile:
-    """Como o robô navega numa prioridade: velocidade máxima (m/s) e raio de inflação do costmap local (m)."""
+    """Como o robô navega numa prioridade: só o raio de inflação do costmap local (m). A velocidade é 3,0 m/s para todas."""
 
     name: str
-    max_speed: float
     inflation_radius: float  # menor = passa mais perto dos obstáculos (desvio mais agressivo)
 
 
-# O contrato fixa as prioridades (OpenAPI Priority). A média usa o raio padrão do Nav2 (nav2_params.yaml).
+# O contrato fixa as prioridades (OpenAPI Priority). A média e a rotina usam o raio padrão do Nav2 (nav2_params.yaml).
 PROFILES: dict[str, NavProfile] = {
-    "critica": NavProfile("critica", max_speed=1.0, inflation_radius=0.55),
-    "media": NavProfile("media", max_speed=0.8, inflation_radius=0.70),
-    "rotina": NavProfile("rotina", max_speed=0.5, inflation_radius=0.70),
+    "critica": NavProfile("critica", inflation_radius=0.55),
+    "media": NavProfile("media", inflation_radius=0.70),
+    "rotina": NavProfile("rotina", inflation_radius=0.70),
 }
 DEFAULT_PROFILE = PROFILES["media"]
 

@@ -41,4 +41,4 @@ class Navigator(ABC):  # porta: tudo o que o dispatcher precisa da navegação
 class NavigationTuner(ABC):  # porta: ajusta a navegação para a prioridade da entrega
     @abstractmethod
     def apply(self, profile: NavProfile) -> None:
-        """Aplica velocidade máxima e raio de inflação do perfil."""
+        """Aplica o raio de inflação do perfil (a velocidade não muda com a prioridade)."""
