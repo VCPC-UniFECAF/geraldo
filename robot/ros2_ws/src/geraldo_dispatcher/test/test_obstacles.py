@@ -8,7 +8,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(ROOT))
 
-from geraldo_dispatcher.obstacles import STATIC_TOLERANCE, StaticMap, detect_obstacles  # noqa: E402
+from geraldo_dispatcher.obstacles import STATIC_TOLERANCE, Scan, ScanObstacleDetector, StaticMap, detect_obstacles  # noqa: E402
 from geraldo_dispatcher.waypoints import Pose  # noqa: E402
 
 HOSPITAL_MAP = ROOT / "robot/ros2_ws/src/geraldo_nav/maps/hospital.yaml"
@@ -36,16 +36,16 @@ def test_an_empty_scan_has_no_obstacles():
     assert detect(scan_with({}, far=12.0)) == []  # retorno no alcance máximo = nada à vista
 
 
-def test_one_hit_ahead_becomes_a_point_in_front_of_the_lidar():
+def test_one_hit_ahead_becomes_a_point_in_front_of_the_sensor():
     (x, y, radius), = detect(scan_with({beam_at(0.0): 2.0}))
-    assert x == pytest.approx(0.275 + 2.0, abs=0.01) and y == pytest.approx(0.0, abs=0.02)
+    assert x == pytest.approx(2.0, abs=0.01) and y == pytest.approx(0.0, abs=0.02)
     assert radius == 0.10  # raio mínimo
 
 
-def test_the_pose_moves_and_turns_the_points_into_the_map_frame():
-    pose = Pose(10.0, 20.0, math.pi / 2)  # olhando para +y
-    (x, y, _), = detect(scan_with({beam_at(0.0): 2.0}), pose=pose)
-    assert x == pytest.approx(10.0, abs=0.02) and y == pytest.approx(20.0 + 0.275 + 2.0, abs=0.02)
+def test_the_sensor_pose_moves_and_turns_the_points_into_the_map_frame():
+    sensor = Pose(10.0, 20.0, math.pi / 2)  # olhando para +y
+    (x, y, _), = detect(scan_with({beam_at(0.0): 2.0}), pose=sensor)
+    assert x == pytest.approx(10.0, abs=0.02) and y == pytest.approx(22.0, abs=0.02)
 
 
 def test_points_that_match_the_static_map_are_dropped():
@@ -58,7 +58,7 @@ def test_points_that_match_the_static_map_are_dropped():
 def test_neighbouring_points_form_one_obstacle_whose_radius_covers_them():
     hits = {i: 3.0 for i in range(beam_at(-0.05), beam_at(0.05) + 1)}  # um objeto de uns 30 cm de largura a 3 m
     (x, y, radius), = detect(scan_with(hits))
-    assert x == pytest.approx(3.275, abs=0.05) and y == pytest.approx(0.0, abs=0.05)
+    assert x == pytest.approx(3.0, abs=0.05) and y == pytest.approx(0.0, abs=0.05)
     assert 0.1 <= radius <= 0.3
 
 
@@ -126,3 +126,35 @@ def test_hospital_static_map_knows_the_pharmacy_shelves_and_counter():
     assert static.occupied_near(11.3, 20.1, STATIC_TOLERANCE)  # frente das estantes da farmácia
     assert static.occupied_near(8.18, 25.4, STATIC_TOLERANCE)  # ponta do balcão
     assert not static.occupied_near(6.2, 25.0, STATIC_TOLERANCE)  # corredor livre diante da doca
+
+
+EMPTY_MAP = StaticMap(600, 600, 0.05, (0.0, 0.0), bytes(600 * 600))  # 30 x 30 m sem nada ocupado
+
+
+def scan_message(hits: dict[int, float], frame_id: str = "lidar_link", stamp_ns: int = 5_000_000_000) -> Scan:
+    return Scan(frame_id, stamp_ns, scan_with(hits), ANGLE_MIN, INCREMENT, range_min=0.12, range_max=12.0)
+
+
+def test_the_detector_places_the_scan_with_the_sensor_pose_at_the_scan_stamp():
+    asked = []
+
+    def sensor_pose_at(frame_id, stamp_ns):
+        asked.append((frame_id, stamp_ns))
+        return Pose(10.0, 20.0, math.pi / 2)
+
+    detector = ScanObstacleDetector(EMPTY_MAP, sensor_pose_at)
+    (x, y, _), = detector.detect(scan_message({beam_at(0.0): 2.0}))
+    assert asked == [("lidar_link", 5_000_000_000)]
+    assert x == pytest.approx(10.0, abs=0.02) and y == pytest.approx(22.0, abs=0.02)
+
+
+def test_the_detector_drops_the_scan_when_there_is_no_transform_at_its_stamp():
+    # a pose velha de outro instante faria a parede sair do lugar e virar obstáculo: sem TF, sem obstáculo
+    detector = ScanObstacleDetector(EMPTY_MAP, lambda frame_id, stamp_ns: None)
+    assert detector.detect(scan_message({beam_at(0.0): 2.0})) == []
+
+
+def test_the_detector_ignores_what_the_static_map_explains():
+    wall = StaticMap(40, 40, 0.05, (0.0, 0.0), bytes(1600)).with_rects([(1.9, 0.0, 2.1, 2.0)])  # parede em x = 2
+    detector = ScanObstacleDetector(wall, lambda frame_id, stamp_ns: Pose(0.5, 1.0, 0.0))
+    assert detector.detect(scan_message({beam_at(0.0): 1.5})) == []
