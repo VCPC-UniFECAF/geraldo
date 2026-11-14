@@ -59,3 +59,13 @@ def test_root_agents_has_the_patterns_rule():
 def test_pull_request_template_has_the_patterns_checklist():
     text = (ROOT / ".github/pull_request_template.md").read_text(encoding="utf-8")
     assert "construtor" in text and "if/elif" in text
+
+
+def test_robot_agents_describes_the_3_m_s_rule_and_the_week_3_pieces():
+    text = (ROOT / "robot/AGENTS.md").read_text(encoding="utf-8")
+    assert "**3,0 m/s sempre**" in text
+    for stale in ("Esse já é o teto", "crítica 1,0 m/s", "média 0,8 m/s", "rotina 0,5 m/s"):
+        assert stale not in text, stale
+    for piece in ("curve_limiter", "BackendEstopPoller", "detect_obstacles", "camera_link", "demo.sh", "measure_speed.py",
+                  "só o raio de inflação"):
+        assert piece in text, piece

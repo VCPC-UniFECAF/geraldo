@@ -37,7 +37,7 @@
     {
       "label": "GERALDO: varredura dos 10 pontos",
       "type": "shell",
-      "command": "source /opt/ros/jazzy/setup.bash && source robot/ros2_ws/install/setup.bash && bash robot/scripts/wait_for.sh \"ros2 lifecycle get /amcl | grep -q active && ros2 lifecycle get /bt_navigator | grep -q active\" 180 && sleep 5 && python3 robot/scripts/nav_goal_sweep.py",
+      "command": "source /opt/ros/jazzy/setup.bash && source robot/ros2_ws/install/setup.bash && bash robot/scripts/wait_for.sh \"ros2 lifecycle get /amcl | grep -q '^active' && ros2 lifecycle get /bt_navigator | grep -q '^active'\" 180 && sleep 5 && python3 robot/scripts/nav_goal_sweep.py",
       "problemMatcher": [],
       "presentation": { "panel": "dedicated", "reveal": "always" }
     },
