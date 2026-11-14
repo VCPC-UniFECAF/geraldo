@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 import rclpy
 from ament_index_python.packages import get_package_share_directory
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 from nav2_msgs.msg import SpeedLimit
 from nav_msgs.msg import Path
@@ -61,7 +61,7 @@ class Nav2Navigator(Navigator):  # ADAPTER: traduz Pose para o NavigateToPose do
 
 
 class GeraldoStateNode(Node):
-    """Publica /geraldo/state e /geraldo/battery e guarda a última pose (AMCL), a rota (/plan) e o /scan para a telemetria."""
+    """Publica /geraldo/state e /geraldo/battery e guarda a rota (/plan) e o /scan; a pose vem do TF (map -> base_link)."""
 
     def __init__(self, estop: EmergencyStop, static_map: StaticMap) -> None:
         super().__init__("geraldo_state")
@@ -69,14 +69,11 @@ class GeraldoStateNode(Node):
         self.tf_buffer = Buffer()
         self._tf_listener = TransformListener(self.tf_buffer, self)
         self._detector = ScanObstacleDetector(static_map, self.sensor_pose_at)
-        self.pose: Pose | None = None
         self.route: list[tuple[float, float]] = []
         self.scan: LaserScan | None = None
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self._state_pub = self.create_publisher(String, "/geraldo/state", latched)
         self._battery_pub = self.create_publisher(BatteryState, "/geraldo/battery", 10)
-        # o AMCL guarda a última pose (TRANSIENT_LOCAL): sem isso, quem sobe com o robô parado não tem pose nem telemetria
-        self.create_subscription(PoseWithCovarianceStamped, "/amcl_pose", self._on_pose, latched)
         self.create_subscription(Path, "/plan", self._on_plan, 10)
         self.create_subscription(Bool, "/geraldo/estop", self._on_estop, 10)
         self.create_subscription(LaserScan, "/scan", self._on_scan, qos_profile_sensor_data)
@@ -93,9 +90,16 @@ class GeraldoStateNode(Node):
     def publish_battery(self, level: float) -> None:
         self._battery_pub.publish(BatteryState(percentage=level / 100.0, present=True))
 
-    def _on_pose(self, msg: PoseWithCovarianceStamped) -> None:
-        p = msg.pose.pose
-        self.pose = Pose(p.position.x, p.position.y, yaw_from_quaternion(p.orientation.z, p.orientation.w))
+    def robot_pose(self) -> Pose | None:
+        """Pose do robô no `map` agora (TF map -> base_link); None até o AMCL publicar o map -> odom.
+
+        O /amcl_pose só atualiza quando o robô anda: parado ele fica velho e o ponto do Painel não acompanha o robô."""
+        try:
+            tf = self.tf_buffer.lookup_transform("map", "base_link", Time())
+        except TransformException:
+            return None
+        t, q = tf.transform.translation, tf.transform.rotation
+        return Pose(t.x, t.y, yaw_from_quaternion(q.z, q.w))
 
     def _on_plan(self, msg: Path) -> None:
         self.route = downsample([(s.pose.position.x, s.pose.position.y) for s in msg.poses], 50)
@@ -195,7 +199,7 @@ def main() -> None:
     telemetry_client = BackendClient(api_url, "robo", password)  # cliente próprio: a telemetria roda em outra thread
     _login_when_available(telemetry_client, "telemetria")
     reporter = TelemetryReporter(
-        telemetry_client, machine, BatteryModel(), pose_source=lambda: state_node.pose,
+        telemetry_client, machine, BatteryModel(), pose_source=state_node.robot_pose,
         route_source=lambda: state_node.route, delivery_source=lambda: dispatcher.delivery_id,
         on_battery=state_node.publish_battery, clock=lambda: datetime.now(timezone.utc),
         obstacle_source=state_node.obstacles,
