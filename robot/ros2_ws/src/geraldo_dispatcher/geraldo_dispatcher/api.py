@@ -6,7 +6,7 @@ from .ports import BackendError, BackendPort, TelemetryPort
 
 
 class BackendClient(BackendPort, TelemetryPort):  # ADAPTER: traduz a API HTTP do backend para as portas do robô
-    """Cliente mínimo do backend (só biblioteca padrão): login, tarefa, eventos, status da entrega e telemetria."""
+    """Cliente mínimo do backend (só biblioteca padrão): login, tarefa, eventos, status da entrega, emergência do painel e telemetria."""
 
     def __init__(self, base_url: str, username: str, password: str, timeout: float = 10.0) -> None:
         self.base_url = base_url.rstrip("/")
@@ -69,6 +69,9 @@ class BackendClient(BackendPort, TelemetryPort):  # ADAPTER: traduz a API HTTP d
 
     def delivery_status(self, delivery_id: int) -> str:
         return self._json("GET", f"/deliveries/{delivery_id}")["status"]
+
+    def estop_active(self) -> bool:
+        return bool(self._json("GET", "/robot/estop")["active"])
 
     def send_telemetry(self, body: dict) -> None:
         self._json("POST", "/robot/telemetry", body)

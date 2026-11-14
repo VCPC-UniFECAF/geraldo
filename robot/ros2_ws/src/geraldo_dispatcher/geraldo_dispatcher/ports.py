@@ -25,6 +25,10 @@ class BackendPort(ABC):  # porta: tudo o que o dispatcher precisa do backend (IS
     def delivery_status(self, delivery_id: int) -> str:
         """Status atual da entrega (DeliveryStatus do contrato)."""
 
+    @abstractmethod
+    def estop_active(self) -> bool:
+        """True se o painel acionou a parada de emergência (GET /robot/estop)."""
+
 
 class TelemetryPort(ABC):  # porta: só o que a telemetria precisa
     @abstractmethod

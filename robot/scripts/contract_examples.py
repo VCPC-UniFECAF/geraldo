@@ -64,6 +64,9 @@ class _Backend(BackendPort):
     def delivery_status(self, delivery_id):
         return self._statuses.pop(0) if len(self._statuses) > 1 else self._statuses[0]
 
+    def estop_active(self):
+        return False
+
 
 class _Navigator(Navigator):
     def __init__(self, fails_at) -> None:

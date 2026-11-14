@@ -9,7 +9,7 @@ sys.path.insert(0, str(ROOT))
 
 from geraldo_dispatcher.api import BackendClient  # noqa: E402
 from geraldo_dispatcher.dispatcher import Dispatcher  # noqa: E402
-from geraldo_dispatcher.emergency import EmergencyStop  # noqa: E402
+from geraldo_dispatcher.emergency import BACKEND, TOPIC, BackendEstopPoller, EmergencyStop  # noqa: E402
 from geraldo_dispatcher.ports import BackendError, BackendPort, NavigationTuner, Navigator  # noqa: E402
 from geraldo_dispatcher.profiles import DEFAULT_PROFILE, PROFILES  # noqa: E402
 from geraldo_dispatcher.states import State, StateMachine  # noqa: E402
@@ -51,6 +51,9 @@ class ScriptedBackend(BackendPort):  # substituto de teste do backend: sem HTTP,
 
     def delivery_status(self, delivery_id):
         return self._statuses.pop(0) if len(self._statuses) > 1 else self._statuses[0]
+
+    def estop_active(self):
+        return False
 
 
 def run(backend, navigator=None, poses=POSES, estop=None, sleep=None, tuner=None, **kwargs):
@@ -351,3 +354,91 @@ def test_a_backend_that_hides_the_delivery_from_the_robot_ends_unconfirmed_inste
     result, _, _ = run(client, receipt_timeout=4.0)
     assert result["result"] == "FALHOU" and "404" in result["reason"]
     assert [e["event"] for e in backend.events] == ["LOADED", "ARRIVED", "FAILED"]
+
+
+def test_the_client_reads_the_panel_emergency_from_the_backend(backend):
+    client = client_for(backend)
+    client.login()
+    assert client.estop_active() is False
+    backend.estop = True
+    assert client.estop_active() is True
+    assert backend.calls.count("/robot/estop") == 2
+
+
+def test_the_fake_backend_accepts_the_panel_emergency_through_post(backend):
+    client = client_for(backend)
+    client.login()
+    client._json("POST", "/robot/estop", {"active": True})
+    assert backend.estop is True and client.estop_active() is True
+
+
+def test_the_fake_backend_serves_the_last_telemetry_it_received(backend):
+    client = client_for(backend)
+    client.login()
+    with pytest.raises(BackendError, match="404"):
+        client._json("GET", "/telemetry")
+    client.send_telemetry({"robot_state": "IDLE", "obstacles": [{"x": 23.0, "y": 29.0, "radius": 1.0}]})
+    assert client._json("GET", "/telemetry")["obstacles"] == [{"x": 23.0, "y": 29.0, "radius": 1.0}]
+
+
+class PanelBackend(ScriptedBackend):  # o painel: estop_active devolve o que o teste mandou, ou falha
+    def __init__(self, answers) -> None:
+        super().__init__([])
+        self.answers = list(answers)
+
+    def estop_active(self):
+        answer = self.answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+
+def test_the_poller_follows_the_backend_and_keeps_the_last_value_when_it_fails():
+    estop, logs = EmergencyStop(), []
+    answers = [True, BackendError("Backend fora do ar"), ValueError("corpo estranho"), False]
+    poller = BackendEstopPoller(PanelBackend(answers), estop, log=logs.append)
+    poller.poll()
+    assert estop.active is True
+    poller.poll()
+    assert estop.active is True and "mantendo o último valor" in logs[0]
+    poller.poll()
+    assert estop.active is True and len(logs) == 2
+    poller.poll()
+    assert estop.active is False
+
+
+def test_an_emergency_from_the_backend_holds_the_robot_like_the_topic_does():
+    estop = EmergencyStop()
+    estop.set_source(BACKEND, True)
+
+    def panel_releases_on_the_first_wait(spent):
+        def sleep(seconds):
+            spent.append(seconds)
+            estop.set_source(BACKEND, False)
+        return sleep
+
+    result, history, sleeps = run(ScriptedBackend([TASK]), estop=estop, sleep=panel_releases_on_the_first_wait)
+    assert result["result"] == "ENTREGUE" and history[:2] == [State.PARADA_EMERGENCIA, State.IDLE]
+    assert sleeps[0] == 0.5
+
+
+def test_the_robot_leaves_the_emergency_only_when_both_sources_are_off():
+    estop = EmergencyStop()
+    estop.engage()
+    estop.set_source(BACKEND, True)
+    seen = []
+
+    def releasing_in_two_steps(spent):
+        def sleep(seconds):
+            spent.append(seconds)
+            if len(spent) == 1:
+                estop.set_source(BACKEND, False)       # o painel libera, mas o tópico ainda segura
+            elif len(spent) == 3:
+                estop.release()                       # só agora as duas fontes estão desligadas
+            seen.append(estop.active)
+        return sleep
+
+    result, history, sleeps = run(ScriptedBackend([]), estop=estop, sleep=releasing_in_two_steps)
+    assert result is None and sleeps == [0.5, 0.5, 0.5]
+    assert seen == [True, True, False]
+    assert history == [State.PARADA_EMERGENCIA, State.IDLE]
