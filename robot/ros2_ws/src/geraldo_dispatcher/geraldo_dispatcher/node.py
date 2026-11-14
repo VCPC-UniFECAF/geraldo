@@ -8,6 +8,7 @@ import rclpy
 from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
+from nav2_msgs.msg import SpeedLimit
 from nav_msgs.msg import Path
 from rcl_interfaces.msg import Parameter as ParameterMsg
 from rcl_interfaces.msg import ParameterType, ParameterValue
@@ -121,19 +122,21 @@ class GeraldoStateNode(Node):
                                           scan.angle_increment, scan.range_min, scan.range_max))
 
 
-class Nav2Tuner(NavigationTuner):  # ADAPTER: traduz o perfil para o raio de inflação do costmap local do Nav2
+class Nav2Tuner(NavigationTuner):  # ADAPTER: traduz o perfil para o /speed_limit e o costmap local do Nav2
     def __init__(self, node: Node) -> None:
         self._node = node
+        self._speed = node.create_publisher(SpeedLimit, "/speed_limit", 10)
         self._costmap = node.create_client(SetParameters, "/local_costmap/local_costmap/set_parameters")
 
     def apply(self, profile: NavProfile) -> None:
+        self._speed.publish(SpeedLimit(percentage=False, speed_limit=profile.max_speed))
         if not self._costmap.wait_for_service(timeout_sec=2.0):
             self._node.get_logger().warning("costmap local indisponível: raio de inflação não alterado")
             return
         value = ParameterValue(type=ParameterType.PARAMETER_DOUBLE, double_value=profile.inflation_radius)
         request = SetParameters.Request(parameters=[ParameterMsg(name="inflation_layer.inflation_radius", value=value)])
         self._costmap.call_async(request)
-        self._node.get_logger().info(f"perfil {profile.name}: inflação {profile.inflation_radius} m")
+        self._node.get_logger().info(f"perfil {profile.name}: {profile.max_speed} m/s, inflação {profile.inflation_radius} m")
 
 
 def _repeat(action, period: float) -> None:
