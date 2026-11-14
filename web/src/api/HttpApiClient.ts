@@ -17,7 +17,9 @@ export class HttpApiClient implements ApiClient {
     const headers = new Headers(init.headers);
     if (init.body) headers.set("Content-Type", "application/json");
     if (this.#token) headers.set("Authorization", `Bearer ${this.#token}`);
-    const res = await fetch(`${this.#baseUrl}${path}`, { ...init, headers });
+    const res = await fetch(`${this.#baseUrl}${path}`, { ...init, headers }).catch(() => {
+      throw new ApiError(0, "Não foi possível falar com o servidor. Confira se ele está ligado e tente de novo.");
+    });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new ApiError(res.status, body.detail ?? "Algo deu errado. Tente de novo.");

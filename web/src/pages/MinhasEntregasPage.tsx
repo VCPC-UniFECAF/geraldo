@@ -34,8 +34,10 @@ export function MinhasEntregasPage({ api, usuario, onRequest, intervaloMs = 5000
 
   // 401 = sessão expirada (como no Painel); qualquer outro erro aparece sem apagar a lista, e a próxima rodada tenta de novo.
   const falhou = useCallback((err: unknown) => {
-    if (err instanceof ApiError && err.status === 401) setSessaoExpirada(true);
-    else setErroRecarga(err instanceof Error ? err.message : "Erro desconhecido. Tente de novo.");
+    if (err instanceof ApiError && err.status === 401) {
+      setSessaoExpirada(true);
+      setErroRecarga(null); // o erro de antes era sintoma disto
+    } else setErroRecarga(err instanceof Error ? err.message : "Erro desconhecido. Tente de novo.");
   }, []);
 
   useEffect(() => {
