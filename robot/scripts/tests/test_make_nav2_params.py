@@ -1,4 +1,6 @@
-from robot.scripts.make_nav2_params import CRUISE_SPEED, FOOTPRINT, INITIAL_POSE, patch_params
+from robot.scripts.make_nav2_params import (
+    CRITIC_TUNING, CRUISE_SPEED, FOOTPRINT, INITIAL_POSE, LOCAL_COSTMAP_SIZE, MPPI_TUNING, patch_params,
+)
 
 
 def fake_defaults():
@@ -49,9 +51,9 @@ def test_global_costmap_keeps_the_lidar_layer_so_the_planner_detours_around_new_
     assert out["local_costmap"]["local_costmap"]["ros__parameters"]["plugins"] == ["voxel_layer"]
 
 
-def test_robot_cruises_at_0_8_m_s_in_both_the_controller_and_the_velocity_smoother():
+def test_robot_cruises_at_3_m_s_in_both_the_controller_and_the_velocity_smoother():
     out = patch_params(fake_defaults())
-    assert out["controller_server"]["ros__parameters"]["FollowPath"]["vx_max"] == CRUISE_SPEED == 1.0
+    assert out["controller_server"]["ros__parameters"]["FollowPath"]["vx_max"] == CRUISE_SPEED == 3.0
     assert out["velocity_smoother"]["ros__parameters"]["max_velocity"][0] == CRUISE_SPEED
 
 
@@ -66,3 +68,20 @@ def test_reverse_and_turn_rate_stay_as_they_were():
 def test_other_parameters_are_preserved():
     out = patch_params(fake_defaults())
     assert out["local_costmap"]["local_costmap"]["ros__parameters"]["plugins"] == ["voxel_layer"]
+
+
+def test_the_mppi_horizon_fits_in_the_local_costmap_and_in_the_pruned_path_at_cruise_speed():
+    horizon = CRUISE_SPEED * 56 * 0.05          # time_steps x model_dt do nav2_params padrão: 8,4 m a 3 m/s
+    out = patch_params(fake_defaults())
+    follow = out["controller_server"]["ros__parameters"]["FollowPath"]
+    local = out["local_costmap"]["local_costmap"]["ros__parameters"]
+    assert local["width"] == local["height"] == LOCAL_COSTMAP_SIZE == 18
+    assert LOCAL_COSTMAP_SIZE / 2 >= horizon     # a trajetória inteira cabe na janela (raio de 9 m)
+    assert follow["prune_distance"] == MPPI_TUNING["prune_distance"] == 9.0 and follow["prune_distance"] >= horizon
+    assert follow["vx_std"] == 0.5
+
+
+def test_the_path_critics_look_far_enough_ahead_for_cruise_speed():
+    follow = patch_params(fake_defaults())["controller_server"]["ros__parameters"]["FollowPath"]
+    assert follow["PathFollowCritic"] == CRITIC_TUNING["PathFollowCritic"] == {"offset_from_furthest": 60, "cost_weight": 15.0}
+    assert follow["PathAlignCritic"] == {"offset_from_furthest": 100}

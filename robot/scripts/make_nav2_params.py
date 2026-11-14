@@ -22,8 +22,19 @@ AMCL_TUNING = {
     "sigma_hit": 0.1, "z_hit": 0.9, "z_rand": 0.1,
     "update_min_d": 0.1, "update_min_a": 0.1,
 }
-# m/s: antes 0,5 e depois 0,8. É o teto do plugin de movimento do URDF e ainda cabe nos corredores de 2 m e nas portas de 1 m.
-CRUISE_SPEED = 1.0
+# m/s: velocidade de cruzeiro única (pedido do líder, ~10 km/h), para qualquer prioridade. Antes 0,5, 0,8 e 1,0.
+# É também o teto do plugin de movimento do URDF. A desaceleração em curvas vem do nó curve_limiter pelo /speed_limit.
+CRUISE_SPEED = 3.0
+# O MPPI só chega à velocidade de cruzeiro se (1) a janela do costmap local cobrir o horizonte (56 passos x 0,05 s = 2,8 s,
+# ou 8,4 m a 3 m/s; com a janela de 3 m o robô não passava de uns 0,5 m/s), (2) o caminho podado for tão longo quanto o
+# horizonte e (3) os críticos de caminho olharem longe e a amostragem tiver ruído para acelerar. Valores achados na
+# simulação em 13/11/2026 (corredor reto a 3,0 m/s); a medição da Task 9 do plano 1 os confirma ou ajusta.
+LOCAL_COSTMAP_SIZE = 18      # m (largura e altura da janela do costmap local)
+MPPI_TUNING = {"vx_std": 0.5, "prune_distance": 9.0}
+CRITIC_TUNING = {
+    "PathFollowCritic": {"offset_from_furthest": 60, "cost_weight": 15.0},
+    "PathAlignCritic": {"offset_from_furthest": 100},
+}
 
 
 def patch_params(params: dict) -> dict:
@@ -34,7 +45,13 @@ def patch_params(params: dict) -> dict:
     # O costmap global mantém o obstacle_layer (padrão do nav2_bringup): sem ele o planejador não vê obstáculos novos,
     # como a maca do corredor norte, e o robô para na frente dela em vez de replanejar pela cruz central.
     # Validado em 12/11/2026: com a camada ligada a varredura dos 10 pontos continua em TODOS OS PONTOS OK.
-    params["controller_server"]["ros__parameters"]["FollowPath"]["vx_max"] = CRUISE_SPEED
+    follow = params["controller_server"]["ros__parameters"]["FollowPath"]
+    follow["vx_max"] = CRUISE_SPEED
+    follow.update(MPPI_TUNING)
+    for critic, values in CRITIC_TUNING.items():
+        follow.setdefault(critic, {}).update(values)
+    local = params["local_costmap"]["local_costmap"]["ros__parameters"]
+    local["width"] = local["height"] = LOCAL_COSTMAP_SIZE
     params["velocity_smoother"]["ros__parameters"]["max_velocity"][0] = CRUISE_SPEED   # senão o suavizador corta o controlador
     amcl = params["amcl"]["ros__parameters"]
     amcl["set_initial_pose"] = True
