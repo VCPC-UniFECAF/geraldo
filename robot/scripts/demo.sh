@@ -22,7 +22,7 @@ done
 for port in 8000 5173; do
   if ss -ltn | grep -qE ":$port\b"; then echo "A porta $port está ocupada: feche o que está nela e rode de novo." >&2; exit 1; fi
 done
-[ -x "$STACK_ROOT/backend/.venv/bin/uvicorn" ] || { echo "Falta o backend/.venv em $STACK_ROOT (veja backend/AGENTS.md)." >&2; exit 1; }
+[ -x "$STACK_ROOT/backend/.venv/bin/uvicorn" ] || { echo "Falta o backend/.venv em $STACK_ROOT. Crie com: (cd $STACK_ROOT/backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt)" >&2; exit 1; }
 [ -d "$STACK_ROOT/web/node_modules" ] || { echo "Falta rodar npm install em $STACK_ROOT/web." >&2; exit 1; }
 
 LOGS="${TMPDIR:-/tmp}/geraldo-demo"
