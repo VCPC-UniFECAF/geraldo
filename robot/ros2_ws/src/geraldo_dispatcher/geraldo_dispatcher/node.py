@@ -14,20 +14,25 @@ from rcl_interfaces.msg import Parameter as ParameterMsg
 from rcl_interfaces.msg import ParameterType, ParameterValue
 from rcl_interfaces.srv import SetParameters
 from rclpy.executors import SingleThreadedExecutor
+from rclpy.duration import Duration
 from rclpy.node import Node
+from rclpy.time import Time
 from rclpy.qos import DurabilityPolicy, QoSProfile, qos_profile_sensor_data
 from sensor_msgs.msg import BatteryState, LaserScan
 from std_msgs.msg import Bool, String
+from tf2_ros import Buffer, TransformException, TransformListener
 
 from .api import BackendClient
 from .dispatcher import Dispatcher
 from .emergency import EmergencyStop
-from .obstacles import STATIC_TOLERANCE, StaticMap, detect_obstacles
+from .obstacles import Scan, ScanObstacleDetector, StaticMap
 from .ports import BackendError, NavigationTuner, Navigator
 from .profiles import NavProfile
 from .states import State, StateMachine
 from .telemetry import BatteryModel, TelemetryReporter, downsample, yaw_from_quaternion
 from .waypoints import Pose, load_poses
+
+TF_TIMEOUT = 0.05  # s: o TF do instante do scan já está no buffer ou não vem mais; esperar além disso só atrasa a telemetria
 
 
 class Nav2Navigator(Navigator):  # ADAPTER: traduz Pose para o NavigateToPose do Nav2 (BasicNavigator)
@@ -60,7 +65,10 @@ class GeraldoStateNode(Node):
 
     def __init__(self, estop: EmergencyStop, static_map: StaticMap) -> None:
         super().__init__("geraldo_state")
-        self._estop, self._map = estop, static_map
+        self._estop = estop
+        self.tf_buffer = Buffer()
+        self._tf_listener = TransformListener(self.tf_buffer, self)
+        self._detector = ScanObstacleDetector(static_map, self.sensor_pose_at)
         self.pose: Pose | None = None
         self.route: list[tuple[float, float]] = []
         self.scan: LaserScan | None = None
@@ -95,14 +103,23 @@ class GeraldoStateNode(Node):
     def _on_scan(self, msg: LaserScan) -> None:
         self.scan = msg
 
+    def sensor_pose_at(self, frame_id: str, stamp_ns: int) -> Pose | None:
+        """Pose do LiDAR no `map` no instante do scan (TF buffer); None se o TF daquele instante não existe."""
+        try:
+            tf = self.tf_buffer.lookup_transform("map", frame_id, Time(nanoseconds=stamp_ns), timeout=Duration(seconds=TF_TIMEOUT))
+        except TransformException:
+            return None
+        t, q = tf.transform.translation, tf.transform.rotation
+        return Pose(t.x, t.y, yaw_from_quaternion(q.z, q.w))
+
     def obstacles(self) -> list[tuple[float, float, float]]:
         """Obstáculos do último /scan que o mapa estático não explica (círculos x, y, raio no referencial map)."""
-        scan, pose = self.scan, self.pose
-        if scan is None or pose is None:
+        scan = self.scan
+        if scan is None:
             return []
-        return detect_obstacles(list(scan.ranges), scan.angle_min, scan.angle_increment, pose,
-                                lambda x, y: self._map.occupied_near(x, y, STATIC_TOLERANCE),
-                                range_min=scan.range_min, range_max=scan.range_max)
+        stamp_ns = scan.header.stamp.sec * 1_000_000_000 + scan.header.stamp.nanosec
+        return self._detector.detect(Scan(scan.header.frame_id, stamp_ns, list(scan.ranges), scan.angle_min,
+                                          scan.angle_increment, scan.range_min, scan.range_max))
 
 
 class Nav2Tuner(NavigationTuner):  # ADAPTER: traduz o perfil para o /speed_limit e o costmap local do Nav2
