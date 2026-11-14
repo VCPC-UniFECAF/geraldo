@@ -281,3 +281,14 @@ test("telemetria de parada de emergência velha não liga o alerta de emergênci
   expect(screen.queryByText(/Parada de emergência ativa/)).not.toBeInTheDocument();
   expect(within(cartaoDoRobo()).getByText(/Sem sinal do robô/)).toBeInTheDocument();
 });
+
+
+test("a chegada estimada usa a velocidade do perfil da prioridade da entrega em curso", async () => {
+  semearEntregas([{ ...DELIVERY, priority: "rotina" }]);
+  const { sockets } = await montar();
+  await within(cartaoDoRobo()).findByText("Livre");
+  act(() => {
+    sockets[0].receber({ ...TELEMETRIAS.A_CAMINHO, delivery_id: 1, route: [{ x: 0, y: 0 }, { x: 10, y: 0 }] });
+  });
+  expect(await within(cartaoDoRobo()).findByText("Cerca de 20 s")).toBeInTheDocument(); // rotina: 0,5 m/s
+});

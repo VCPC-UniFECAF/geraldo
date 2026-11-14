@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { HttpApiClient } from "../api/HttpApiClient";
@@ -50,7 +50,7 @@ test("erro numa recarga automática aparece sem apagar a lista e some quando a p
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5000);
     });
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
   } finally {
     vi.useRealTimers();
   }

@@ -27,3 +27,10 @@ test("estado desconhecido cai num fallback neutro em vez de lançar erro", () =>
   expect(desconhecido.emEmergencia).toBe(false);
   expect(desconhecido.caixa).not.toContain("vermelho");
 });
+
+
+test("só A_CAMINHO e VOLTANDO estão navegando (os outros não têm chegada estimada)", () => {
+  for (const estado of ROBOT_STATES) {
+    expect(estadoRoboDe(estado).navegando).toBe(estado === "A_CAMINHO" || estado === "VOLTANDO");
+  }
+});

@@ -1,5 +1,5 @@
 import { TELEMETRIAS } from "../api/mocks/fixtures";
-import { atrasoDeReconexao, bateriaBaixa, comprimentoDaRota, lerTelemetria, segundosAteChegar, semSinal } from "./telemetria";
+import { atrasoDeReconexao, bateriaBaixa, comprimentoDaRota, lerTelemetria, segundosAteChegar, semSinal, velocidadeDoPerfil } from "./telemetria";
 
 test("lerTelemetria aceita o corpo do contrato", () => {
   expect(lerTelemetria(JSON.stringify(TELEMETRIAS.IDLE))).toEqual(TELEMETRIAS.IDLE);
@@ -30,11 +30,19 @@ test("comprimentoDaRota soma os trechos em metros", () => {
   expect(comprimentoDaRota([{ x: 0, y: 0 }, { x: 3, y: 4 }, { x: 3, y: 10 }])).toBe(11);
 });
 
-test("segundosAteChegar usa 3 m/s e arredonda para cima; sem rota não há estimativa", () => {
-  expect(segundosAteChegar(TELEMETRIAS.A_CAMINHO.route)).toBe(5);
-  expect(segundosAteChegar([{ x: 0, y: 0 }, { x: 30, y: 0 }])).toBe(10);
+test("segundosAteChegar usa a velocidade pedida (padrão: perfil médio) e arredonda para cima; sem rota não há estimativa", () => {
+  const trinta = [{ x: 0, y: 0 }, { x: 30, y: 0 }];
+  expect(segundosAteChegar(trinta, 1.0)).toBe(30);
+  expect(segundosAteChegar(trinta)).toBe(38); // 30 m a 0,8 m/s = 37,5 s
   expect(segundosAteChegar([])).toBeNull();
   expect(segundosAteChegar(undefined)).toBeNull();
+});
+
+test("velocidadeDoPerfil segue o robot-protocol.md: crítica 1,0, média 0,8 e rotina 0,5 m/s; sem entrega vale o perfil médio", () => {
+  expect(velocidadeDoPerfil("critica")).toBe(1.0);
+  expect(velocidadeDoPerfil("media")).toBe(0.8);
+  expect(velocidadeDoPerfil("rotina")).toBe(0.5);
+  expect(velocidadeDoPerfil(undefined)).toBe(0.8);
 });
 
 test("bateriaBaixa vale abaixo de 20", () => {

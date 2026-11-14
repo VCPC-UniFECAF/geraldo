@@ -10,7 +10,7 @@ import { TelemetryPanel } from "../components/TelemetryPanel";
 import { estadoRoboDe } from "../apresentacao/estadoRobo";
 import { EntregaAdapter, type Entrega } from "../domain/EntregaAdapter";
 import { emAndamento, filaDeEspera } from "../domain/operacoes";
-import { bateriaBaixa } from "../domain/telemetria";
+import { bateriaBaixa, velocidadeDoPerfil } from "../domain/telemetria";
 import type { TelemetriaCliente } from "../domain/TelemetriaCliente";
 import { useTelemetria } from "../hooks/useTelemetria";
 
@@ -117,7 +117,7 @@ export function PainelPage({ api, telemetria: cliente, role }: Props) {
         </p>
       )}
       <div className="grid gap-4 md:grid-cols-2">
-        <RobotStatusCard telemetria={telemetria} entrega={entrega} />
+        <RobotStatusCard telemetria={telemetria} entrega={entrega} velocidade={velocidadeDoPerfil(emCurso?.priority)} />
         <TelemetryPanel telemetria={telemetria} />
       </div>
       <Secao titulo="Em andamento" entregas={dados ? adaptar(emAndamento(dados.entregas)) : []} vazio="Nenhuma entrega em andamento." />
