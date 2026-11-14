@@ -16,5 +16,8 @@ setup(
     maintainer_email="geraldo@example.com",
     description="Dispatcher do G.E.R.A.L.D.O.",
     license="MIT",
-    entry_points={"console_scripts": ["dispatcher = geraldo_dispatcher.node:main"]},
+    entry_points={"console_scripts": [
+        "dispatcher = geraldo_dispatcher.node:main",
+        "curve_limiter = geraldo_dispatcher.curve_node:main",
+    ]},
 )
