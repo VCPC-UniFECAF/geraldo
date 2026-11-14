@@ -81,7 +81,9 @@ class TelemetryReporter:
         except Exception as err:  # sem obstáculos a telemetria ainda vale: o estado e a pose seguem
             self.log(f"obstáculos não calculados: {err}")
             obstacles = []
-        body = build_telemetry(self.machine.state, pose, level, self.delivery_source(), self.route_source(), obstacles, self.clock())
+        # o /plan guarda o último caminho planejado: parado, a rota é velha e não vai na telemetria
+        route = self.route_source() if self.machine.state in TRAVELLING else []
+        body = build_telemetry(self.machine.state, pose, level, self.delivery_source(), route, obstacles, self.clock())
         try:
             self.sink.send_telemetry(body)
         except Exception as err:  # a telemetria é secundária: falha de rede não pode parar a entrega

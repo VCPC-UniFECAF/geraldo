@@ -8,9 +8,10 @@ import { Card } from "./Card";
 interface Props {
   telemetria: Telemetry | null;
   entrega: string | null;
+  velocidade?: number; // m/s do perfil da entrega (a telemetria não traz a velocidade)
 }
 
-export function RobotStatusCard({ telemetria, entrega }: Props) {
+export function RobotStatusCard({ telemetria, entrega, velocidade }: Props) {
   return (
     <Card role="region" aria-label="Estado do robô" className="grid content-start gap-4">
       <div className="flex items-center justify-between gap-3">
@@ -21,7 +22,7 @@ export function RobotStatusCard({ telemetria, entrega }: Props) {
         {telemetria && <EstadoBadge telemetria={telemetria} />}
       </div>
       {telemetria ? (
-        <Detalhes telemetria={telemetria} entrega={entrega} />
+        <Detalhes telemetria={telemetria} entrega={entrega} velocidade={velocidade} />
       ) : (
         <p className="text-sm text-neutro-500">Sem sinal do robô. Confira se a simulação está ligada.</p>
       )}
@@ -39,8 +40,8 @@ function EstadoBadge({ telemetria }: { telemetria: Telemetry }) {
   );
 }
 
-function Detalhes({ telemetria, entrega }: { telemetria: Telemetry; entrega: string | null }) {
-  const segundos = segundosAteChegar(telemetria.route);
+function Detalhes({ telemetria, entrega, velocidade }: { telemetria: Telemetry; entrega: string | null; velocidade?: number }) {
+  const segundos = estadoRoboDe(telemetria.robot_state).navegando ? segundosAteChegar(telemetria.route, velocidade) : null;
   const baixa = bateriaBaixa(telemetria.battery);
   const bateria = Math.min(100, Math.max(0, Math.round(telemetria.battery)));
   return (

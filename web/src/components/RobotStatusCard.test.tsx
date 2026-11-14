@@ -3,12 +3,12 @@ import { TELEMETRIAS } from "../api/mocks/fixtures";
 import { RobotStatusCard } from "./RobotStatusCard";
 
 test("mostra o nome, o estado, a entrega em curso, a chegada estimada e a bateria", () => {
-  render(<RobotStatusCard telemetria={TELEMETRIAS.A_CAMINHO} entrega="Entrega #7 · Consultório 1" />);
+  render(<RobotStatusCard telemetria={{ ...TELEMETRIAS.A_CAMINHO, route: [{ x: 0, y: 0 }, { x: 30, y: 0 }] }} velocidade={1.0} entrega="Entrega #7 · Consultório 1" />);
   const cartao = screen.getByRole("region", { name: "Estado do robô" });
   expect(within(cartao).getByRole("heading", { name: "G.E.R.A.L.D.O." })).toBeInTheDocument();
   expect(within(cartao).getByText("A caminho")).toBeInTheDocument();
   expect(within(cartao).getByText("Entrega #7 · Consultório 1")).toBeInTheDocument();
-  expect(within(cartao).getByText("Cerca de 5 s")).toBeInTheDocument();
+  expect(within(cartao).getByText("Cerca de 30 s")).toBeInTheDocument();
   expect(within(cartao).getByText("99%")).toHaveClass("tabular-nums");
   const bateria = within(cartao).getByRole("progressbar", { name: "Bateria" });
   expect(bateria).toHaveAttribute("aria-valuenow", "99");
@@ -44,4 +44,18 @@ test("a barra de bateria fica entre 0 e 100", () => {
   expect(screen.getByRole("progressbar", { name: "Bateria" }).firstElementChild).toHaveStyle({ width: "100%" });
   rerender(<RobotStatusCard telemetria={{ ...TELEMETRIAS.IDLE, battery: -5 }} entrega={null} />);
   expect(screen.getByRole("progressbar", { name: "Bateria" }).firstElementChild).toHaveStyle({ width: "0%" });
+});
+
+
+test("a chegada estimada usa a velocidade do perfil da entrega: a metade da velocidade, o dobro do tempo", () => {
+  const rota = [{ x: 0, y: 0 }, { x: 10, y: 0 }];
+  render(<RobotStatusCard telemetria={{ ...TELEMETRIAS.A_CAMINHO, route: rota }} velocidade={0.5} entrega={null} />);
+  expect(screen.getByText("Cerca de 20 s")).toBeInTheDocument();
+});
+
+test("com o robô parado (Livre) a rota velha não vira chegada estimada", () => {
+  const rota = [{ x: 0, y: 0 }, { x: 0.5, y: 0 }];
+  render(<RobotStatusCard telemetria={{ ...TELEMETRIAS.IDLE, route: rota }} entrega={null} />);
+  expect(screen.queryByText(/Cerca de/)).not.toBeInTheDocument();
+  expect(screen.getByText("—")).toBeInTheDocument();
 });

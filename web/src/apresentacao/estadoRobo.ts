@@ -10,6 +10,10 @@ export abstract class EstadoRoboStrategy {
   get emEmergencia(): boolean {
     return false;
   }
+  // Só andando há rota para percorrer: nos outros estados a rota é a última que o Nav2 planejou (velha) e não vira chegada estimada.
+  get navegando(): boolean {
+    return false;
+  }
 }
 
 // STRATEGY: estado Livre.
@@ -34,6 +38,9 @@ class ACaminho extends EstadoRoboStrategy {
   readonly rotulo = "A caminho";
   readonly caixa = "bg-azul-100 text-azul-700";
   readonly Icone = Navigation;
+  override get navegando() {
+    return true;
+  }
 }
 
 // STRATEGY: estado Chegou.
@@ -58,6 +65,9 @@ class Voltando extends EstadoRoboStrategy {
   readonly rotulo = "Voltando à base";
   readonly caixa = "bg-azul-100 text-azul-700";
   readonly Icone = Undo2;
+  override get navegando() {
+    return true;
+  }
 }
 
 // STRATEGY: estado ParadaEmergencia.

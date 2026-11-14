@@ -6,7 +6,6 @@ import pytest
 
 rclpy = pytest.importorskip("rclpy")
 from geometry_msgs.msg import TransformStamped  # noqa: E402
-from rclpy.qos import DurabilityPolicy  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(ROOT))
@@ -16,13 +15,18 @@ from geraldo_dispatcher.node import GeraldoStateNode  # noqa: E402
 from geraldo_dispatcher.obstacles import StaticMap  # noqa: E402
 
 
-def test_the_pose_subscription_gets_the_last_amcl_pose_even_with_the_robot_standing_still():
-    # o AMCL só publica de novo quando o robô anda; o último /amcl_pose fica guardado (TRANSIENT_LOCAL)
+def test_the_telemetry_pose_comes_from_the_tf_not_from_the_amcl_pose_topic():
+    # o /amcl_pose só atualiza quando o robô anda; o TF map -> base_link acompanha o robô a cada instante
     rclpy.init()
     node = GeraldoStateNode(EmergencyStop(), StaticMap(1, 1, 0.05, (0.0, 0.0), b"\0"))
     try:
-        sub = next(s for s in node.subscriptions if s.topic_name == "/amcl_pose")
-        assert sub.qos_profile.durability == DurabilityPolicy.TRANSIENT_LOCAL
+        assert "/amcl_pose" not in {s.topic_name for s in node.subscriptions}
+        assert node.robot_pose() is None  # sem TF ainda, sem pose (e sem telemetria)
+        node.tf_buffer.set_transform_static(transform("map", "odom", 0, 1.0, 2.0), "teste")
+        node.tf_buffer.set_transform(transform("odom", "base_link", 4, 3.0, yaw=math.pi / 2), "teste")
+        node.tf_buffer.set_transform(transform("odom", "base_link", 6, 5.0, yaw=math.pi / 2), "teste")  # o robô andou depois
+        pose = node.robot_pose()
+        assert (pose.x, pose.y, pose.yaw) == pytest.approx((6.0, 2.0, math.pi / 2), abs=1e-6)  # o instante mais recente
     finally:
         node.destroy_node()
         rclpy.shutdown()

@@ -1,8 +1,11 @@
 // PROGRAMAÇÃO FUNCIONAL: funções puras sobre o corpo de telemetria do contrato.
-import { ROBOT_STATES, type Ponto, type RobotState, type Telemetry } from "../api/types";
+import { ROBOT_STATES, type Ponto, type Priority, type RobotState, type Telemetry } from "../api/types";
 
-// Velocidade do robô decidida na semana 3 (3,0 m/s sempre); só serve para a estimativa de chegada.
-export const VELOCIDADE_DO_ROBO = 3.0;
+// A telemetria não traz a velocidade: a estimativa de chegada usa a do perfil da prioridade da entrega
+// (docs/contracts/robot-protocol.md). Sem entrega (voltando à base) o robô está no perfil médio.
+const VELOCIDADE_POR_PRIORIDADE: Record<Priority, number> = { critica: 1.0, media: 0.8, rotina: 0.5 };
+const VELOCIDADE_PADRAO = VELOCIDADE_POR_PRIORIDADE.media;
+export const velocidadeDoPerfil = (prioridade?: Priority): number => (prioridade ? VELOCIDADE_POR_PRIORIDADE[prioridade] : VELOCIDADE_PADRAO);
 
 const LIMITE_DA_BATERIA_BAIXA = 20;
 
@@ -38,7 +41,7 @@ export const atrasoDeReconexao = (tentativa: number): number => Math.min(1000 * 
 export const comprimentoDaRota = (rota: Ponto[]): number =>
   rota.slice(1).reduce((total, ponto, i) => total + Math.hypot(ponto.x - rota[i].x, ponto.y - rota[i].y), 0);
 
-export function segundosAteChegar(rota: Ponto[] | undefined, velocidade: number = VELOCIDADE_DO_ROBO): number | null {
+export function segundosAteChegar(rota: Ponto[] | undefined, velocidade: number = VELOCIDADE_PADRAO): number | null {
   const metros = comprimentoDaRota(rota ?? []);
   return metros > 0 ? Math.ceil(metros / velocidade) : null;
 }

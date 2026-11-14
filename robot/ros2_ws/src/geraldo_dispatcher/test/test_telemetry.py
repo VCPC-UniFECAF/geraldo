@@ -69,9 +69,9 @@ class Sink(TelemetryPort):
         self.bodies.append(body)
 
 
-def reporter(sink, pose=Pose(1, 2, 0.5), logs=None, levels=None, **extra):
+def reporter(sink, pose=Pose(1, 2, 0.5), logs=None, levels=None, state=State.IDLE, **extra):
     return TelemetryReporter(
-        sink, StateMachine(), BatteryModel(level=80.0), pose_source=lambda: pose,
+        sink, StateMachine(state), BatteryModel(level=80.0), pose_source=lambda: pose,
         route_source=lambda: [(1, 2), (3, 4)], delivery_source=lambda: 7,
         on_battery=(levels if levels is not None else []).append, clock=lambda: NOW,
         log=(logs if logs is not None else []).append, **extra,
@@ -117,3 +117,15 @@ def test_a_failing_obstacle_source_is_logged_and_the_rest_of_the_telemetry_still
     sink, logs = Sink(), []
     reporter(sink, logs=logs, obstacle_source=broken).tick(1.0)
     assert sink.bodies[0]["obstacles"] == [] and "obstáculos não calculados: scan inválido" in logs[0]
+
+
+def test_the_route_only_goes_out_while_the_robot_is_travelling():
+    # o /plan guarda o último caminho planejado: parado, ele é velho (o Painel mostrava chegada em 1 s com o robô livre)
+    for state in (State.A_CAMINHO, State.VOLTANDO):
+        sink = Sink()
+        reporter(sink, state=state).tick(1.0)
+        assert sink.bodies[0]["route"] == [{"x": 1, "y": 2}, {"x": 3, "y": 4}], state
+    for state in (State.IDLE, State.CARREGANDO, State.CHEGOU, State.AGUARDANDO_RETIRADA, State.PARADA_EMERGENCIA):
+        sink = Sink()
+        reporter(sink, state=state).tick(1.0)
+        assert sink.bodies[0]["route"] == [], state

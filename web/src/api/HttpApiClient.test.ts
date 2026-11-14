@@ -106,3 +106,11 @@ test("telemetryStreamUrl troca http por ws e leva o token quando há login", () 
   api.definirToken("abc");
   expect(api.telemetryStreamUrl()).toBe("ws://localhost:8000/ws/telemetry?token=abc");
 });
+
+test("servidor fora do ar vira ApiError 0 com mensagem em português", async () => {
+  server.use(http.get("http://localhost:8000/deliveries", () => HttpResponse.error()));
+  await expect(api.deliveries()).rejects.toMatchObject({
+    status: 0,
+    message: "Não foi possível falar com o servidor. Confira se ele está ligado e tente de novo.",
+  });
+});

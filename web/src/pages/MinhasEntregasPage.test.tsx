@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { HttpApiClient } from "../api/HttpApiClient";
@@ -23,10 +23,65 @@ test("sem entregas mostra o estado vazio e leva para o formulário", async () =>
   expect(onRequest).toHaveBeenCalledTimes(1);
 });
 
-test("erro da API aparece como alerta", async () => {
+test("erro da API na primeira carga aparece como alerta", async () => {
+  server.use(http.get("http://localhost:8000/deliveries", () => HttpResponse.json({ detail: "Erro no servidor. Tente de novo." }, { status: 500 })));
+  render(<MinhasEntregasPage api={new HttpApiClient()} usuario={ME} onRequest={vi.fn()} />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("Erro no servidor. Tente de novo.");
+});
+
+test("401 na primeira carga leva à sessão expirada, como o Painel", async () => {
   server.use(http.get("http://localhost:8000/deliveries", () => HttpResponse.json({ detail: "Faça login para continuar." }, { status: 401 })));
   render(<MinhasEntregasPage api={new HttpApiClient()} usuario={ME} onRequest={vi.fn()} />);
-  expect(await screen.findByRole("alert")).toHaveTextContent("Faça login para continuar.");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Sua sessão expirou. Entre de novo para ver suas entregas.");
+});
+
+test("erro numa recarga automática aparece sem apagar a lista e some quando a próxima dá certo", async () => {
+  semearEntregas([DELIVERY]);
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  try {
+    render(<MinhasEntregasPage api={new HttpApiClient()} usuario={ME} intervaloMs={5000} onRequest={vi.fn()} />);
+    expect(await screen.findByText("A caminho")).toBeInTheDocument();
+    server.use(http.get("http://localhost:8000/deliveries", () => HttpResponse.json({ detail: "Erro no servidor. Tente de novo." }, { status: 500 }), { once: true }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível atualizar a lista. Erro no servidor. Tente de novo.");
+    expect(screen.getByText("A caminho")).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("401 numa recarga automática mostra a sessão expirada, mantém a lista e para de recarregar", async () => {
+  let chamadas = 0;
+  semearEntregas([DELIVERY]);
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  try {
+    render(<MinhasEntregasPage api={new HttpApiClient()} usuario={ME} intervaloMs={5000} onRequest={vi.fn()} />);
+    expect(await screen.findByText("A caminho")).toBeInTheDocument();
+    server.use(
+      http.get("http://localhost:8000/deliveries", () => {
+        chamadas += 1;
+        return HttpResponse.json({ detail: "Faça login para continuar." }, { status: 401 });
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sua sessão expirou. Entre de novo para ver suas entregas.");
+    expect(screen.getByText("A caminho")).toBeInTheDocument();
+    const antes = chamadas;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20000);
+    });
+    expect(chamadas).toBe(antes);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("só a entrega aguardando recebimento tem o botão Confirmar recebimento", async () => {
@@ -142,6 +197,28 @@ test("ao desmontar para de recarregar a lista", async () => {
     const antes = chamadas;
     await vi.advanceTimersByTimeAsync(20000);
     expect(chamadas).toBe(antes);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("quando a sessão expira, o aviso de erro de recarga anterior some (só fica a sessão expirada)", async () => {
+  semearEntregas([DELIVERY]);
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  try {
+    render(<MinhasEntregasPage api={new HttpApiClient()} usuario={ME} intervaloMs={5000} onRequest={vi.fn()} />);
+    expect(await screen.findByText("A caminho")).toBeInTheDocument();
+    server.use(http.get("http://localhost:8000/deliveries", () => HttpResponse.json({ detail: "Erro no servidor. Tente de novo." }, { status: 500 }), { once: true }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível atualizar a lista.");
+    server.use(http.get("http://localhost:8000/deliveries", () => HttpResponse.json({ detail: "Faça login para continuar." }, { status: 401 })));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    await waitFor(() => expect(screen.getByText(/Sua sessão expirou/)).toBeInTheDocument());
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
   } finally {
     vi.useRealTimers();
   }

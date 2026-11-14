@@ -10,6 +10,9 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-13-semana3-completa-design.md` (seções 3, 5, 6, 7 e 8). Branch de execução: `feat/semana3-robo`, criada a partir de `docs/semana3-spec-planos`. Este é o plano 1 de 4 (os planos 2, 3 e 4 consomem o contrato da Task 1).
 
+> **Atualização de 14/11/2026 (decisão do Samuel):** os 3,0 m/s foram abandonados. Vale a velocidade que já existia: perfis por prioridade de 1,0 m/s (crítica), 0,8 m/s (média) e 0,5 m/s (rotina), como em `docs/contracts/robot-protocol.md`, e a prioridade volta a mudar velocidade e inflação. O `curve_limiter` (Task 4) foi removido: a 1,0 m/s ele nunca age. Onde este plano diz 3,0 m/s, leia 1,0/0,8/0,5 m/s; o resto continua valendo. O que foi medido e por que a tentativa a 3 m/s não deu certo: `docs/superpowers/plans/2026-11-13-semana3-1-medicoes.md`.
+> As Tasks 2, 3 e 4 foram revertidas na `main` (commits 2e9b6e3 e 63b57df) e ficam aqui só como histórico; as Tasks 1, 5, 6, 7, 8, 9 e 10 valem, com a velocidade de 1,0/0,8/0,5 m/s.
+
 ## Global Constraints
 
 - **AGENTS.md:** contrato primeiro; nenhum segredo no repositório; nada direto na `main`; todo código novo com teste; texto de interface em português; padrões em `docs/padroes-de-projeto.md` (injeção pelo construtor, Strategy/Factory no lugar de `if/elif` por tipo, funções puras).
