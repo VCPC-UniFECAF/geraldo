@@ -31,11 +31,11 @@ RANGE = ("front_c", "front_l45", "front_r45", "rear_l135", "rear_r135")
 
 def test_links_and_joints_exist(robot):
     assert {l.get("name") for l in robot.findall("link")} == {
-        "base_link", "wheel_left_link", "wheel_right_link", "caster_swivel_link", "caster_wheel_link", "lidar_link",
+        "base_link", "wheel_left_link", "wheel_right_link", "caster_swivel_link", "caster_wheel_link", "lidar_link", "camera_link",
         *(f"range_{n}_link" for n in RANGE),
     }
     assert set(joints(robot)) == {
-        "wheel_left_joint", "wheel_right_joint", "caster_swivel_joint", "caster_wheel_joint", "lidar_joint",
+        "wheel_left_joint", "wheel_right_joint", "caster_swivel_joint", "caster_wheel_joint", "lidar_joint", "camera_joint",
         *(f"range_{n}_joint" for n in RANGE),
     }
 
@@ -158,3 +158,19 @@ def test_range_sensor_publishes_a_narrow_short_range_scan(robot, name):
     assert sensor.find("gz_frame_id").text == f"range_{name}_link"
     assert int(sensor.find("lidar/scan/horizontal/samples").text) == 5
     assert float(sensor.find("lidar/range/max").text) == pytest.approx(2.0)
+
+
+def test_rgbd_camera_sits_on_the_front_of_the_trunk_looking_forward(robot):
+    joint = joints(robot)["camera_joint"]
+    assert joint.get("type") == "fixed" and joint.find("parent").get("link") == "base_link"
+    assert joint.find("child").get("link") == "camera_link"
+    assert xyz(joint) == pytest.approx([0.30, 0.0, 0.40])
+
+
+def test_rgbd_camera_publishes_color_and_depth_on_the_camera_topic(robot):
+    sensor = next(s for g in robot.findall("gazebo") if g.get("reference") == "camera_link" for s in g.findall("sensor"))
+    assert sensor.get("type") == "rgbd_camera"
+    assert sensor.find("topic").text == "camera"                # o Gazebo cria camera/image e camera/depth_image
+    assert sensor.find("gz_frame_id").text == "camera_link"
+    assert int(sensor.find("camera/image/width").text) == 320 and int(sensor.find("camera/image/height").text) == 240
+    assert float(sensor.find("camera/depth_camera/clip/far").text) == pytest.approx(10.0)
