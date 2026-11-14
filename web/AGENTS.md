@@ -44,3 +44,4 @@ Consuma só a API do contrato (`docs/contracts/openapi.yaml`). Enquanto o backen
 - **Build:** os mocks leem `docs/contracts/examples/robot-telemetry.json`, fora de `web/`; um build só com o contexto `web/` precisa do monorepo.
 - **Reaproveitar no app instalável:** `ApiClient`/`HttpApiClient`, `TelemetriaCliente`, `lerTelemetria`, `enquadrar` (`src/domain/mapa.ts`), `estadoRoboDe`, `RobotStatusCard` e `BotaoEmergencia`.
 - **Testes:** troque o WebSocket por `fabricaDeSockets()` (`src/test/SocketFalso.ts`); toda chamada HTTP nova precisa de handler MSW (`onUnhandledFrame: "error"`).
+- **Primeira abertura em branco no navegador embutido:** se a página vier em branco e o console mostrar `/@vite/client` com `ERR_BLOCKED_BY_CLIENT`, é o navegador (esse erro nasce no cliente, nunca no servidor): recarregue. Visto uma vez, no navegador do Claude; repetindo a primeira abertura, com o cache do Vite vazio, o `@vite/client` respondeu 200 e a página abriu.
