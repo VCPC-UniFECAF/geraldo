@@ -1,7 +1,8 @@
 import { PackageCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import type { CatalogoApi, EntregasApi } from "../api/ApiClient";
+import { ApiError, type CatalogoApi, type EntregasApi } from "../api/ApiClient";
 import type { Me } from "../api/types";
+import { AlertBanner } from "../components/AlertBanner";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { DeliveryQueueRow } from "../components/DeliveryQueueRow";
@@ -17,7 +18,8 @@ interface Props {
 
 export function MinhasEntregasPage({ api, usuario, onRequest, intervaloMs = 5000 }: Props) {
   const [entregas, setEntregas] = useState<Entrega[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [sessaoExpirada, setSessaoExpirada] = useState(false);
+  const [erroRecarga, setErroRecarga] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<number | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [confirmada, setConfirmada] = useState(false);
@@ -27,17 +29,25 @@ export function MinhasEntregasPage({ api, usuario, onRequest, intervaloMs = 5000
     const [deliveries, locations] = await Promise.all([api.deliveries(), api.locations()]);
     const adapter = new EntregaAdapter((id) => locations.find((l) => l.id === id)?.name ?? id);
     setEntregas(maisRecentesPrimeiro(deliveries).map((d) => adapter.adaptar(d)));
+    setErroRecarga(null);
   }, [api]);
 
-  useEffect(() => {
-    carregar().catch((err: Error) => setError(err.message));
-  }, [carregar]);
+  // 401 = sessão expirada (como no Painel); qualquer outro erro aparece sem apagar a lista, e a próxima rodada tenta de novo.
+  const falhou = useCallback((err: unknown) => {
+    if (err instanceof ApiError && err.status === 401) setSessaoExpirada(true);
+    else setErroRecarga(err instanceof Error ? err.message : "Erro desconhecido. Tente de novo.");
+  }, []);
 
-  // O robô chega sem ninguém tocar na tela: recarrega sozinho (falha de uma rodada some; a próxima tenta de novo).
   useEffect(() => {
-    const id = setInterval(() => carregar().catch(() => {}), intervaloMs);
+    carregar().catch(falhou);
+  }, [carregar, falhou]);
+
+  // O robô chega sem ninguém tocar na tela: recarrega sozinho; com a sessão expirada não adianta insistir.
+  useEffect(() => {
+    if (sessaoExpirada) return;
+    const id = setInterval(() => carregar().catch(falhou), intervaloMs);
     return () => clearInterval(id);
-  }, [carregar, intervaloMs]);
+  }, [carregar, falhou, intervaloMs, sessaoExpirada]);
 
   async function confirmar(id: number) {
     setConfirmando(id);
@@ -47,22 +57,42 @@ export function MinhasEntregasPage({ api, usuario, onRequest, intervaloMs = 5000
     try {
       await api.confirmReceipt(id);
       setConfirmada(true);
-      await carregar().catch(() =>
-        setErroLista("Recebimento confirmado, mas a lista não atualizou. Recarregue a página para ver o novo status."),
+      await carregar().catch((err: unknown) =>
+        err instanceof ApiError && err.status === 401
+          ? falhou(err)
+          : setErroLista("Recebimento confirmado, mas a lista não atualizou. Recarregue a página para ver o novo status."),
       );
     } catch (err) {
-      setErroAcao(err instanceof Error ? err.message : "Não foi possível confirmar o recebimento. Tente de novo.");
+      if (err instanceof ApiError && err.status === 401) falhou(err);
+      else setErroAcao(err instanceof Error ? err.message : "Não foi possível confirmar o recebimento. Tente de novo.");
     } finally {
       setConfirmando(null);
     }
   }
 
-  if (error) return <p role="alert" className="text-vermelho-600">{error}</p>;
-  if (!entregas) return <p className="text-neutro-500">Carregando…</p>;
+  const avisos = (
+    <>
+      {sessaoExpirada && (
+        <div className="mt-4">
+          <AlertBanner>Sua sessão expirou. Entre de novo para ver suas entregas.</AlertBanner>
+        </div>
+      )}
+      {erroRecarga && (
+        <p role="alert" className="mt-4 rounded-controle border border-vermelho-200 bg-vermelho-50 px-3 py-2 text-sm text-vermelho-600">
+          Não foi possível atualizar a lista. {erroRecarga}
+        </p>
+      )}
+    </>
+  );
+  if (!entregas) {
+    if (sessaoExpirada || erroRecarga) return <section>{avisos}</section>;
+    return <p className="text-neutro-500">Carregando…</p>;
+  }
 
   return (
     <section>
       <h1 className="font-display text-2xl font-bold">Minhas entregas</h1>
+      {avisos}
       {confirmada && (
         <p role="status" className="mt-4 rounded-controle bg-sucesso-50 px-4 py-3 text-sucesso-700">
           Recebimento confirmado. A tampa do robô foi liberada.
