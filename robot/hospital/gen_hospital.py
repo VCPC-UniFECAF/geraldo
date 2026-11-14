@@ -110,6 +110,11 @@ def obstacle_rects(spec: dict) -> list[Rect]:
     return [tuple(p["rect"]) for p in placed_pieces(spec) if p["group"] == OBSTACULO]
 
 
+def furniture_rects(spec: dict) -> list[Rect]:
+    """Mobiliário que o LiDAR enxerga: fica fora do mapa do Nav2, mas não é obstáculo novo para a telemetria."""
+    return [tuple(p["rect"]) for p in placed_pieces(spec) if p["group"] == MOBILIARIO and not p["walkable"]]
+
+
 def stretcher_rect(spec: dict) -> Rect:
     return tuple(next(p for p in placed_pieces(spec) if p["group"] == "maca")["rect"])
 
@@ -354,6 +359,7 @@ def generate(spec_path, world, map_dir, locais, waypoints, layout=None, maca=Non
     occ = rasterize(spec, extra_obstacles=obstacle_rects(spec))
     write_pgm(occ, Path(map_dir) / "hospital.pgm")
     write_map_yaml(spec, Path(map_dir) / "hospital.yaml")
+    (Path(map_dir) / "furniture.json").write_text(json.dumps([list(r) for r in furniture_rects(spec)]) + "\n", encoding="utf-8")
     write_locais(spec, Path(locais))
     write_waypoints(spec, Path(waypoints))
     if layout:

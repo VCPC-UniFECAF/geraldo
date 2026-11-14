@@ -63,8 +63,10 @@ class TelemetryReporter:
     def __init__(self, sink: TelemetryPort, machine: StateMachine, battery: BatteryModel,
                  pose_source: Callable[[], Pose | None], route_source: Callable[[], list],
                  delivery_source: Callable[[], int | None], on_battery: Callable[[float], None],
-                 clock: Callable[[], datetime], log=print) -> None:
+                 clock: Callable[[], datetime], log=print,
+                 obstacle_source: Callable[[], list[tuple[float, float, float]]] = lambda: []) -> None:
         self.sink, self.machine, self.battery = sink, machine, battery
+        self.obstacle_source = obstacle_source
         self.pose_source, self.route_source, self.delivery_source = pose_source, route_source, delivery_source
         self.on_battery, self.clock, self.log = on_battery, clock, log
 
@@ -74,7 +76,12 @@ class TelemetryReporter:
         pose = self.pose_source()
         if pose is None:
             return
-        body = build_telemetry(self.machine.state, pose, level, self.delivery_source(), self.route_source(), [], self.clock())
+        try:
+            obstacles = self.obstacle_source()
+        except Exception as err:  # sem obstáculos a telemetria ainda vale: o estado e a pose seguem
+            self.log(f"obstáculos não calculados: {err}")
+            obstacles = []
+        body = build_telemetry(self.machine.state, pose, level, self.delivery_source(), self.route_source(), obstacles, self.clock())
         try:
             self.sink.send_telemetry(body)
         except Exception as err:  # a telemetria é secundária: falha de rede não pode parar a entrega
