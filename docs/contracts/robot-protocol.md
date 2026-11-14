@@ -39,7 +39,7 @@ O backend pode responder `409` a um evento (por exemplo `FAILED` de uma entrega 
 
 ## 4. Telemetria
 
-- `POST /robot/telemetry` a cada 1 s, corpo `Telemetry` (`204` na resposta). Sem pose do AMCL ainda, o robô não envia.
+- `POST /robot/telemetry` a cada 1 s, corpo `Telemetry` (`204` na resposta). A pose vem do TF `map` → `base_link`; sem ela (o AMCL ainda não publicou o `map` → `odom`), o robô não envia. A `route` só vai nos estados `A_CAMINHO` e `VOLTANDO`; nos outros vai vazia (o `/plan` guarda o último caminho, que fica velho com o robô parado).
 - `route`: no máximo 50 pontos, tirados do `/plan` do Nav2 (vazia quando parado).
 - `obstacles`: até 20 itens `{x, y, radius}`, em metros, no referencial `map` (um círculo por grupo de pontos do LiDAR). O robô leva o `/scan` para o `map` pelo TF `map` → `lidar_link` no `header.stamp` do próprio scan (sem TF daquele instante, descarta o scan), olha só os retornos a até 4 m do LiDAR (mais longe, o erro de localização do AMCL tira a parede do lugar), descarta o que coincide com o mapa estático (tolerância de 0,25 m; é o `hospital.pgm` mais o mobiliário que o mapa do Nav2 não tem, `geraldo_nav/maps/furniture.json`, gerado por `gen_hospital.py`), agrupa os pontos que estão a menos de 0,35 m um do outro e envia os grupos mais próximos do robô primeiro. Lista vazia quando não há nada novo à vista.
 - `battery`: virtual (gasta andando, gasta pouco esperando, recarrega parado na base), de 0 a 100.
