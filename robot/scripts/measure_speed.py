@@ -25,7 +25,8 @@ SPAWN = ROOT / "robot/scripts/spawn_stretcher.sh"
 
 CRUISE = 1.0          # m/s: velocidade de cruzeiro do Nav2 (CRUISE_SPEED em make_nav2_params.py)
 STOPPED = 0.05        # m/s: abaixo disso o robô parou
-FAST_ENOUGH = 0.9     # m/s: o freio só é medido a partir daqui (a velocidade de cruzeiro menos uma folga)
+FAST_ENOUGH = 0.5     # m/s: o freio só é medido a partir daqui. O teto é 1,0 m/s, mas no corredor reto o robô cruza a uns 0,55 m/s
+                      # (janela do costmap local de 3 m: o MPPI não enxerga o horizonte inteiro); medido em 14/11/2026
 BRAKE_GOAL = (42.0, 29.0, 0.0)  # fim do corredor norte (y = 29): uns 35 m de reta depois da porta da farmácia
 BRAKE_FROM_X = 25.0   # m: o comando de parada sai depois de o robô passar daqui já a velocidade de cruzeiro
 TOUCH_DISTANCE = 0.35  # m: meio comprimento do robô; o centro a menos disso da borda da maca conta como encostar
