@@ -52,7 +52,6 @@ Crie `backend/tests/test_reject_delivery.py`:
 
 ```python
 from sqlalchemy import inspect, text
-from sqlmodel import SQLModel
 
 from app.db import create_db, make_engine
 
@@ -71,10 +70,7 @@ def test_create_db_adds_the_cancel_reason_column_to_an_old_database(tmp_path):
     create_db(engine)
     assert "cancel_reason" in {c["name"] for c in inspect(engine).get_columns("delivery")}
     create_db(engine)  # de novo: não pode falhar
-    SQLModel.metadata.clear  # noqa: B018  (só para deixar claro que o metadata não é tocado)
 ```
-
-Remova a última linha (`SQLModel.metadata.clear`) e o import de `SQLModel`: eram só um lembrete; o teste termina em `create_db(engine)  # de novo...`.
 
 - [ ] **Step 2: Rodar e ver falhar**
 
