@@ -1,4 +1,10 @@
-from robot.scripts.make_nav2_params import CRUISE_SPEED, FOOTPRINT, INITIAL_POSE, patch_params
+from pathlib import Path
+
+import yaml
+
+from robot.scripts.make_nav2_params import CRUISE_SPEED, FOOTPRINT, INITIAL_POSE, MPPI_TUNING, patch_params
+
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def fake_defaults():
@@ -66,3 +72,26 @@ def test_reverse_and_turn_rate_stay_as_they_were():
 def test_other_parameters_are_preserved():
     out = patch_params(fake_defaults())
     assert out["local_costmap"]["local_costmap"]["ros__parameters"]["plugins"] == ["voxel_layer"]
+
+
+def test_the_mppi_horizon_fits_the_local_costmap_and_the_pruned_path_at_cruise_speed():
+    # teto de velocidade = meia janela do costmap local (ou prune_distance) / (time_steps x model_dt): com 56 passos (2,8 s)
+    # e janela de 3 m o robô não passava de 0,54 m/s (investigação de 15/11/2026)
+    defaults = fake_defaults()
+    defaults["controller_server"]["ros__parameters"]["FollowPath"].update({"time_steps": 56, "model_dt": 0.05, "prune_distance": 1.7, "vx_std": 0.2})
+    defaults["local_costmap"]["local_costmap"]["ros__parameters"].update({"width": 3, "height": 3})
+    out = patch_params(defaults)
+    follow = out["controller_server"]["ros__parameters"]["FollowPath"]
+    window = out["local_costmap"]["local_costmap"]["ros__parameters"]["width"]
+    horizon = follow["time_steps"] * follow["model_dt"]
+    assert window / 2 / horizon >= CRUISE_SPEED and follow["prune_distance"] / horizon >= CRUISE_SPEED
+    assert (follow["time_steps"], follow["vx_std"]) == (MPPI_TUNING["time_steps"], MPPI_TUNING["vx_std"]) == (28, 0.4)
+
+
+def test_the_generated_yaml_has_the_mppi_tuning_and_a_horizon_that_fits_the_real_window():
+    params = yaml.safe_load((ROOT / "robot/ros2_ws/src/geraldo_nav/config/nav2_params.yaml").read_text(encoding="utf-8"))
+    follow = params["controller_server"]["ros__parameters"]["FollowPath"]
+    window = params["local_costmap"]["local_costmap"]["ros__parameters"]["width"]
+    assert {k: follow[k] for k in MPPI_TUNING} == MPPI_TUNING
+    horizon = follow["time_steps"] * follow["model_dt"]
+    assert window / 2 / horizon >= CRUISE_SPEED and follow["prune_distance"] / horizon >= CRUISE_SPEED

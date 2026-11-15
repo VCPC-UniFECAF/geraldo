@@ -24,6 +24,11 @@ AMCL_TUNING = {
 }
 # m/s: antes 0,5 e depois 0,8. É o teto do plugin de movimento do URDF e ainda cabe nos corredores de 2 m e nas portas de 1 m.
 CRUISE_SPEED = 1.0
+# O MPPI só chega à velocidade de cruzeiro se a trajetória amostrada (time_steps x model_dt) couber na meia janela do costmap
+# local (3 m: 1,5 m) e no prune_distance (1,7 m): teto = min(1,5; 1,7) / (time_steps x model_dt). Com os 56 passos padrão (2,8 s)
+# o teto era 0,54 m/s; com 28 passos (1,4 s) passa de 1,07 m/s. Com os dois abertos, o vx_std padrão de 0,2 ainda trava o robô
+# em ~0,67 m/s; com 0,4 ele chega aos 1,0/0,8/0,5 m/s dos perfis. Medido em 15/11/2026 (docs/superpowers/plans/2026-11-13-semana3-1-medicoes.md).
+MPPI_TUNING = {"time_steps": 28, "vx_std": 0.4}
 
 
 def patch_params(params: dict) -> dict:
@@ -34,7 +39,9 @@ def patch_params(params: dict) -> dict:
     # O costmap global mantém o obstacle_layer (padrão do nav2_bringup): sem ele o planejador não vê obstáculos novos,
     # como a maca do corredor norte, e o robô para na frente dela em vez de replanejar pela cruz central.
     # Validado em 12/11/2026: com a camada ligada a varredura dos 10 pontos continua em TODOS OS PONTOS OK.
-    params["controller_server"]["ros__parameters"]["FollowPath"]["vx_max"] = CRUISE_SPEED
+    follow = params["controller_server"]["ros__parameters"]["FollowPath"]
+    follow["vx_max"] = CRUISE_SPEED
+    follow.update(MPPI_TUNING)
     params["velocity_smoother"]["ros__parameters"]["max_velocity"][0] = CRUISE_SPEED   # senão o suavizador corta o controlador
     amcl = params["amcl"]["ros__parameters"]
     amcl["set_initial_pose"] = True
