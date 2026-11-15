@@ -14,15 +14,16 @@ REQUIRED_DIRS = [
     "robot/hospital",
     "tools",
     "docs/contracts",
-    "docs/prompts",
 ]
 
 REQUIRED_FILES = [
     "README.md",
     ".gitignore",
-    "modelos-3d/geraldoV1.blend",
-    "modelos-3d/geraldoV1.glb",
-    "modelos-3d/build_geraldoV1.py",
+    "modelos-3d/geraldoV3.blend",
+    "modelos-3d/render_geraldoV3.py",
+    "modelos-3d/v1/geraldoV1.blend",
+    "modelos-3d/v1/geraldoV1.glb",
+    "modelos-3d/v1/build_geraldoV1.py",
 ]
 
 
@@ -42,10 +43,11 @@ def test_robot_front_is_not_scattered_in_the_root():
 
 
 def test_model_files_are_not_empty():
-    for name in ("geraldoV1.blend", "geraldoV1.glb"):
+    for name in ("geraldoV3.blend", "v1/geraldoV1.blend", "v1/geraldoV1.glb"):
         assert (ROOT / "modelos-3d" / name).stat().st_size > 100_000, name
 
 
-def test_renders_were_copied():
-    renders = list((ROOT / "modelos-3d/renders").glob("*.png"))
-    assert len(renders) >= 6
+def test_v3_renders_exist():
+    views = ("hero", "frente", "traseira", "lateral", "topo", "aerea")
+    missing = [v for v in views if not (ROOT / f"modelos-3d/renders/geraldoV3_{v}.png").is_file()]
+    assert not missing, f"renders do V3 faltando: {missing}"

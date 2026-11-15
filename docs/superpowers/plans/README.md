@@ -1,32 +1,23 @@
-# Planos de implementação — Semana 1 (05–11/11/2026)
+# Planos de implementação
 
-Specs: [plano de desenvolvimento](../specs/2026-11-05-geraldo-plano-desenvolvimento-design.md) e [design system](../specs/2026-11-05-geraldo-design-system-design.md).
+Specs em [`../specs/`](../specs/). Cada plano é executado tarefa por tarefa, na ordem; cada tarefa termina com testes passando e um commit.
 
-Cada pessoa executa **o seu plano**, tarefa por tarefa, na ordem. Cada tarefa termina com testes passando e um commit.
+Os planos da semana 1 (fundação, backend, web e qualidade) cumpriram o papel e foram removidos; continuam no histórico do git. O que eles entregaram está descrito nos `AGENTS.md` de cada pasta.
 
-| Plano | Dono | Entrega ao final da semana 1 |
-|---|---|---|
-| [Fundação, contratos, hospital e tokens](2026-11-05-semana1-samuel-fundacao.md) | Samuel | Repo organizado, modelo 3D no repo, guia das IAs, contratos travados, hospital gerado de um YAML, tokens do design system |
-| [Robô e simulação](2026-11-05-semana1-samuel-robo.md) | Samuel | Ambiente nativo conferido, URDF do robô, Gazebo com o hospital, `/cmd_vel` e `/scan`, Nav2, teste dos 10 pontos de parada e `geraldo_dispatcher` mínimo |
-| [Backend](2026-11-05-semana1-erik-backend.md) | Erik | FastAPI com JWT, locais, estoque, criar entrega com reserva e fila de prioridade |
-| [Web responsivo](2026-11-05-semana1-vieira-web.md) | Vieira | App web com tokens, componentes base e de domínio, tela de solicitar (mobile-first) sobre API simulada |
-| [Qualidade e robô de mentira](2026-11-05-semana1-pedro-qualidade.md) | Pedro | CI no GitHub, teste de contrato da API, robô de mentira, coleção de requests |
-
-## Ordem e dependências
-
-```
-Qui 05/11  Fundação T1 (repo + modelo 3D) e T2 (contratos)  ← destravam Erik, Vieira e Pedro
-Sex 06/11  Fundação T3 (AGENTS.md + prompts) · Erik T1–T2 · Vieira T1 · Pedro T1 · Robô T1–T2
-Sáb 07/11  Fundação T5 (tokens) ← destrava Vieira T2–T3 · Fundação T4 (hospital) · Erik T3 · Pedro T2
-Dom 08/11  Contratos travados. Fundação T4 (hospital) e T6 (guia do design system) · Erik T4 · Vieira T4 · Pedro T3 · Robô T3–T4
-Seg 09/11  Erik T5 · Vieira T5–T7 · Pedro T4 · Robô T4–T5
-Ter 10/11  Integração das fatias; correções
-Qua 11/11  M1: pedido na API vira meta no Nav2 e o robô anda no Gazebo
-```
+| Plano | Entrega |
+|---|---|
+| [Hospital 3D](2026-11-12-hospital-3d.md) | Maquete do hospital em Blender, gerada de `robot/hospital/hospital_layout.json` |
+| [Integração do robô](2026-11-13-integracao-robo.md) | Robô ligado ao backend, à web e ao robô de mentira |
+| [Semana 2: dispatcher e sensores](2026-11-13-semana2-dispatcher-sensores.md) | Máquina de estados do dispatcher e sensores de alcance |
+| [Semana 2: prioridades e emergência](2026-11-13-semana2-prioridades-emergencia.md) | Velocidade por prioridade e parada de emergência |
+| [Semana 3, plano 1: contrato do robô](2026-11-13-semana3-1-contrato-robo.md) | Contrato do estop e ajuste de velocidade |
+| [Semana 3, plano 1: medições](2026-11-13-semana3-1-medicoes.md) | Relatório de medições na simulação |
+| [Semana 3, plano 2: backend](2026-11-13-semana3-2-backend.md) | Backend completo, robô de mentira e teste de contrato |
+| [Semana 3, plano 3: web](2026-11-13-semana3-3-web.md) | Sistema web completo |
+| [Semana 3, plano 4: app](2026-11-13-semana3-4-app.md) | App instalável (ponte ROS, orquestrador, Electron e visão 2D) |
+| [Aba Farmácia](2026-11-15-farmacia-aprovacoes.md) | Aprovação e recusa de pedidos críticos |
 
 **Regras de convivência**
 - Branch por tarefa grande: `feat/<frente>-<assunto>`; PR para a `main`; nada direto na `main`.
 - Contrato em `docs/contracts/` só muda por PR com aviso ao dono da frente afetada.
-- Todo código segue [`docs/padroes-de-projeto.md`](../../padroes-de-projeto.md) (SOLID, injeção pelo construtor, Strategy/Factory no lugar de `if/elif` por tipo, funções puras). Cada plano indica onde isso se aplica.
-- Quem destrava outra pessoa avisa no grupo no mesmo dia.
-- Se uma tarefa bloquear por falta de algo de outra pessoa, use o fixture ou a simulação indicada na própria tarefa e siga em frente.
+- Todo código segue [`docs/padroes-de-projeto.md`](../../padroes-de-projeto.md) (SOLID, injeção pelo construtor, Strategy/Factory no lugar de `if/elif` por tipo, funções puras).
