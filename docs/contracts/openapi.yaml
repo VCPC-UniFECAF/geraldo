@@ -143,6 +143,30 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /deliveries/{id}/reject:
+    post:
+      summary: Recusa um pedido crítico pendente (farmacêutico)
+      description: >
+        Só o farmacêutico (o admin não recusa). A entrega precisa estar em PENDENTE_APROVACAO; ela vira CANCELADA com o
+        motivo em cancel_reason, a reserva é estornada (ESTORNO) como no cancelamento e os observers são avisados.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RejectDelivery' }
+      responses:
+        '200':
+          description: Entrega recusada (CANCELADA, com cancel_reason)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { description: Motivo ausente, curto demais (menos de 3 caracteres), longo demais (mais de 200) ou com espaços nas pontas }
   /deliveries/{id}/confirm-receipt:
     post:
       summary: Solicitante confirma o recebimento; libera a tampa e credita o destino
@@ -380,6 +404,12 @@ components:
         status: { $ref: '#/components/schemas/DeliveryStatus' }
         requested_by: { type: integer }
         created_at: { type: string, format: date-time }
+        cancel_reason: { type: string, nullable: true, description: "Motivo da recusa pela farmácia; null nas outras entregas" }
+    RejectDelivery:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 200, description: "Sem espaços nas pontas" }
     RobotTask:
       allOf:
         - $ref: '#/components/schemas/Delivery'
