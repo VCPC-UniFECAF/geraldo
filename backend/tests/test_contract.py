@@ -177,6 +177,17 @@ def test_every_response_matches_the_contract(client, auth, fresh_state):
     assert api("post", "/deliveries/{id}/approve", as_="farmaceutico1", id=critica["id"], expect=200).json()["status"] == "NA_FILA"
     api("post", "/deliveries/{id}/approve", as_="farmaceutico1", id=critica["id"], expect=409)
 
+    # recusar um pedido crítico pendente (farmacêutico): CANCELADA com cancel_reason
+    recusar = api("post", "/deliveries", as_="medico1", json=CRITICA, expect=201).json()["id"]
+    api("post", "/deliveries/{id}/reject", id=recusar, json={"reason": "Sem justificativa"}, expect=401)
+    api("post", "/deliveries/{id}/reject", as_="medico1", id=recusar, json={"reason": "Sem justificativa"}, expect=403)
+    api("post", "/deliveries/{id}/reject", as_="admin", id=recusar, json={"reason": "Sem justificativa"}, expect=403)
+    api("post", "/deliveries/{id}/reject", as_="farmaceutico1", id=9999, json={"reason": "Sem justificativa"}, expect=404)
+    api("post", "/deliveries/{id}/reject", as_="farmaceutico1", id=recusar, json={"reason": "ab"}, expect=422)
+    recusada = api("post", "/deliveries/{id}/reject", as_="farmaceutico1", id=recusar, json={"reason": "Sem justificativa"}, expect=200).json()
+    assert (recusada["status"], recusada["cancel_reason"]) == ("CANCELADA", "Sem justificativa")
+    api("post", "/deliveries/{id}/reject", as_="farmaceutico1", id=recusar, json={"reason": "Sem justificativa"}, expect=409)
+
     # cancelar
     to_cancel = api("post", "/deliveries", as_="medico2", json=MEDIA, expect=201).json()["id"]
     api("post", "/deliveries/{id}/cancel", as_="robo", id=to_cancel, expect=403)
