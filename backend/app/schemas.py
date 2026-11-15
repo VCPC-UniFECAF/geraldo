@@ -71,6 +71,7 @@ class DeliveryOut(BaseModel):
     status: DeliveryStatus
     requested_by: int
     created_at: UtcDatetime
+    cancel_reason: str | None = None
 
 
 class RobotTaskOut(DeliveryOut):

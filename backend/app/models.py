@@ -77,6 +77,7 @@ class Delivery(SQLModel, table=True):
     status: DeliveryStatus
     requested_by: int = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=utcnow)
+    cancel_reason: str | None = Field(default=None, max_length=200)  # só na recusa pela farmácia
 
 
 class DeliveryItem(SQLModel, table=True):
