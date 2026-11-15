@@ -31,6 +31,12 @@ scene = bpy.context.scene
 for o in [o for o in bpy.data.objects if o.type in ("CAMERA", "LIGHT")]:
     bpy.data.objects.remove(o)
 
+# os cortes booleanos (corte_roda, corte_rodizio) ficam com o olho desligado no viewport mas ligados no render, e
+# tampariam as rodas; o render passa a seguir o olho do viewport
+for o in bpy.data.objects:
+    if o.hide_get():
+        o.hide_render = True
+
 MATS = {}
 
 
