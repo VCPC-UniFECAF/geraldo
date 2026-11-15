@@ -15,6 +15,7 @@ EXPECTED_OPERATIONS = {
     ("get", "/deliveries/{id}"),
     ("post", "/deliveries/{id}/cancel"),
     ("post", "/deliveries/{id}/approve"),
+    ("post", "/deliveries/{id}/reject"),
     ("post", "/deliveries/{id}/confirm-receipt"),
     ("get", "/movements"),
     ("post", "/robot/next-task"),
@@ -116,3 +117,23 @@ def test_robot_protocol_fixes_the_estop_cadence_the_join_rule_and_the_obstacles_
     assert "só sai da parada com as duas fontes desligadas" in text
     assert "até 20 itens `{x, y, radius}`" in text
     assert "sempre `[]`" not in text
+
+
+def test_reject_is_only_for_the_pharmacist_and_needs_a_reason():
+    spec = load()
+    op = spec["paths"]["/deliveries/{id}/reject"]["post"]
+    assert "Só o farmacêutico" in op["description"] and "farmacêutico" in op["summary"]
+    assert set(op["responses"]) == {"200", "401", "403", "404", "409", "422"}
+    body = op["requestBody"]["content"]["application/json"]["schema"]["$ref"]
+    assert body == "#/components/schemas/RejectDelivery"
+    reject = spec["components"]["schemas"]["RejectDelivery"]
+    assert reject["required"] == ["reason"]
+    assert (reject["properties"]["reason"]["minLength"], reject["properties"]["reason"]["maxLength"]) == (3, 200)
+
+
+def test_a_rejected_delivery_keeps_the_status_enum_and_carries_an_optional_reason():
+    schemas = load()["components"]["schemas"]
+    assert "RECUSADA" not in schemas["DeliveryStatus"]["enum"]  # recusada = CANCELADA + cancel_reason
+    delivery = schemas["Delivery"]
+    assert "cancel_reason" not in delivery["required"]
+    assert delivery["properties"]["cancel_reason"]["nullable"] is True
