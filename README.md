@@ -31,7 +31,7 @@ O G.E.R.A.L.D.O. propõe uma solução integrada: um **robô móvel autônomo** 
 # O robô
 
 <p align="center">
-  <img src="docs/img/gazebo-entrega.png" alt="O G.E.R.A.L.D.O. chegando ao centro cirúrgico com uma entrega, no Gazebo" width="860">
+  <img src="docs/img/gazebo-entrega.png" alt="O G.E.R.A.L.D.O. num corredor do hospital simulado, no Gazebo, durante uma entrega" width="860">
 </p>
 
 O robô é o **G.E.R.A.L.D.O. V3**, modelado no Blender ([`modelos-3d/geraldoV3.blend`](modelos-3d/geraldoV3.blend)) e simulado no **Gazebo Harmonic**. As malhas do simulador saem desse mesmo arquivo.
@@ -197,7 +197,7 @@ python3 -m pytest tools robot -q      # com o ROS carregado
 
 # Tecnologias
 
-Python 3.12 · FastAPI · SQLModel e SQLite · JWT · ROS 2 Jazzy · Gazebo Harmonic · Nav2 (AMCL, NavFn, MPPI) · React 19 + Vite + TypeScript + Tailwind · Vitest e MSW · Blender 5.2 · Unity (extra, cockpit 3D)
+Python 3.12 · FastAPI · SQLModel e SQLite · JWT · ROS 2 Jazzy · Gazebo Harmonic · Nav2 (AMCL, NavFn, MPPI) · React 19 + Vite + TypeScript + Tailwind · Vitest e MSW · Blender 5.2
 
 # Estrutura do repositório
 
@@ -216,7 +216,7 @@ geraldo/
 │   ├── img/             # imagens da documentação
 │   └── superpowers/     # especificações e planos de implementação
 ├── security/            # escopo e ataques do teste de intrusão
-├── unity/               # cockpit 3D (extra)
+├── unity/               # cockpit 3D (extra, ainda não começou)
 └── tools/               # testes e utilitários do repositório (contratos, layout, robô de mentira)
 ```
 
