@@ -1,5 +1,5 @@
 // PROGRAMAÇÃO FUNCIONAL: funções puras com filter / map / sort, sem alterar a lista original.
-import type { Delivery, DeliveryStatus, Location, Priority, Role, StockEntry } from "../api/types";
+import type { Delivery, DeliveryStatus, Location, Me, Priority, Role, StockEntry } from "../api/types";
 
 export const saldo = (e: StockEntry): number => e.quantity - e.reserved;
 
@@ -56,3 +56,7 @@ export const podeVerFarmacia = (role: Role): boolean => PAPEIS_DA_FARMACIA.inclu
 
 // Contrato: só o farmacêutico chama /approve e /reject (o admin vê a fila, sem botões).
 export const podeAprovar = (role: Role): boolean => role === "farmaceutico";
+
+// Assinatura dupla: quem pediu o crítico não o aprova (o backend devolve 403); outro farmacêutico precisa assinar.
+export const podeAprovarPedido = (usuario: Pick<Me, "id" | "role">, pedido: { solicitanteId: number }): boolean =>
+  podeAprovar(usuario.role) && pedido.solicitanteId !== usuario.id;

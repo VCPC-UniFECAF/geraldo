@@ -3,10 +3,11 @@ import type { Delivery, Location, Me, Movement, RobotState, StockEntry, Telemetr
 
 export const ME: Me = { id: 1, username: "medico1", role: "medico", local_id: "consultorio1" };
 export const FARMACEUTICO: Me = { id: 2, username: "farmaceutico1", role: "farmaceutico", local_id: "farmacia" };
+export const FARMACEUTICO2: Me = { id: 4, username: "farmaceutico2", role: "farmaceutico", local_id: "farmacia" };
 export const ADMIN: Me = { id: 3, username: "admin", role: "admin", local_id: null };
 
 // O mock de login escolhe o usuário pelo nome (senha sempre "demo").
-export const USUARIOS: Record<string, Me> = { medico1: ME, farmaceutico1: FARMACEUTICO, admin: ADMIN };
+export const USUARIOS: Record<string, Me> = { medico1: ME, farmaceutico1: FARMACEUTICO, farmaceutico2: FARMACEUTICO2, admin: ADMIN };
 
 export const LOCATIONS: Location[] = [
   { id: "farmacia", name: "Farmácia central", kind: "pharmacy", has_stock: true, waypoint: "farmacia_balcao" },

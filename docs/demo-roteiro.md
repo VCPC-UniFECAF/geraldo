@@ -14,7 +14,7 @@ Quem executa: Samuel. Máquina: a dele (Pop!_OS 24.04, ROS 2 Jazzy e Gazebo Harm
 | # | O que fazer | O que a plateia vê |
 |---|---|---|
 | 1 | `bash robot/scripts/demo.sh` (sobe backend, web, Gazebo, Nav2 e dispatcher; `--fake-backend` troca backend e web pela API falsa, só para testar o robô). Espere `Demo no ar` e abra http://localhost:5173 | Gazebo com o hospital e o robô na base da farmácia |
-| 2 | No sistema web, entre como `medico1` (senha `demo`) e peça uma entrega `critica` (banco de sangue para o centro cirúrgico); aprove como `farmaceutico1` | A entrega entra na fila e o estoque reserva os itens |
+| 2 | No sistema web, entre como `medico1` (senha `demo`) e peça uma entrega `critica` (banco de sangue para o centro cirúrgico); aprove como `farmaceutico1` (se o crítico for pedido por um farmacêutico, quem aprova é o outro: `farmaceutico1` e `farmaceutico2`, mesma senha) | A entrega entra na fila e o estoque reserva os itens |
 | 3 | O robô sai sozinho: `A_CAMINHO`, `CARREGANDO`, `A_CAMINHO` | Anda a até 1,0 m/s (crítica) no corredor; o Painel mostra rota e estado |
 | 4 | Com o robô no corredor norte: `bash robot/scripts/spawn_stretcher.sh on` | A maca aparece no corredor, o robô a vê (obstáculo no Painel) e replaneja pela cruz central |
 | 5 | Botão **Parada de emergência** no Painel | Estado `PARADA_EMERGENCIA` em até uns 2 s e o robô para. Libere no Painel e ele retoma a mesma meta |

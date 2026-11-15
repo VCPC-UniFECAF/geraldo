@@ -3,7 +3,7 @@
 # Uso: bash robot/scripts/demo.sh [--headless] [--fake-backend]
 #   --headless       sem a janela do Gazebo (só o servidor)
 #   --fake-backend   no lugar do backend real e da web, sobe a API falsa (robot/scripts/fake_backend.py; usuário robo, senha robo-local)
-# Depois abra http://localhost:5173 e entre como medico1, farmaceutico1 ou admin (senha: GERALDO_DEMO_PASSWORD, padrão "demo").
+# Depois abra http://localhost:5173 e entre como medico1, farmaceutico1, farmaceutico2 ou admin (senha: GERALDO_DEMO_PASSWORD, padrão "demo").
 # Cada execução começa com o banco e o estoque do seed. Ctrl+C derruba tudo.
 # Antes, na primeira vez: backend/.venv com as dependências, npm install em web/ e colcon build em robot/ros2_ws.
 # STACK_ROOT=<outro checkout> usa o backend e a web de lá (o robô continua vindo deste checkout).
@@ -93,7 +93,7 @@ wait_for "Nav2 ativo" 120 bash -c "ros2 lifecycle get /bt_navigator | grep -q '^
 start dispatcher env PYTHONUNBUFFERED=1 ros2 run geraldo_dispatcher dispatcher
 
 echo
-if $FAKE; then echo "Demo no ar com a API falsa em $GERALDO_API_URL (sem web)."; else echo "Demo no ar: http://localhost:5173 (medico1, farmaceutico1 ou admin; senha: $GERALDO_DEMO_PASSWORD)"; fi
+if $FAKE; then echo "Demo no ar com a API falsa em $GERALDO_API_URL (sem web)."; else echo "Demo no ar: http://localhost:5173 (medico1, farmaceutico1, farmaceutico2 ou admin; senha: $GERALDO_DEMO_PASSWORD)"; fi
 echo "Maca no corredor: bash robot/scripts/spawn_stretcher.sh on (e off para tirar). Roteiro completo em docs/demo-roteiro.md."
 echo "Ctrl+C derruba tudo."
 wait

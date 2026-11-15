@@ -5,6 +5,11 @@ from app.seed import seed
 from tests.conftest import FIXTURES, PASSWORD
 
 
+def test_seed_creates_both_pharmacists(session):
+    pharmacists = session.exec(select(User).where(User.role == Role.farmaceutico)).all()
+    assert sorted(u.username for u in pharmacists) == ["farmaceutico1", "farmaceutico2"]
+
+
 def test_seed_creates_locations_items_stock_and_users(session):
     assert session.get(Location, "farmacia").waypoint == "farmacia_balcao"
     assert session.get(Location, "recepcao").waypoint is None
@@ -37,5 +42,7 @@ def test_a_critical_delivery_from_one_pharmacist_can_be_approved_by_the_other(cl
     body = {"origin_id": "banco_sangue", "items": [{"item_id": "bolsa-sangue-o-neg", "quantity": 1}], "priority": "critica"}
     created = client.post("/deliveries", headers=auth("farmaceutico1"), json=body)
     assert created.status_code == 201 and created.json()["status"] == "PENDENTE_APROVACAO"
-    approved = client.post(f"/deliveries/{created.json()['id']}/approve", headers=auth("farmaceutico2"))
+    url = f"/deliveries/{created.json()['id']}/approve"
+    assert client.post(url, headers=auth("farmaceutico1")).status_code == 403  # a regra da assinatura dupla não muda
+    approved = client.post(url, headers=auth("farmaceutico2"))
     assert approved.status_code == 200 and approved.json()["status"] == "NA_FILA"

@@ -7,7 +7,7 @@ import { FarmaciaPage } from "./FarmaciaPage";
 async function montar(role: "farmaceutico" | "admin") {
   const api = new HttpApiClient();
   await api.login(role === "admin" ? "admin" : "farmaceutico1", "demo");
-  render(<FarmaciaPage api={api} role={role} />);
+  render(<FarmaciaPage api={api} usuario={await api.me()} />);
 }
 
 test("a Farmácia tem as Aprovações no topo e o Estoque embaixo", async () => {
