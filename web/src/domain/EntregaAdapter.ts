@@ -10,6 +10,7 @@ export interface Entrega {
   status: DeliveryStatus;
   solicitanteId: number;
   solicitadaEm: Date;
+  motivoDaRecusa: string | null;
 }
 
 export const legivel = (id: string): string => {
@@ -35,6 +36,7 @@ export class EntregaAdapter {
       status: entrega.status,
       solicitanteId: entrega.requested_by,
       solicitadaEm: new Date(entrega.created_at),
+      motivoDaRecusa: entrega.cancel_reason ?? null,
     };
   }
 }
