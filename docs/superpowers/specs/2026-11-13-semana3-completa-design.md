@@ -1,6 +1,6 @@
 # Semana 3 completa: robô, backend, web e app instalável
 
-**Data:** 13/11/2026 · **Dono:** Samuel (executa também o que era do Erik e do Vieira) · **Base:** [plano de desenvolvimento](2026-11-05-geraldo-plano-desenvolvimento-design.md) (seções 4, 6 e 7), [semana 2 do robô](2026-11-13-semana2-robo-design.md) e os planos da semana 1 ([Erik](../plans/2026-11-05-semana1-erik-backend.md), [Vieira](../plans/2026-11-05-semana1-vieira-web.md), [Pedro](../plans/2026-11-05-semana1-pedro-qualidade.md)).
+**Data:** 13/11/2026 · **Dono:** Samuel (executa também o que era do Erik e do Vieira) · **Base:** [plano de desenvolvimento](2026-11-05-geraldo-plano-desenvolvimento-design.md) (seções 4, 6 e 7), [semana 2 do robô](2026-11-13-semana2-robo-design.md) e os planos da semana 1 (Erik, Vieira, Pedro).
 **Prazo:** M2 qua 18/11 · M3 (congelamento) qua 25/11 · ensaio qui 26 e sex 27/11 · ExpoTech sáb 28/11.
 
 > **Atualização de 14/11/2026 (decisão do Samuel):** os 3,0 m/s foram abandonados. Vale a velocidade que já existia: perfis por prioridade de 1,0 m/s (crítica), 0,8 m/s (média) e 0,5 m/s (rotina), como em `docs/contracts/robot-protocol.md`, e a prioridade volta a mudar velocidade e inflação. O `curve_limiter` (seção 3, "Curvas") foi removido: a 1,0 m/s ele nunca age. Onde esta spec e o plano 1 dizem 3,0 m/s, leia 1,0/0,8/0,5 m/s; o resto continua valendo. O que foi medido e por que a tentativa a 3 m/s não deu certo: `docs/superpowers/plans/2026-11-13-semana3-1-medicoes.md`.

@@ -1,17 +1,17 @@
 # Modelos 3D do G.E.R.A.L.D.O.
 
-Versão atual: **V1**. Cada versão nova vira arquivos novos ao lado (`geraldoV2.*`); a V1 não é sobrescrita.
+Versão atual: **V3**, a que o Gazebo usa. A V1 ficou em [`v1/`](v1/) como histórico; ela continua sendo o modelo do cockpit em Unity (`v1/geraldoV1.glb`).
 
-![G.E.R.A.L.D.O. V1](renders/geraldoV1_hero.png)
+![G.E.R.A.L.D.O. V3](renders/geraldoV3_hero.png)
 
 ## Arquivos
 
 | Arquivo | Para quê |
 |---|---|
-| `geraldoV1.blend` | Cena editável do Blender: o robô, o corredor de cenário e 6 câmeras (hero, frente, traseira, lateral, aérea, topo) |
-| `geraldoV1.glb` | Só o robô, para o Unity e para a web |
-| `build_geraldoV1.py` | Script que gera tudo (modelo, cenário, câmeras, renders e o `.glb`) |
-| `renders/` | Imagens de referência de cada vista |
+| `geraldoV3.blend` | O robô V3, editável no Blender. As malhas do Gazebo saem dele (`robot/scripts/export_blender_mesh.py`); **não salve por cima** sem regenerar e conferir as malhas |
+| `render_geraldoV3.py` | Monta o corredor, as luzes e as câmeras e renderiza as vistas em `renders/geraldoV3_<vista>.png`. Não salva o `.blend` |
+| `renders/geraldoV3_*.png` | Vistas do V3: hero, frente, traseira, lateral, topo e aérea |
+| `v1/` | A primeira versão (`geraldoV1.blend`, `geraldoV1.glb`, `build_geraldoV1.py` e os renders), mantida como histórico |
 
 ## Medidas
 
@@ -20,27 +20,26 @@ Versão atual: **V1**. Cada versão nova vira arquivos novos ao lado (`geraldoV2
 | Chassi | 0,70 × 0,50 m |
 | Altura total | 0,47 m |
 | Rodas de tração | 2, de 0,20 m de diâmetro; eixo em x = +0,10 m; separação de 0,45 m |
-| Rodízio | 1 traseiro, de 0,08 m de diâmetro, embutido |
-| Baú | 0,48 × 0,40 m, com tampa, cruz vermelha e dobradiças |
-| Sensores | LiDAR 2D (topo), 5 de proximidade (0° e ±45° na frente; ±135° atrás), câmera RGB-D (frente) |
+| Rodízio | 1 traseiro, de 0,08 m de diâmetro, com pivô e garfo |
+| Baú | Tampa com dobradiças, cruz vermelha e alças; 0,58 × 0,48 m na tampa |
+| Sensores | LiDAR 2D (frente do chassi), 5 de proximidade (0° e ±45° na frente; ±135° atrás), câmera RGB-D (frente) |
 
-Convenções: unidades em metros; frente do robô = **+X**; eixo das rodas = **Y**; `base_link` no chão. Os nomes dos objetos seguem a convenção ROS (`base_link`, `roda_esq_link`, `roda_dir_link`...).
+Convenções: unidades em metros; frente do robô = **+X**; eixo das rodas = **Y**; `base_link` no chão. Os nomes dos objetos seguem a convenção ROS.
 
-## Como regenerar
+## Como renderizar
 
-Precisa do Blender 5.2. Dentro desta pasta:
+Precisa do Blender 5.2. Da raiz do repositório:
 
 ```bash
-blender -b --python build_geraldoV1.py
+blender -b modelos-3d/geraldoV3.blend --python modelos-3d/render_geraldoV3.py
 ```
 
-Para renderizar só algumas vistas: `VIEWS=hero,frente blender -b --python build_geraldoV1.py`. Para um teste rápido sem salvar nada: `PREVIEW=1 PREVIEW_DIR=/tmp blender -b --python build_geraldoV1.py`.
+Para algumas vistas: `VIEWS=hero,frente`. Para um teste rápido, em resolução baixa e fora do repositório: `PREVIEW=1 PREVIEW_DIR=/tmp`. O render completo leva alguns minutos (Cycles, em CPU).
 
 ## Observações
 
-- O Gazebo **não usa o `.blend`**: usa uma malha exportada (OBJ) e uma colisão simples de 0,70 × 0,50 m. A exportação está no plano do robô (`docs/superpowers/plans/2026-11-05-semana1-samuel-robo.md`).
-- O disco do LiDAR no topo é opcional; para tirá-lo, mude `LIDAR = True` para `False` no script e gere de novo.
-- A altura segue as imagens de referência do projeto (0,47 m). A especificação textual sugeria 0,90 a 1,00 m; se o grupo decidir pela versão alta, ela entra como `geraldoV2`.
+- O Gazebo **não usa o `.blend` direto**: usa as malhas OBJ exportadas dele e colisões simples (caixas e cilindros); ver `robot/AGENTS.md`.
+- O `v1/build_geraldoV1.py` roda de dentro de qualquer pasta e escreve ao lado dele: `blender -b --python modelos-3d/v1/build_geraldoV1.py`.
 
 ## Hospital (maquete)
 
