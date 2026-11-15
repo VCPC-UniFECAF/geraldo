@@ -58,6 +58,14 @@ export class HttpApiClient implements ApiClient {
     return this.#request<Delivery>(`/deliveries/${id}/confirm-receipt`, { method: "POST" });
   }
 
+  approveDelivery(id: number) {
+    return this.#request<Delivery>(`/deliveries/${id}/approve`, { method: "POST" });
+  }
+
+  rejectDelivery(id: number, reason: string) {
+    return this.#request<Delivery>(`/deliveries/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) });
+  }
+
   movements(filtro: MovementFiltro = {}) {
     const query = new URLSearchParams();
     if (filtro.deliveryId !== undefined) query.set("delivery_id", String(filtro.deliveryId));

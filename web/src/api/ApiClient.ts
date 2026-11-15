@@ -27,6 +27,12 @@ export interface EntregasApi {
   confirmReceipt(id: number): Promise<Delivery>;
 }
 
+// Só o farmacêutico aprova e recusa pedidos críticos (contrato: /approve e /reject).
+export interface AprovacoesApi {
+  approveDelivery(id: number): Promise<Delivery>;
+  rejectDelivery(id: number, reason: string): Promise<Delivery>;
+}
+
 export interface HistoricoApi {
   movements(filtro?: MovementFiltro): Promise<Movement[]>;
 }
@@ -39,4 +45,4 @@ export interface RoboApi {
 }
 
 // DIP: a aplicação conhece essa abstração; quem fala HTTP é a HttpApiClient.
-export type ApiClient = SessaoApi & CatalogoApi & EntregasApi & HistoricoApi & RoboApi;
+export type ApiClient = SessaoApi & CatalogoApi & EntregasApi & AprovacoesApi & HistoricoApi & RoboApi;

@@ -55,6 +55,7 @@ export interface Delivery {
   status: DeliveryStatus;
   requested_by: number;
   created_at: string;
+  cancel_reason?: string | null; // só na recusa pela farmácia
 }
 
 export type MovementType = "RESERVA" | "BAIXA" | "CREDITO" | "ESTORNO";
