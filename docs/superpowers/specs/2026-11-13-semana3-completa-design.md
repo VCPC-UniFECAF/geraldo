@@ -5,6 +5,8 @@
 
 > **Atualização de 14/11/2026 (decisão do Samuel):** os 3,0 m/s foram abandonados. Vale a velocidade que já existia: perfis por prioridade de 1,0 m/s (crítica), 0,8 m/s (média) e 0,5 m/s (rotina), como em `docs/contracts/robot-protocol.md`, e a prioridade volta a mudar velocidade e inflação. O `curve_limiter` (seção 3, "Curvas") foi removido: a 1,0 m/s ele nunca age. Onde esta spec e o plano 1 dizem 3,0 m/s, leia 1,0/0,8/0,5 m/s; o resto continua valendo. O que foi medido e por que a tentativa a 3 m/s não deu certo: `docs/superpowers/plans/2026-11-13-semana3-1-medicoes.md`.
 
+> **Atualização de 14/11/2026 (app):** o plano 4 será executado pelo Erik no Windows, em quatro PRs, com a verificação de ROS, Gazebo e pacotes feita no Linux pela equipe do Samuel. Ver a seção 10.
+
 ## 1. Estado de partida (verificado em 13/11, `main` em `d81ab13`)
 
 - **Robô:** dispatcher com máquina de estados, prioridades (perfil de velocidade e de inflação), emergência por tópico, telemetria, 5 sensores de alcance, hospital 3D, 197 testes na raiz, 67 no dispatcher e 28 no description.
@@ -87,3 +89,44 @@ A branch `docs/semana3-spec-planos` (este spec e os planos) é a base da cadeia.
 ## 9. Fora do escopo
 
 Unity, Docker, leitura de marcador na câmera, modo manual (teleop), vídeo de reserva (o líder grava), 5 ataques e relatório do Pedro, e qualquer push, PR ou merge sem o líder.
+
+## 10. App: atualização de 14/11/2026 (o Erik desenvolve no Windows)
+
+Decisões do Samuel em 14/11. Valem sobre as seções 4, 7 e 8 no que toca ao app; o resto do plano 4 continua igual (ponte em `rclpy` + FastAPI, orquestrador em JavaScript, Electron `45.1.0`, visão 2D em canvas).
+
+**Quem faz o quê.** O Erik executa o plano 4 com o agente dele, **no Windows**. O alvo do app continua sendo Linux (`.AppImage` e `.deb`, para a máquina da demo). O Erik escreve todo o código e os testes que rodam sem ROS; o que só se prova no Linux (ROS, Gazebo, processos reais, pacotes) é verificado na máquina do Samuel, que comenta o resultado no PR. O merge é só do Samuel.
+
+**Ponto de partida.** Os planos 1, 2 e 3 já estão na `main` (até o #22); o app parte da `main`, não mais da cadeia de branches da seção 4.
+
+**Quatro PRs, um por bloco:**
+
+| PR | Branch | Tasks do plano 4 | Verificação no Linux (feita pela equipe do Samuel) |
+|---|---|---|---|
+| 1. Ponte | `feat/app-ponte` | 0 a 5 | adapter `rclpy` com ROS real; a ponte responde com a simulação no ar |
+| 2. Visão 2D | `feat/app-sim2d` | 6 a 9 | `sim.html` mostra o robô ao vivo pela ponte |
+| 3. Orquestrador | `feat/app-orquestrador` | 10 a 14 | a CLI sobe e derruba os 5 processos reais por PID |
+| 4. Electron | `feat/app-electron` | 15 e 16 | `.AppImage` e `.deb` gerados, instalados e abertos |
+
+Cada PR sai da `main` depois do merge do anterior. Se o Erik adiantar um bloco que depende de outro ainda não mergeado, corta a branch da branch anterior e diz isso no PR. A Task 17 (verificação final do app inteiro) é da equipe do Samuel, depois do PR 4.
+
+**Compatibilidade com o Windows (Task 0 nova):**
+- `.gitattributes` com `eol=lf` para `*.sh`, `*.py`, `*.mjs`, `*.cjs`, `*.ts`, `*.tsx`, `*.json`, `*.yaml`, `*.yml` e `*.md`; `git config core.autocrlf false` no clone do Erik.
+- Ambiente do Erik: Python 3.12, Node 24 e Git; comandos de teste em PowerShell no plano.
+- Testes que precisam de ROS usam `pytest.importorskip("rclpy")`: pulam no Windows e rodam no Linux. A suíte do Erik tem que ficar verde no Windows.
+- No Node: caminhos com `path.join`/`path.resolve`; nenhum teste depende de `kill`, de bit de execução, de `/tmp` ou de `bash`.
+- Cada task do plano diz se é **Windows** (feita e provada lá) ou **Windows + Linux** (escrita lá, provada aqui).
+
+**Cada PR do Erik** traz na descrição: o que entra, a saída dos testes no Windows e o checklist "Verificação no Linux" do bloco, copiado do plano. Contrato primeiro continua valendo: se um bloco precisar mudar `docs/contracts/`, isso vai num PR de contrato antes.
+
+**Pose na ponte.** A ponte continua lendo `/amcl_pose`, como diz o `ros-interfaces.md` depois do #21 (o dispatcher usa o TF; a ponte não). Para a visão 2D o atraso dessa pose não pesa; não há mudança de contrato.
+
+**Critério de pronto do app (substitui o da seção 7):** a suíte de cada bloco verde no Windows (Erik) e no Linux (equipe do Samuel); os quatro checklists "Verificação no Linux" cumpridos e comentados nos PRs; e a Task 17: `.AppImage` e `.deb` gerados, e abrir o app numa máquina Linux com ROS sobe o stack e mostra o robô se mexendo na visão 2D.
+
+**Riscos novos:**
+
+| Risco | Mitigação |
+|---|---|
+| Quebra de linha CRLF quebra os scripts no Linux | `.gitattributes` na Task 0, antes de qualquer arquivo novo |
+| O agente do Erik não roda nada de ROS e erra o adapter `rclpy` | Código do adapter copiado do plano; teste real aqui no PR 1; correção volta para o Erik |
+| Código que só funciona no Windows (caminhos, processos) | Regras de compatibilidade acima; a verificação no Linux de cada PR pega o resto |
+| O agente do Erik não tem as skills `superpowers` | O plano diz como executar com ou sem elas |
