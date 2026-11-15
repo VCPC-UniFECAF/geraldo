@@ -21,6 +21,7 @@ def delivery_out(session: Session, delivery: Delivery) -> DeliveryOut:
         status=delivery.status,
         requested_by=delivery.requested_by,
         created_at=delivery.created_at,
+        cancel_reason=delivery.cancel_reason,
     )
 
 

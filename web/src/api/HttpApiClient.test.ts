@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { ApiError } from "./ApiClient";
 import { HttpApiClient } from "./HttpApiClient";
-import { DELIVERY, DELIVERY_AGUARDANDO, ME } from "./mocks/fixtures";
+import { DELIVERY, DELIVERY_AGUARDANDO, DELIVERY_PENDENTE, ME } from "./mocks/fixtures";
 import { semearEntregas } from "./mocks/handlers";
 import { server } from "./mocks/server";
 
@@ -113,4 +113,32 @@ test("servidor fora do ar vira ApiError 0 com mensagem em português", async () 
     status: 0,
     message: "Não foi possível falar com o servidor. Confira se ele está ligado e tente de novo.",
   });
+});
+
+test("approveDelivery aprova o pedido crítico pendente (só o farmacêutico)", async () => {
+  semearEntregas([DELIVERY_PENDENTE]);
+  await api.login("farmaceutico1", "demo");
+  const entrega = await api.approveDelivery(4);
+  expect(entrega.status).toBe("NA_FILA");
+});
+
+test("approveDelivery de quem não é farmacêutico levanta ApiError 403", async () => {
+  semearEntregas([DELIVERY_PENDENTE]);
+  await api.login("medico1", "demo");
+  await expect(api.approveDelivery(4)).rejects.toMatchObject({ status: 403 });
+});
+
+test("rejectDelivery cancela com o motivo e devolve o estoque (ESTORNO)", async () => {
+  semearEntregas([DELIVERY_PENDENTE]);
+  await api.login("farmaceutico1", "demo");
+  const entrega = await api.rejectDelivery(4, "Sem justificativa clínica");
+  expect(entrega).toMatchObject({ status: "CANCELADA", cancel_reason: "Sem justificativa clínica" });
+  expect(await api.movements({ deliveryId: 4 })).toMatchObject([{ type: "ESTORNO", location_id: "banco_sangue", quantity: 2 }]);
+});
+
+test("rejectDelivery com motivo curto levanta ApiError 422 e entrega que não está pendente, 409", async () => {
+  semearEntregas([DELIVERY_PENDENTE, DELIVERY]);
+  await api.login("farmaceutico1", "demo");
+  await expect(api.rejectDelivery(4, "ab")).rejects.toMatchObject({ status: 422 });
+  await expect(api.rejectDelivery(1, "Sem justificativa")).rejects.toMatchObject({ status: 409 });
 });

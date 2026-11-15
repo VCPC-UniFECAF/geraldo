@@ -1,3 +1,4 @@
+from sqlalchemy import inspect, text
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
@@ -15,7 +16,12 @@ engine = make_engine(settings.database_url)
 
 
 def create_db(eng=None) -> None:
-    SQLModel.metadata.create_all(eng or engine)
+    eng = eng or engine
+    SQLModel.metadata.create_all(eng)
+    # Sem migrações: um banco criado antes da recusa não tem a coluna e daria erro em toda consulta de entrega.
+    if "cancel_reason" not in {c["name"] for c in inspect(eng).get_columns("delivery")}:
+        with eng.begin() as conn:
+            conn.execute(text("ALTER TABLE delivery ADD COLUMN cancel_reason VARCHAR(200)"))
 
 
 def get_session():

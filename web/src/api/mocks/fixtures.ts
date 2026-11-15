@@ -36,6 +36,17 @@ export const DELIVERY: Delivery = {
 
 export const DELIVERY_AGUARDANDO: Delivery = { ...DELIVERY, id: 2, status: "AGUARDANDO_RECEBIMENTO" };
 
+export const DELIVERY_PENDENTE: Delivery = {
+  id: 4,
+  origin_id: "banco_sangue",
+  dest_id: "consultorio1",
+  items: [{ item_id: "bolsa-sangue-o-neg", quantity: 2 }],
+  priority: "critica",
+  status: "PENDENTE_APROVACAO",
+  requested_by: 1,
+  created_at: "2026-11-09T13:40:00Z",
+};
+
 export const MOVEMENTS: Movement[] = [
   { id: 1, delivery_id: 1, type: "RESERVA", item_id: "dipirona-500mg", location_id: "farmacia", quantity: 5, created_at: "2026-11-09T13:20:00Z" },
   { id: 2, delivery_id: 1, type: "BAIXA", item_id: "dipirona-500mg", location_id: "farmacia", quantity: 5, created_at: "2026-11-09T13:22:00Z" },

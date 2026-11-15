@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { HttpApiClient } from "../api/HttpApiClient";
-import { ADMIN, DELIVERY, DELIVERY_AGUARDANDO, FARMACEUTICO, ME } from "../api/mocks/fixtures";
+import { ADMIN, DELIVERY, DELIVERY_AGUARDANDO, DELIVERY_PENDENTE, FARMACEUTICO, ME } from "../api/mocks/fixtures";
 import { semearEntregas } from "../api/mocks/handlers";
 import { server } from "../api/mocks/server";
 import { MinhasEntregasPage } from "./MinhasEntregasPage";
@@ -222,4 +222,10 @@ test("quando a sessão expira, o aviso de erro de recarga anterior some (só fic
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("o solicitante vê o motivo da recusa em Minhas entregas", async () => {
+  semearEntregas([{ ...DELIVERY_PENDENTE, status: "CANCELADA", cancel_reason: "Use a prescrição digital" }]);
+  render(<MinhasEntregasPage api={new HttpApiClient()} usuario={ME} onRequest={vi.fn()} />);
+  expect(await screen.findByText("Recusada pela farmácia: Use a prescrição digital")).toBeInTheDocument();
 });

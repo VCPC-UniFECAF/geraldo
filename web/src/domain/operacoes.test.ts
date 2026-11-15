@@ -1,6 +1,6 @@
-import { DELIVERY, LOCATIONS, MOVEMENTS, STOCK } from "../api/mocks/fixtures";
+import { DELIVERY, DELIVERY_PENDENTE, LOCATIONS, MOVEMENTS, STOCK } from "../api/mocks/fixtures";
 import type { Delivery } from "../api/types";
-import { abaixoDoMinimo, abaixoDoMinimoPrimeiro, aguardandoRecebimento, emAndamento, filaDeEspera, filtrarComSaldo, locaisComEstoque, locaisComParada, maisRecentesPrimeiro, podeAcionarEstop, rotularEstoque, saldo } from "./operacoes";
+import { abaixoDoMinimo, abaixoDoMinimoPrimeiro, aguardandoRecebimento, emAndamento, filaDeEspera, filtrarComSaldo, locaisComEstoque, locaisComParada, maisRecentesPrimeiro, pendentesDeAprovacao, podeAcionarEstop, podeAprovar, podeVerFarmacia, rotularEstoque, saldo } from "./operacoes";
 
 test.each([
   ["admin", true],
@@ -73,4 +73,14 @@ test("filaDeEspera ordena por prioridade e depois por id, sem alterar a entrada"
   const copia = [...lista];
   expect(filaDeEspera(lista).map((d) => d.id)).toEqual([7, 2, 3, 5]);
   expect(lista).toEqual(copia);
+});
+
+test("pendentesDeAprovacao deixa só os pedidos aguardando a assinatura, do mais antigo para o mais novo", () => {
+  const lista = [{ ...DELIVERY_PENDENTE, id: 9 }, DELIVERY, DELIVERY_PENDENTE];
+  expect(pendentesDeAprovacao(lista).map((e) => e.id)).toEqual([4, 9]);
+});
+
+test("só farmacêutico e admin veem a Farmácia; só o farmacêutico aprova", () => {
+  expect((["medico", "enfermeiro", "farmaceutico", "admin", "robo"] as const).filter(podeVerFarmacia)).toEqual(["farmaceutico", "admin"]);
+  expect((["medico", "farmaceutico", "admin"] as const).filter(podeAprovar)).toEqual(["farmaceutico"]);
 });

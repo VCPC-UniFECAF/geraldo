@@ -74,6 +74,49 @@ export const handlers = [
     }
     return HttpResponse.json(entrega);
   }),
+  http.post(`${BASE}/deliveries/:id/approve`, ({ params }) => {
+    if (usuario.role !== "farmaceutico") {
+      return HttpResponse.json({ detail: "Só o farmacêutico aprova pedidos críticos." }, { status: 403 });
+    }
+    const entrega = entregas.find((e) => e.id === Number(params.id));
+    if (!entrega) return HttpResponse.json({ detail: "Entrega não encontrada. Atualize a lista." }, { status: 404 });
+    if (entrega.status !== "PENDENTE_APROVACAO") {
+      return HttpResponse.json({ detail: `A entrega está ${entrega.status} e não espera aprovação.` }, { status: 409 });
+    }
+    entrega.status = "NA_FILA";
+    return HttpResponse.json(entrega);
+  }),
+  http.post(`${BASE}/deliveries/:id/reject`, async ({ params, request }) => {
+    if (usuario.role !== "farmaceutico") {
+      return HttpResponse.json({ detail: "Só o farmacêutico recusa pedidos críticos." }, { status: 403 });
+    }
+    const entrega = entregas.find((e) => e.id === Number(params.id));
+    if (!entrega) return HttpResponse.json({ detail: "Entrega não encontrada. Atualize a lista." }, { status: 404 });
+    const { reason } = (await request.json()) as { reason?: unknown };
+    if (typeof reason !== "string" || reason.length < 3 || reason.length > 200 || reason !== reason.trim()) {
+      return HttpResponse.json(
+        { detail: "Dados inválidos (reason: motivo de 3 a 200 caracteres, sem espaços nas pontas). Corrija e envie de novo." },
+        { status: 422 },
+      );
+    }
+    if (entrega.status !== "PENDENTE_APROVACAO") {
+      return HttpResponse.json({ detail: `A entrega está ${entrega.status} e não espera aprovação.` }, { status: 409 });
+    }
+    entrega.status = "CANCELADA";
+    entrega.cancel_reason = reason;
+    for (const item of entrega.items) {
+      movimentos.push({
+        id: movimentos.length + 1,
+        delivery_id: entrega.id,
+        type: "ESTORNO",
+        item_id: item.item_id,
+        location_id: entrega.origin_id,
+        quantity: item.quantity,
+        created_at: new Date().toISOString(),
+      });
+    }
+    return HttpResponse.json(entrega);
+  }),
   http.get(`${BASE}/movements`, ({ request }) => {
     const params = new URL(request.url).searchParams;
     const deliveryId = params.get("delivery_id");

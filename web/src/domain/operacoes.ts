@@ -45,3 +45,14 @@ const PAPEIS_DE_EMERGENCIA: readonly Role[] = ["admin", "farmaceutico"];
 
 // Contrato: só admin e farmacêutico chamam POST /robot/estop; a interface nem mostra o botão para os outros.
 export const podeAcionarEstop = (role: Role): boolean => PAPEIS_DE_EMERGENCIA.includes(role);
+
+export const pendentesDeAprovacao = (entregas: Delivery[]): Delivery[] =>
+  entregas.filter((e) => e.status === "PENDENTE_APROVACAO").sort((a, b) => a.id - b.id);
+
+const PAPEIS_DA_FARMACIA: readonly Role[] = ["farmaceutico", "admin"];
+
+// Estoque de todos os locais e a fila de aprovações não são assunto de médico nem de enfermeiro.
+export const podeVerFarmacia = (role: Role): boolean => PAPEIS_DA_FARMACIA.includes(role);
+
+// Contrato: só o farmacêutico chama /approve e /reject (o admin vê a fila, sem botões).
+export const podeAprovar = (role: Role): boolean => role === "farmaceutico";

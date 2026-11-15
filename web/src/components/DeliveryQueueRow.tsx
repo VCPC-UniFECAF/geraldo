@@ -11,6 +11,7 @@ export function DeliveryQueueRow({ entrega, acao }: { entrega: Entrega; acao?: R
       <span className="w-12 text-xs tabular-nums text-neutro-500">{horario(entrega.solicitadaEm)}</span>
       <span className="min-w-0 flex-1 text-sm">
         {itens} · {entrega.origem} → {entrega.destino}
+        {entrega.motivoDaRecusa && <span className="mt-1 block text-neutro-600">Recusada pela farmácia: {entrega.motivoDaRecusa}</span>}
       </span>
       <span className="flex flex-wrap items-center gap-2">
         <PriorityBadge priority={entrega.prioridade} />
