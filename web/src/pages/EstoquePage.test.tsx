@@ -5,7 +5,7 @@ import { EstoquePage } from "./EstoquePage";
 
 test("lista o estoque com o que está abaixo do mínimo primeiro e avisa", async () => {
   render(<EstoquePage api={new HttpApiClient()} />);
-  expect(await screen.findByRole("heading", { name: "Farmácia" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Estoque" })).toBeInTheDocument();
   expect(await screen.findByRole("alert")).toHaveTextContent("1 item abaixo do mínimo. Peça a reposição à farmácia.");
   const itens = await screen.findAllByRole("listitem");
   expect(itens).toHaveLength(3);

@@ -6,7 +6,7 @@ import { AppShell, type PageId } from "./components/AppShell";
 import { Sessao, TokenObserver } from "./domain/Sessao";
 import { podeVerFarmacia } from "./domain/operacoes";
 import { TelemetriaCliente } from "./domain/TelemetriaCliente";
-import { EstoquePage } from "./pages/EstoquePage";
+import { FarmaciaPage } from "./pages/FarmaciaPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MinhasEntregasPage } from "./pages/MinhasEntregasPage";
 import { PainelPage } from "./pages/PainelPage";
@@ -45,7 +45,7 @@ export default function App({ api, telemetria }: { api?: ApiClient; telemetria?:
     <AppShell active={page} role={me.role} onNavigate={setPage}>
       {page === "solicitar" && <SolicitarPage api={cliente} />}
       {page === "entregas" && <MinhasEntregasPage api={cliente} usuario={me} onRequest={() => setPage("solicitar")} />}
-      {page === "farmacia" && podeVerFarmacia(me.role) && <EstoquePage api={cliente} />}
+      {page === "farmacia" && podeVerFarmacia(me.role) && <FarmaciaPage api={cliente} role={me.role} />}
       {page === "painel" && <PainelPage api={cliente} telemetria={stream} role={me.role} />}
     </AppShell>
   );

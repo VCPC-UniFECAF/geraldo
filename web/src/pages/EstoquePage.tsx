@@ -13,8 +13,8 @@ const ABAS = [
 export function EstoquePage({ api }: { api: CatalogoApi & HistoricoApi }) {
   const [aba, setAba] = useState("saldos");
   return (
-    <section>
-      <h1 className="font-display text-2xl font-bold">Farmácia</h1>
+    <section aria-labelledby="titulo-estoque">
+      <h2 id="titulo-estoque" className="font-display text-xl font-semibold">Estoque</h2>
       <Card className="mt-4 grid gap-4">
         <Tabs abas={ABAS} ativa={aba} onChange={setAba} rotulo="Seções do estoque" />
         <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`}>
