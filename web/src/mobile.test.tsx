@@ -74,7 +74,7 @@ test("Farmácia: Aprovar, Recusar, o campo do motivo e as abas têm 44 px", asyn
   semearEntregas([DELIVERY_PENDENTE]);
   const api = new HttpApiClient();
   await api.login("farmaceutico1", "demo");
-  const { container } = render(<FarmaciaPage api={api} role="farmaceutico" />);
+  const { container } = render(<FarmaciaPage api={api} usuario={await api.me()} />);
   await userEvent.click(await screen.findByRole("button", { name: "Recusar entrega 4" }));
   await screen.findByLabelText("Motivo da recusa");
   await screen.findByText("Bolsa de sangue O negativo");

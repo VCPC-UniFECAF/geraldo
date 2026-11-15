@@ -1,6 +1,6 @@
 import { DELIVERY, DELIVERY_PENDENTE, LOCATIONS, MOVEMENTS, STOCK } from "../api/mocks/fixtures";
 import type { Delivery } from "../api/types";
-import { abaixoDoMinimo, abaixoDoMinimoPrimeiro, aguardandoRecebimento, emAndamento, filaDeEspera, filtrarComSaldo, locaisComEstoque, locaisComParada, maisRecentesPrimeiro, pendentesDeAprovacao, podeAcionarEstop, podeAprovar, podeVerFarmacia, rotularEstoque, saldo } from "./operacoes";
+import { abaixoDoMinimo, abaixoDoMinimoPrimeiro, aguardandoRecebimento, emAndamento, filaDeEspera, filtrarComSaldo, locaisComEstoque, locaisComParada, maisRecentesPrimeiro, pendentesDeAprovacao, podeAcionarEstop, podeAprovar, podeAprovarPedido, podeVerFarmacia, rotularEstoque, saldo } from "./operacoes";
 
 test.each([
   ["admin", true],
@@ -83,4 +83,11 @@ test("pendentesDeAprovacao deixa só os pedidos aguardando a assinatura, do mais
 test("só farmacêutico e admin veem a Farmácia; só o farmacêutico aprova", () => {
   expect((["medico", "enfermeiro", "farmaceutico", "admin", "robo"] as const).filter(podeVerFarmacia)).toEqual(["farmaceutico", "admin"]);
   expect((["medico", "farmaceutico", "admin"] as const).filter(podeAprovar)).toEqual(["farmaceutico"]);
+});
+
+test("podeAprovarPedido: farmacêutico aprova o pedido dos outros, nunca o próprio; admin nunca", () => {
+  const farmaceutico = { id: 2, role: "farmaceutico" } as const;
+  expect(podeAprovarPedido(farmaceutico, { solicitanteId: 1 })).toBe(true);
+  expect(podeAprovarPedido(farmaceutico, { solicitanteId: 2 })).toBe(false);
+  expect(podeAprovarPedido({ id: 3, role: "admin" }, { solicitanteId: 1 })).toBe(false);
 });

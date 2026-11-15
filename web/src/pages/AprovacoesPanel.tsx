@@ -1,25 +1,25 @@
 import { Check, X } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ApiError, type AprovacoesApi, type CatalogoApi, type EntregasApi } from "../api/ApiClient";
-import type { Role } from "../api/types";
+import type { Me } from "../api/types";
 import { AlertBanner } from "../components/AlertBanner";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { DeliveryQueueRow } from "../components/DeliveryQueueRow";
 import { EntregaAdapter, type Entrega } from "../domain/EntregaAdapter";
 import { MOTIVO_MAX, validarMotivo } from "../domain/motivo";
-import { pendentesDeAprovacao, podeAprovar } from "../domain/operacoes";
+import { pendentesDeAprovacao, podeAprovar, podeAprovarPedido } from "../domain/operacoes";
 
 interface Props {
   api: EntregasApi & AprovacoesApi & CatalogoApi;
-  role: Role;
+  usuario: Me;
   intervaloMs?: number;
 }
 
 const CAMPO = "min-h-controle w-full rounded-controle border border-neutro-200 bg-branco px-3 py-2 text-base";
 
 // Pedidos críticos esperando a assinatura do farmacêutico. Recarrega sozinho: o pedido chega sem ninguém tocar na tela.
-export function AprovacoesPanel({ api, role, intervaloMs = 5000 }: Props) {
+export function AprovacoesPanel({ api, usuario, intervaloMs = 5000 }: Props) {
   const [pedidos, setPedidos] = useState<Entrega[] | null>(null);
   const [sessaoExpirada, setSessaoExpirada] = useState(false);
   const [erroRecarga, setErroRecarga] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export function AprovacoesPanel({ api, role, intervaloMs = 5000 }: Props) {
   const [recusando, setRecusando] = useState<number | null>(null);
   const [motivo, setMotivo] = useState("");
   const [erroMotivo, setErroMotivo] = useState<string | null>(null);
-  const aprova = podeAprovar(role);
+  const aprova = podeAprovar(usuario.role);
 
   const carregar = useCallback(async () => {
     const [entregas, locais] = await Promise.all([api.deliveries(), api.locations()]);
@@ -116,10 +116,14 @@ export function AprovacoesPanel({ api, role, intervaloMs = 5000 }: Props) {
                 acao={
                   aprova ? (
                     <>
-                      <Button aria-label={`Aprovar entrega ${p.id}`} disabled={ocupado} onClick={() => void agir(() => api.approveDelivery(p.id), `Entrega ${p.id} aprovada. O robô vai buscar assim que estiver livre.`)}>
-                        <Check size={20} aria-hidden="true" />
-                        Aprovar
-                      </Button>
+                      {podeAprovarPedido(usuario, p) ? (
+                        <Button aria-label={`Aprovar entrega ${p.id}`} disabled={ocupado} onClick={() => void agir(() => api.approveDelivery(p.id), `Entrega ${p.id} aprovada. O robô vai buscar assim que estiver livre.`)}>
+                          <Check size={20} aria-hidden="true" />
+                          Aprovar
+                        </Button>
+                      ) : (
+                        <span className="text-sm text-neutro-500">Outro farmacêutico precisa aprovar</span>
+                      )}
                       <Button variant="secundario" aria-label={`Recusar entrega ${p.id}`} disabled={ocupado} onClick={() => abrirRecusa(p.id)}>
                         <X size={20} aria-hidden="true" />
                         Recusar

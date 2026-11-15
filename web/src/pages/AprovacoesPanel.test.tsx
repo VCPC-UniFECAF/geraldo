@@ -7,16 +7,16 @@ import { semearEntregas } from "../api/mocks/handlers";
 import { server } from "../api/mocks/server";
 import { AprovacoesPanel } from "./AprovacoesPanel";
 
-async function montar(role: "farmaceutico" | "admin", intervaloMs?: number) {
+async function montar(username: "farmaceutico1" | "farmaceutico2" | "admin", intervaloMs?: number) {
   const api = new HttpApiClient();
-  await api.login(role === "admin" ? "admin" : "farmaceutico1", "demo");
-  render(<AprovacoesPanel api={api} role={role} intervaloMs={intervaloMs} />);
+  await api.login(username, "demo");
+  render(<AprovacoesPanel api={api} usuario={await api.me()} intervaloMs={intervaloMs} />);
   return api;
 }
 
 test("lista só os pedidos pendentes, com itens, origem, destino e horário", async () => {
   semearEntregas([DELIVERY, DELIVERY_PENDENTE]);
-  await montar("farmaceutico");
+  await montar("farmaceutico1");
   expect(await screen.findByRole("heading", { name: "Aprovações" })).toBeInTheDocument();
   expect(await screen.findByText(/2 × Bolsa sangue o neg · Banco de sangue → Consultório 1/)).toBeInTheDocument();
   expect(screen.getAllByRole("listitem")).toHaveLength(1);
@@ -24,13 +24,13 @@ test("lista só os pedidos pendentes, com itens, origem, destino e horário", as
 
 test("sem pedidos pendentes mostra o estado vazio", async () => {
   semearEntregas([DELIVERY]);
-  await montar("farmaceutico");
+  await montar("farmaceutico1");
   expect(await screen.findByText("Nenhum pedido crítico esperando a sua assinatura.")).toBeInTheDocument();
 });
 
 test("o farmacêutico aprova: o pedido sai da lista e aparece o aviso", async () => {
   semearEntregas([DELIVERY_PENDENTE]);
-  await montar("farmaceutico");
+  await montar("farmaceutico1");
   await userEvent.click(await screen.findByRole("button", { name: "Aprovar entrega 4" }));
   expect(await screen.findByRole("status")).toHaveTextContent("Entrega 4 aprovada. O robô vai buscar assim que estiver livre.");
   await waitFor(() => expect(screen.queryByRole("button", { name: "Aprovar entrega 4" })).not.toBeInTheDocument());
@@ -38,7 +38,7 @@ test("o farmacêutico aprova: o pedido sai da lista e aparece o aviso", async ()
 
 test("recusar pede o motivo, valida e só então envia; o pedido sai da lista", async () => {
   semearEntregas([DELIVERY_PENDENTE]);
-  const api = await montar("farmaceutico");
+  const api = await montar("farmaceutico1");
   await userEvent.click(await screen.findByRole("button", { name: "Recusar entrega 4" }));
   const campo = screen.getByLabelText("Motivo da recusa");
   await userEvent.type(campo, "ab");
@@ -55,7 +55,7 @@ test("recusar pede o motivo, valida e só então envia; o pedido sai da lista", 
 
 test("cancelar a recusa fecha o campo sem enviar nada", async () => {
   semearEntregas([DELIVERY_PENDENTE]);
-  const api = await montar("farmaceutico");
+  const api = await montar("farmaceutico1");
   await userEvent.click(await screen.findByRole("button", { name: "Recusar entrega 4" }));
   await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
   expect(screen.queryByLabelText("Motivo da recusa")).not.toBeInTheDocument();
@@ -73,7 +73,7 @@ test("o admin vê a lista sem botões e com a nota", async () => {
 test("erro ao aprovar aparece como alerta e a lista continua", async () => {
   semearEntregas([DELIVERY_PENDENTE]);
   server.use(http.post("http://localhost:8000/deliveries/4/approve", () => HttpResponse.json({ detail: "A entrega está NA_FILA e não espera aprovação." }, { status: 409 })));
-  await montar("farmaceutico");
+  await montar("farmaceutico1");
   await userEvent.click(await screen.findByRole("button", { name: "Aprovar entrega 4" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("A entrega está NA_FILA e não espera aprovação.");
   expect(screen.getByRole("button", { name: "Aprovar entrega 4" })).toBeInTheDocument();
@@ -83,7 +83,7 @@ test("recarrega a lista sozinha: um pedido novo aparece sem trocar de aba", asyn
   semearEntregas([]);
   vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
   try {
-    await montar("farmaceutico", 5000);
+    await montar("farmaceutico1", 5000);
     expect(await screen.findByText("Nenhum pedido crítico esperando a sua assinatura.")).toBeInTheDocument();
     semearEntregas([DELIVERY_PENDENTE]);
     await act(async () => {
@@ -99,7 +99,7 @@ test("401 na recarga mostra a sessão expirada e mantém a lista", async () => {
   semearEntregas([DELIVERY_PENDENTE]);
   vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
   try {
-    await montar("farmaceutico", 5000);
+    await montar("farmaceutico1", 5000);
     await screen.findByRole("button", { name: "Aprovar entrega 4" });
     server.use(http.get("http://localhost:8000/deliveries", () => HttpResponse.json({ detail: "Faça login para continuar." }, { status: 401 })));
     await act(async () => {
@@ -110,4 +110,22 @@ test("401 na recarga mostra a sessão expirada e mantém a lista", async () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+const PEDIDO_DO_FARMACEUTICO1 = { ...DELIVERY_PENDENTE, requested_by: 2 };
+
+test("quem pediu o crítico não aprova o próprio pedido: sem Aprovar, com a nota; Recusar continua", async () => {
+  semearEntregas([PEDIDO_DO_FARMACEUTICO1]);
+  await montar("farmaceutico1");
+  expect(await screen.findByRole("button", { name: "Recusar entrega 4" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Aprovar entrega 4" })).not.toBeInTheDocument();
+  expect(screen.getByText("Outro farmacêutico precisa aprovar")).toBeInTheDocument();
+});
+
+test("o outro farmacêutico aprova o pedido de quem pediu", async () => {
+  semearEntregas([PEDIDO_DO_FARMACEUTICO1]);
+  await montar("farmaceutico2");
+  await userEvent.click(await screen.findByRole("button", { name: "Aprovar entrega 4" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Entrega 4 aprovada.");
+  expect(screen.queryByText("Outro farmacêutico precisa aprovar")).not.toBeInTheDocument();
 });

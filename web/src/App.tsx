@@ -45,7 +45,7 @@ export default function App({ api, telemetria }: { api?: ApiClient; telemetria?:
     <AppShell active={page} role={me.role} onNavigate={setPage}>
       {page === "solicitar" && <SolicitarPage api={cliente} />}
       {page === "entregas" && <MinhasEntregasPage api={cliente} usuario={me} onRequest={() => setPage("solicitar")} />}
-      {page === "farmacia" && podeVerFarmacia(me.role) && <FarmaciaPage api={cliente} role={me.role} />}
+      {page === "farmacia" && podeVerFarmacia(me.role) && <FarmaciaPage api={cliente} usuario={me} />}
       {page === "painel" && <PainelPage api={cliente} telemetria={stream} role={me.role} />}
     </AppShell>
   );
