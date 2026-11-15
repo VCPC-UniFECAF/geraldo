@@ -4,7 +4,7 @@ Data: 14/11/2026 · Branch: `feat/semana3-plano1` · Commit das medições: efae
 
 Configuração do Nav2: a da `main` (`nav2_params.yaml` e `make_nav2_params.py` idênticos): `CRUISE_SPEED` 1,0 m/s, janela do costmap local de 3 m, MPPI padrão. Perfis por prioridade 1,0 / 0,8 / 0,5 m/s (decisão do Samuel em 14/11: manter a velocidade que estava antes dos 3 m/s). A branch acrescenta câmera RGB-D, estop do backend e este script; não mexe na navegação.
 
-## Velocidade real de cruzeiro: ~0,55 m/s (já era assim na `main`)
+## Velocidade real de cruzeiro: ~0,55 m/s (já era assim na `main`; resolvido em 15/11, ver "Cruzeiro (15/11)")
 
 Com o teto em 1,0 m/s o robô não passa de uns 0,55 m/s no corredor reto. Conferido nas duas pontas, base até (42, 29) sem dispatcher:
 
@@ -81,6 +81,52 @@ Corridas partindo da base até (42, 29), pilha nova a cada uma:
 
 O resultado era aleatório e não variava de forma regular com os parâmetros: o problema é sair e entrar pelas portas de 1 m. Fora do protocolo, uma frenagem a 2,89 m/s parou em 2,04 m (acima do alcance de 2 m dos sensores). O `curve_limiter` foi removido na volta a 1,0 m/s: com teto de 1,0 m/s, `a_brake` de 1,5 m/s² e ponto a cada 0,5 m, o menor limite possível (√(0,3² + 2·1,5·0,5) = 1,26 m/s) fica acima do teto e ele nunca age. Voltar a 3 m/s exigiria resolver a saída pelas portas (por exemplo, proibir a ré no MPPI ou girar no lugar antes de sair) e trazer o `curve_limiter` de volta (commit cbe7fc7 no histórico da branch).
 
+## Cruzeiro (15/11): de ~0,54 para 1,0 m/s só com parâmetros do MPPI
+
+Causa do cruzeiro de ~0,54 m/s (investigação em `exp/cruzeiro`, 81 trechos, pilha reiniciada a cada variante): **três limites dentro do MPPI**, cada um aparece quando o anterior é removido.
+
+| Limite | Conta | Teto | Medido |
+|---|---|---|---|
+| Janela do costmap local (3 m, raio 1,5 m) contra o horizonte 56 × 0,05 = 2,8 s | 1,5 / 2,8 | 0,536 m/s | 0,54 (`main`) |
+| `prune_distance` 1,7 m | 1,7 / 2,8 | 0,607 m/s | 0,60 (janela 5 ou 7 m) |
+| `vx_std` 0,2, com os dois acima abertos | — | ~0,67 m/s | 0,67 (janela 7 + prune 4,0 ou 28 passos) |
+
+Com janela 7 m, `prune` 4,0 e `vx_std` 0,4 o robô chegou a 1,00 m/s; com janela 5 m o teto passou a 0,89 (2,5 / 2,8), como previsto. Não são os críticos de caminho, o suavizador nem a CPU: com o teto em 0,67 m/s o `/cmd_vel_nav` (saída do controlador) já parava em 0,67 e a taxa ficou em 20 Hz em todas as corridas. A mudança mínima, que não mexe na janela nem no `prune`: **`time_steps` 56 → 28** (horizonte de 1,4 s: tetos de 1,07 e 1,2 m/s) e **`vx_std` 0,2 → 0,4** (`MPPI_TUNING` em `robot/scripts/make_nav2_params.py`). Os perfis de 1,0/0,8/0,5 m/s do `robot-protocol.md` passam a valer de verdade; o contrato não muda.
+
+Candidatas validadas (C2: `time_steps` 28; C3: `time_steps` 36; as duas com `vx_std` 0,4):
+
+| | `main` | C2 (28 passos) | C3 (36 passos) |
+|---|---|---|---|
+| Pico crítica / média / rotina | 0,54 / 0,54 / 0,50 | **1,00 / 0,80 / 0,50** | 0,86 a 0,89 (a conta da janela dá 1,5 / 1,8 = 0,83) |
+| Base → (42, 29), crítica | 81 s | 45 s | não medido |
+| Maca surge a 8 m no corredor, meta (42, 29): corridas | 4 | **10** | **10** |
+| Chegaram | 2 (as outras 2 não contornaram em 241 s) | 10 de 10 | 10 de 10 |
+| Encostaram (< 0,35 m) | 0 | **0** | **0** |
+| Distância mínima à maca (mín / média / máx) | 0,58 a 5,56 m | 0,45 / 0,59 / 0,84 m | 0,51 / 0,61 / 0,91 m |
+| Tempo até (42, 29) com a maca | 132 s (nas 2 que chegaram) | 148 a 159 s (média 152 s) | 172 a 193 s (média 183 s) |
+| Frenagem (cancelar a meta a ~1,0 m/s) | de 0,52 m/s: 0,09 m e 0,27 s | de 0,98 m/s: 0,24 m e 0,44 s; de 0,97: 0,25 m e 0,48 s | não medido |
+| Varredura dos 10 pontos | `TODOS OS PONTOS OK`, 553 s | `TODOS OS PONTOS OK`, 322 s | não medida |
+| Portas de 1 m (farmácia: 12 trechos; centro cirúrgico: 2 idas e 2 voltas) | todas passaram | todas passaram | — |
+| Controlador / CPU do container do Nav2 | 20 Hz / 94 a 103 % | 20 Hz / 88 a 93 % | — |
+
+Escolha: as duas passaram na maca (0 encostões em 10), então ficou a mais rápida, **C2**. Na primeira triagem, com 4 corridas, a C2 tinha encostado uma vez (0,33 m); nas 10 corridas de validação não repetiu (mínimo 0,45 m), então a margem é estreita: se o horizonte de 1,4 s preocupar, a C3 é o meio-termo (mais lenta, 0,88 m/s). Varredura da C2:
+
+```
+ok     farmacia_balcao              4s
+ok     banco_sangue_retirada       35s
+ok     rouparia_coleta             43s
+ok     cc_entrega                  31s
+ok     uti_entrega                 26s
+ok     ps_entrega                  54s
+ok     cons1_entrega               49s
+ok     cons2_entrega               20s
+ok     enf214_entrega              34s
+ok     enf215_entrega              26s
+TODOS OS PONTOS OK
+```
+
+Ressalvas: o container do Nav2 roda perto de um núcleo inteiro (qualquer variante); a taxa real da simulação (RTF) não foi medida; a maca foi medida só a 8 m no corredor nesta validação.
+
 ## Proposta
 
-Nenhum cenário medido a 1,0 m/s reprovou. Pendência registrada: a velocidade real de cruzeiro é ~0,55 m/s por causa da janela de 3 m do costmap local (vem da `main`); aumentar a janela sem os outros ajustes do MPPI precisa de decisão do líder e de nova varredura.
+Nenhum cenário medido a 1,0 m/s reprovou. O cruzeiro de ~0,55 m/s foi resolvido em 15/11 com `time_steps` 28 e `vx_std` 0,4 (seção acima).
