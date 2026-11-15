@@ -35,3 +35,18 @@ test("mostra a ação recebida ao lado dos selos", () => {
   );
   expect(screen.getByRole("button", { name: "Fazer algo" })).toBeInTheDocument();
 });
+
+test("entrega recusada mostra o motivo; sem recusa não mostra nada", () => {
+  const { rerender } = render(
+    <ul>
+      <DeliveryQueueRow entrega={{ ...entrega, status: "CANCELADA", motivoDaRecusa: "Use a prescrição digital" }} />
+    </ul>,
+  );
+  expect(screen.getByText("Recusada pela farmácia: Use a prescrição digital")).toBeInTheDocument();
+  rerender(
+    <ul>
+      <DeliveryQueueRow entrega={entrega} />
+    </ul>,
+  );
+  expect(screen.queryByText(/Recusada pela farmácia/)).not.toBeInTheDocument();
+});
