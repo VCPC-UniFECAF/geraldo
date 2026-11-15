@@ -24,11 +24,17 @@ test("começa no login, entra e mostra a tela de solicitar", async () => {
   await entrar("medico1");
 });
 
-test("a aba Estoque mostra os saldos", async () => {
+test("o médico não tem a aba Farmácia", async () => {
   montar();
   await entrar("medico1");
-  await userEvent.click(screen.getAllByRole("button", { name: "Estoque" })[0]);
-  expect(await screen.findByRole("heading", { name: "Estoque" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Farmácia" })).not.toBeInTheDocument();
+});
+
+test("o farmacêutico abre a Farmácia e vê o estoque", async () => {
+  montar();
+  await entrar("farmaceutico1");
+  await userEvent.click(screen.getAllByRole("button", { name: "Farmácia" })[0]);
+  expect(await screen.findByRole("heading", { name: "Farmácia" })).toBeInTheDocument();
   expect(await screen.findByText("Bolsa de sangue O negativo")).toBeInTheDocument();
 });
 
@@ -60,6 +66,6 @@ test("sair do Painel fecha o WebSocket", async () => {
   await entrar("medico1");
   await userEvent.click(screen.getAllByRole("button", { name: "Painel" })[0]);
   await screen.findByRole("heading", { name: "Painel do robô" });
-  await userEvent.click(screen.getAllByRole("button", { name: "Estoque" })[0]);
+  await userEvent.click(screen.getAllByRole("button", { name: "Minhas entregas" })[0]);
   expect(sockets[0].fechado).toBe(true);
 });

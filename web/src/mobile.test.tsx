@@ -61,7 +61,7 @@ test("Painel: o botão de emergência tem 52 px e ocupa a largura no celular", a
 
 test("a navegação (lateral e inferior) tem 44 px e a barra inferior só aparece no celular", () => {
   const { container } = render(
-    <AppShell active="painel" onNavigate={vi.fn()}>
+    <AppShell active="painel" role="admin" onNavigate={vi.fn()}>
       x
     </AppShell>,
   );

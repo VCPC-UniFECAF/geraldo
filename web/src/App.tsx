@@ -4,6 +4,7 @@ import { HttpApiClient } from "./api/HttpApiClient";
 import type { Me } from "./api/types";
 import { AppShell, type PageId } from "./components/AppShell";
 import { Sessao, TokenObserver } from "./domain/Sessao";
+import { podeVerFarmacia } from "./domain/operacoes";
 import { TelemetriaCliente } from "./domain/TelemetriaCliente";
 import { EstoquePage } from "./pages/EstoquePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -41,10 +42,10 @@ export default function App({ api, telemetria }: { api?: ApiClient; telemetria?:
   if (erroMe) return <p role="alert" className="p-4 text-vermelho-600">{erroMe}</p>;
   if (!me) return <p className="p-4 text-neutro-500">Carregando…</p>;
   return (
-    <AppShell active={page} onNavigate={setPage}>
+    <AppShell active={page} role={me.role} onNavigate={setPage}>
       {page === "solicitar" && <SolicitarPage api={cliente} />}
       {page === "entregas" && <MinhasEntregasPage api={cliente} usuario={me} onRequest={() => setPage("solicitar")} />}
-      {page === "estoque" && <EstoquePage api={cliente} />}
+      {page === "farmacia" && podeVerFarmacia(me.role) && <EstoquePage api={cliente} />}
       {page === "painel" && <PainelPage api={cliente} telemetria={stream} role={me.role} />}
     </AppShell>
   );
