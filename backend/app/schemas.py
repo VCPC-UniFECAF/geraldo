@@ -2,7 +2,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StrictBool
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StrictBool, field_validator
+from pydantic_core import PydanticCustomError
 
 from app.models import DeliveryStatus, MovementType, Priority, Role
 
@@ -60,6 +61,19 @@ class DeliveryCreate(BaseModel):
     dest_id: str | None = Field(default=None, min_length=1, max_length=64)
     items: list[DeliveryItemIn] = Field(min_length=1, max_length=50)
     priority: Priority
+
+
+class RejectIn(BaseModel):
+    """Corpo do POST /deliveries/{id}/reject: o motivo que o solicitante vai ler (3 a 200 caracteres, sem espaços nas pontas)."""
+
+    reason: str = Field(min_length=3, max_length=200)
+
+    @field_validator("reason")
+    @classmethod
+    def no_edge_spaces(cls, value: str) -> str:
+        if value != value.strip():
+            raise PydanticCustomError("edge_spaces", "motivo com espaços nas pontas")
+        return value
 
 
 class DeliveryOut(BaseModel):

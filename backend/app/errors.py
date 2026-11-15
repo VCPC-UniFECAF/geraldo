@@ -33,6 +33,7 @@ MESSAGES = {
     "model_type": "formato inválido",
     "dict_type": "formato inválido",
     "list_type": "deve ser uma lista",
+    "edge_spaces": "não pode começar nem terminar com espaço (tire os espaços das pontas)",
 }
 HTTP_MESSAGES = {
     404: "Endereço não encontrado. Confira a URL na documentação (/docs).",
