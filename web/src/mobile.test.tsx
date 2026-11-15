@@ -2,18 +2,19 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import html from "../index.html?raw";
 import { HttpApiClient } from "./api/HttpApiClient";
-import { DELIVERY_AGUARDANDO, ME } from "./api/mocks/fixtures";
+import { DELIVERY_AGUARDANDO, DELIVERY_PENDENTE, ME } from "./api/mocks/fixtures";
 import { semearEntregas } from "./api/mocks/handlers";
 import { AppShell } from "./components/AppShell";
 import { TelemetriaCliente } from "./domain/TelemetriaCliente";
 import { EstoquePage } from "./pages/EstoquePage";
+import { FarmaciaPage } from "./pages/FarmaciaPage";
 import { MinhasEntregasPage } from "./pages/MinhasEntregasPage";
 import { PainelPage } from "./pages/PainelPage";
 import { SolicitarPage } from "./pages/SolicitarPage";
 import { fabricaDeSockets } from "./test/SocketFalso";
 
 // Alvo de toque mínimo de 44 px: botão, select e campo precisam de min-h-controle (ou do tamanho lg, 52 px). Radios ficam dentro de um label que tem a altura.
-const ALVOS = 'button, select, input:not([type="radio"]):not([type="checkbox"])';
+const ALVOS = 'button, select, textarea, input:not([type="radio"]):not([type="checkbox"])';
 
 function conferirAlvos(container: HTMLElement) {
   const alvos = [...container.querySelectorAll<HTMLElement>(ALVOS)];
@@ -67,4 +68,15 @@ test("a navegação (lateral e inferior) tem 44 px e a barra inferior só aparec
   );
   conferirAlvos(container);
   expect(screen.getAllByRole("navigation")[1]).toHaveClass("md:hidden");
+});
+
+test("Farmácia: Aprovar, Recusar, o campo do motivo e as abas têm 44 px", async () => {
+  semearEntregas([DELIVERY_PENDENTE]);
+  const api = new HttpApiClient();
+  await api.login("farmaceutico1", "demo");
+  const { container } = render(<FarmaciaPage api={api} role="farmaceutico" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Recusar entrega 4" }));
+  await screen.findByLabelText("Motivo da recusa");
+  await screen.findByText("Bolsa de sangue O negativo");
+  conferirAlvos(container);
 });

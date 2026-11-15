@@ -27,7 +27,7 @@ npm run build
 |---|---|---|
 | Solicitar | `SolicitarPage` | Formulário de pedido (Builder) |
 | Minhas entregas | `MinhasEntregasPage` | Lista e botão "Confirmar recebimento" (`POST /deliveries/{id}/confirm-receipt`) |
-| Estoque | `EstoquePage` | Abas Saldos (`StockLevelBar`, `GET /stock`) e Histórico (`MovementLogRow`, `GET /movements`) |
+| Farmácia (só `farmaceutico` e `admin`) | `FarmaciaPage` | **Aprovações** (`AprovacoesPanel`: pedidos `PENDENTE_APROVACAO`, recarrega a cada 5 s; o farmacêutico aprova ou recusa com motivo de 3 a 200 caracteres, o admin só lê) e **Estoque** (`EstoquePage`: abas Saldos com `StockLevelBar`/`GET /stock` e Histórico com `MovementLogRow`/`GET /movements`). O `AppShell` esconde a aba dos outros papéis (`podeVerFarmacia`); `GET /stock` continua aberto a todo usuário logado, o formulário de Solicitar usa |
 | Painel | `PainelPage` | `RobotStatusCard`, `TelemetryPanel`, fila e entregas em andamento, alertas e botão de parada de emergência (só `admin` e `farmaceutico`; `POST /robot/estop`) |
 
 O papel vem de `GET /me` logo depois do login (`App.tsx`).
