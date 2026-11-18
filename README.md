@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/img/marca/capa.png" alt="G.E.R.A.L.D.O.: logística hospitalar, autonomia com controle" width="860">
+</p>
+
 <h1 align="center">G.E.R.A.L.D.O.</h1>
 
 <p align="center">
@@ -132,11 +136,9 @@ Aplicação responsiva (funciona no celular), em português, com login e papéis
 
 # Como funciona uma entrega
 
-```
-Pedido no sistema web → Autenticação (JWT) → Fila de prioridade → Reserva de estoque
- → (crítica) assinatura do farmacêutico → Despacho ao robô → Navegação com desvio de obstáculos
- → Chegada → Solicitante confirma o recebimento (a tampa libera) → Baixa e crédito de estoque
-```
+<p align="center">
+  <img src="docs/img/marca/jornada-entrega.png" alt="Jornada de uma entrega: pedido, fila, reserva, validação crítica, despacho, navegação, confirmação e estoque" width="860">
+</p>
 
 | Prioridade | Exemplo | Robô | Validação |
 |---|---|---|---|
@@ -148,13 +150,9 @@ O estoque nunca é editado diretamente: cada reserva, baixa, crédito e estorno 
 
 # Arquitetura
 
-```mermaid
-flowchart LR
-  Web["Sistema web<br/>React + Vite"] -- "REST + WebSocket (JWT)" --> API["Backend<br/>FastAPI + SQLite"]
-  Disp["geraldo_dispatcher<br/>ROS 2"] -- "REST (usuário robo)" --> API
-  Disp -- "metas, TF e /scan" --> Nav["Nav2<br/>AMCL + MPPI"]
-  Nav -- "/cmd_vel e sensores" --> Gz["Gazebo Harmonic<br/>hospital + robô"]
-```
+<p align="center">
+  <img src="docs/img/marca/arquitetura.png" alt="Cinco partes, um fluxo integrado: sistema web, backend, dispatcher, Nav2 e Gazebo" width="860">
+</p>
 
 As peças conversam por contratos versionados em [`docs/contracts/`](docs/contracts/): a API em [`openapi.yaml`](docs/contracts/openapi.yaml), o login em [`jwt.md`](docs/contracts/jwt.md), os tópicos ROS em [`ros-interfaces.md`](docs/contracts/ros-interfaces.md) e a conversa do robô com o backend em [`robot-protocol.md`](docs/contracts/robot-protocol.md). Mudou o contrato, mudam os testes: o backend é conferido contra o OpenAPI.
 
@@ -194,6 +192,19 @@ Roteiro: entre como `medico1`, peça uma entrega **crítica**, aprove em **Farm�
 (cd web && npm test -- --run && npm run build)
 python3 -m pytest tools robot -q      # com o ROS carregado
 ```
+
+# A marca
+
+O logotipo é um traço contínuo de espessura única, com pontos vermelhos entre as letras. No **O** final, uma cruz vermelha faz a ligação com o universo hospitalar.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/img/marca/simbolo.png" alt="Símbolo: contorno mais cruz interna" width="420"></td>
+    <td align="center"><img src="docs/img/marca/blueprint.png" alt="Blueprint do logotipo, com as medidas em unidades" width="420"></td>
+  </tr>
+</table>
+
+As cores e a tipografia da interface saem dos tokens do [design system](design-system/DESIGN_SYSTEM.md).
 
 # Tecnologias
 
