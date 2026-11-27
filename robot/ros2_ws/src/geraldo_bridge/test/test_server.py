@@ -1,10 +1,17 @@
 import pytest
 from fakes import FakeGui, FakeRosPort
-from fastapi.testclient import TestClient
-from starlette.websockets import WebSocketDisconnect
-
 from geraldo_bridge.convert import RANGE_NAMES
-from geraldo_bridge.server import ALLOWED_ORIGINS, HOST, PORT, create_app
+
+try:
+    from fastapi.testclient import TestClient
+    from starlette.websockets import WebSocketDisconnect
+
+    from geraldo_bridge.server import ALLOWED_ORIGINS, HOST, PORT, create_app
+except ModuleNotFoundError:  # o pytest da raiz roda no Python do sistema, sem fastapi; um skip no topo derrubaria a coleta toda
+    TestClient = WebSocketDisconnect = create_app = HOST = PORT = None
+    ALLOWED_ORIGINS = ()
+
+pytestmark = pytest.mark.skipif(TestClient is None, reason="a ponte precisa do fastapi: rode no venv do app")
 from geraldo_bridge.state import BridgeState
 
 BASE = "http://127.0.0.1:8765"
@@ -17,6 +24,14 @@ def parts():
     state, port, gui = BridgeState(), FakeRosPort(), FakeGui()
     client = TestClient(create_app(state, port, gui, interval_s=0.01), base_url=BASE)
     return client, state, port, gui
+
+
+def test_shutting_down_closes_the_gazebo_window_and_rclpy():
+    # o uvicorn roda o lifespan no SIGTERM, mas não um finally em volta do uvicorn.run
+    state, port, gui = BridgeState(), FakeRosPort(), FakeGui()
+    with TestClient(create_app(state, port, gui), base_url=BASE):
+        assert not gui.closed and not port.stopped
+    assert gui.closed and port.stopped
 
 
 def test_the_bridge_listens_only_on_loopback_on_port_8765():

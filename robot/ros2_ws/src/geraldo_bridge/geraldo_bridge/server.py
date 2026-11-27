@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,7 +23,14 @@ class EstopBody(BaseModel):
 
 
 def create_app(state: BridgeState, port: RosPort, gui, interval_s: float = WS_INTERVAL_S) -> FastAPI:
-    app = FastAPI(title="G.E.R.A.L.D.O. ponte ROS", docs_url=None, redoc_url=None, openapi_url=None)
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        yield
+        # o uvicorn roda isto também no SIGTERM (um finally em volta do uvicorn.run não roda): fecha a janela e o rclpy
+        gui.close()
+        port.stop()
+
+    app = FastAPI(title="G.E.R.A.L.D.O. ponte ROS", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
     @app.middleware("http")
     async def reject_foreign_origins(request: Request, call_next):
