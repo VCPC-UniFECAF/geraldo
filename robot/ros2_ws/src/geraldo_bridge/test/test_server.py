@@ -1,10 +1,17 @@
 import pytest
 from fakes import FakeGui, FakeRosPort
-from fastapi.testclient import TestClient
-from starlette.websockets import WebSocketDisconnect
-
 from geraldo_bridge.convert import RANGE_NAMES
-from geraldo_bridge.server import ALLOWED_ORIGINS, HOST, PORT, create_app
+
+try:
+    from fastapi.testclient import TestClient
+    from starlette.websockets import WebSocketDisconnect
+
+    from geraldo_bridge.server import ALLOWED_ORIGINS, HOST, PORT, create_app
+except ModuleNotFoundError:  # o pytest da raiz roda no Python do sistema, sem fastapi; um skip no topo derrubaria a coleta toda
+    TestClient = WebSocketDisconnect = create_app = HOST = PORT = None
+    ALLOWED_ORIGINS = ()
+
+pytestmark = pytest.mark.skipif(TestClient is None, reason="a ponte precisa do fastapi: rode no venv do app")
 from geraldo_bridge.state import BridgeState
 
 BASE = "http://127.0.0.1:8765"
