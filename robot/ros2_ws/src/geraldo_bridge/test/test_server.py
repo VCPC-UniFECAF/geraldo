@@ -26,6 +26,14 @@ def parts():
     return client, state, port, gui
 
 
+def test_shutting_down_closes_the_gazebo_window_and_rclpy():
+    # o uvicorn roda o lifespan no SIGTERM, mas não um finally em volta do uvicorn.run
+    state, port, gui = BridgeState(), FakeRosPort(), FakeGui()
+    with TestClient(create_app(state, port, gui), base_url=BASE):
+        assert not gui.closed and not port.stopped
+    assert gui.closed and port.stopped
+
+
 def test_the_bridge_listens_only_on_loopback_on_port_8765():
     assert (HOST, PORT) == ("127.0.0.1", 8765)
 

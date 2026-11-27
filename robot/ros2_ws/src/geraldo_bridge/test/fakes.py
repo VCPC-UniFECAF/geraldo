@@ -21,7 +21,7 @@ class FakeRosPort(RosPort):  # substituto de teste do rclpy (LSP): guarda o que 
 
 class FakeGui:  # mesma interface do GazeboGui, sem processo
     def __init__(self, pid: int = 4321, error: str | None = None) -> None:
-        self.pid, self.error, self.opened = pid, error, 0
+        self.pid, self.error, self.opened, self.closed = pid, error, 0, False
 
     def open(self) -> tuple[int, bool]:
         if self.error:
@@ -30,4 +30,4 @@ class FakeGui:  # mesma interface do GazeboGui, sem processo
         return self.pid, self.opened > 1
 
     def close(self) -> None:
-        pass
+        self.closed = True

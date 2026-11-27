@@ -9,11 +9,8 @@ def main() -> None:
 
     state, port, gui = BridgeState(), RclpyRosPort(), GazeboGui()
     port.start(state)
-    try:
-        uvicorn.run(create_app(state, port, gui), host=HOST, port=PORT, log_level="warning")
-    finally:  # o uvicorn volta no SIGTERM/SIGINT; fecha a janela do Gazebo e o rclpy
-        gui.close()
-        port.stop()
+    # a janela do Gazebo e o rclpy fecham no lifespan do app (server.py), que o uvicorn roda no SIGTERM e no SIGINT
+    uvicorn.run(create_app(state, port, gui), host=HOST, port=PORT, log_level="warning")
 
 
 if __name__ == "__main__":
